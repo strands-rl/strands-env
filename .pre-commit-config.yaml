@@ -1,13 +1,13 @@
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.6.4
+    rev: v0.15.4
     hooks:
       - id: ruff
         args: [--fix]
       - id: ruff-format
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
+    rev: v6.0.0
     hooks:
       - id: check-yaml
       - id: check-case-conflict
@@ -17,6 +17,7 @@ repos:
       - id: requirements-txt-fixer
       - id: end-of-file-fixer
       - id: trailing-whitespace
+      - id: check-merge-conflict
 
   - repo: https://github.com/codespell-project/codespell
     rev: v2.4.1
@@ -26,7 +27,7 @@ repos:
           - tomli
 
   - repo: https://github.com/Lucas-C/pre-commit-hooks
-    rev: v1.5.5
+    rev: v1.5.6
     hooks:
       - id: insert-license
         files: \.py$
@@ -52,7 +53,7 @@ repos:
         stages: [pre-commit]
 
   - repo: https://github.com/compilerla/conventional-pre-commit
-    rev: v3.4.0
+    rev: v4.4.0
     hooks:
       - id: conventional-pre-commit
         stages: [commit-msg]
