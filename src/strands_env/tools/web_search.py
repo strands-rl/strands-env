@@ -55,7 +55,7 @@ class WebSearchToolkit:
         semaphore: asyncio.Semaphore | None = None,
         blocked_domains: list[str] | None = None,
     ):
-        """Initialize Web Search Toolkit.
+        """Initialize a `WebSearchToolkit` instance.
 
         All credential parameters are optional.  When `None`, the
         corresponding environment variable is checked.  Validation only

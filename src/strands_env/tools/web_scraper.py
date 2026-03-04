@@ -92,7 +92,7 @@ class WebScraperToolkit:
         token_budget: int = DEFAULT_TOKEN_BUDGET,
         summarizer_model_factory: ModelFactory | None = None,
     ):
-        """Initialize Web Scraper Toolkit.
+        """Initialize a `WebScraperToolkit` instance.
 
         Args:
             timeout: HTTP request timeout in seconds.

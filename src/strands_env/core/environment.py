@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Base Environment class for `strands-env`."""
+"""Base Environment class for Strands Agents."""
 
 from __future__ import annotations
 
@@ -56,7 +56,7 @@ class Environment:
         max_parallel_tool_calls: int | None = None,
         verbose: bool = False,
     ):
-        """Initialize the environment with model factory, prompts, and limits."""
+        """Initialize an `Environment` instance."""
         self.model_factory = model_factory
         self.reward_fn = reward_fn
         self.max_tool_iters = max_tool_iters

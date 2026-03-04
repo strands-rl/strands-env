@@ -51,7 +51,7 @@ class MCPEnvironment(Environment):
         mcp_client: MCPClient | None = None,
         **kwargs: Any,
     ):
-        """Initialize the MCP environment with an optional pre-constructed MCP client."""
+        """Initialize an `MCPEnvironment` instance."""
         super().__init__(**kwargs)
         self._mcp_client = mcp_client
 

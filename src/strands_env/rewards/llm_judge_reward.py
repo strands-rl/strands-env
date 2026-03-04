@@ -78,7 +78,7 @@ class LLMJudgeReward(RewardFunction):
         system_prompt: str | None = None,
         default_reward: float = 0.0,
     ) -> None:
-        """Initialize the LLM judge reward function."""
+        """Initialize a `LLMJudgeReward` instance."""
         self.judge_model = judge_model
         self.system_prompt = system_prompt
         self.default_reward = default_reward

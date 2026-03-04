@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Reward functions for strands-env."""
+"""Reward functions for Strands Agents Environments."""
 
 from .llm_judge_reward import LLMJudgeReward
 from .math_verify_reward import MathVerifyReward

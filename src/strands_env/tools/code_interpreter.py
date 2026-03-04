@@ -42,7 +42,7 @@ class CodeInterpreterToolkit:
         client: BaseClient,
         session_name: str = "strands-env",
     ):
-        """Initialize the toolkit.
+        """Initialize a `CodeInterpreterToolkit` instance.
 
         Args:
             client: boto3 client for bedrock-agentcore service.

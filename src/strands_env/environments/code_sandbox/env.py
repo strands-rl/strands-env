@@ -81,7 +81,7 @@ class CodeSandboxEnv(Environment):
         client: BaseClient | None = None,
         mode: CodeMode = CodeMode.CODE,
     ):
-        """Initialize the code sandbox environment with a model factory and optional code interpreter client."""
+        """Initialize a `CodeSandboxEnv` instance."""
         super().__init__(
             model_factory=model_factory,
             reward_fn=reward_fn,

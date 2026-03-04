@@ -73,7 +73,7 @@ class WebSearchEnv(Environment):
         search_config: SearchConfig | None = None,
         scrape_config: ScrapeConfig | None = None,
     ):
-        """Initialize the web search environment with search and optional scrape configurations."""
+        """Initialize a `WebSearchEnv` instance."""
         if search_config is None:
             search_config = SearchConfig()
         super().__init__(

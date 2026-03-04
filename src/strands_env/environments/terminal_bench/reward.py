@@ -33,7 +33,7 @@ class TerminalBenchRewardFunction(RewardFunction):
     """Execute test scripts in Docker and compute binary reward (0 or 1)."""
 
     def __init__(self, env: TerminalBenchEnv) -> None:
-        """Initialize with a reference to the Terminal-Bench environment."""
+        """Initialize a `TerminalBenchReward` instance."""
         self._env = env
 
     async def compute(self, action: Action, step_result: StepResult) -> RewardResult:

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Evaluator for running agentic benchmarks with `strands-env` environments."""
+"""Evaluator for running agentic benchmarks with Strands Agents Environments."""
 
 from __future__ import annotations
 
@@ -67,7 +67,7 @@ class Evaluator:
         save_interval: int = 10,
         keep_tokens: bool = False,
     ):
-        """Initialize the evaluator.
+        """Initialize an `Evaluator` instance.
 
         Args:
             env_factory: Async factory function that creates a fresh Environment per sample.

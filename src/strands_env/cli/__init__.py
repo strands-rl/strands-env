@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""CLI entry point for strands-env."""
+"""CLI entry point for Strands Agents Environments."""
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ from .eval import eval_group
 
 @click.group()
 def cli() -> None:
-    """strands-env: cli main entrypoint."""
+    """Strands Agents Environments: CLI main entrypoint."""
     pass
 
 
@@ -32,7 +32,7 @@ cli.add_command(eval_group)
 
 
 def main() -> None:
-    """Run the strands-env CLI."""
+    """Run the Strands Agents Environments CLI."""
     cli()
 
 

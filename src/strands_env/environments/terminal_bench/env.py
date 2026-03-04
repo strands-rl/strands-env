@@ -73,7 +73,7 @@ class TerminalBenchEnv(Environment):
         max_tool_calls: int | None = None,
         verbose: bool = False,
     ):
-        """Initialize the Terminal-Bench environment with a model factory and task configuration."""
+        """Initialize a `TerminalBenchEnv` instance."""
         super().__init__(
             model_factory=model_factory,
             system_prompt=system_prompt,
