@@ -1,4 +1,4 @@
-# Copyright 2025 Horizon RL Contributors
+# Copyright 2025-2026 Horizon RL Contributors
 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -81,6 +81,7 @@ class CodeSandboxEnv(Environment):
         client: BaseClient | None = None,
         mode: CodeMode = CodeMode.CODE,
     ):
+        """Initialize the code sandbox environment with a model factory and optional code interpreter client."""
         super().__init__(
             model_factory=model_factory,
             reward_fn=reward_fn,

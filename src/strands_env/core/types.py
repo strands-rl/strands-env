@@ -1,4 +1,4 @@
-# Copyright 2025 Horizon RL Contributors
+# Copyright 2025-2026 Horizon RL Contributors
 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -73,18 +73,22 @@ class TokenObservation(BaseModel):
 
     @property
     def rollout_token_ids(self) -> list[int]:
+        """Return token IDs for the rollout (after the initial prompt)."""
         return self.token_ids[self.prompt_length :]
 
     @property
     def rollout_logprobs(self) -> list[float | None]:
+        """Return logprobs for the rollout tokens."""
         return self.logprobs[self.prompt_length :]
 
     @property
     def rollout_loss_mask(self) -> list[int]:
+        """Return loss mask for the rollout tokens."""
         return self.loss_mask[self.prompt_length :]
 
     @property
     def initial_prompt_token_ids(self) -> list[int]:
+        """Return token IDs for the initial prompt."""
         return self.token_ids[: self.prompt_length]
 
     @classmethod
@@ -109,6 +113,7 @@ class Observation(BaseModel):
 
     @property
     def final_response(self) -> str | None:
+        """Return text from the last assistant message, or None."""
         return self.get_final_response(self.messages)
 
     @staticmethod
@@ -194,7 +199,7 @@ class TerminationReason(str, Enum):
             case _:
                 reason = cls.UNCLASSIFIED_ERROR
 
-        logger.warning(f"Step terminated: {reason.value} - {cause}")
+        logger.warning("Step terminated: %s - %s", reason.value, cause)
         return reason
 
 

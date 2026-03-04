@@ -1,4 +1,4 @@
-# Copyright 2025 Horizon RL Contributors
+# Copyright 2025-2026 Horizon RL Contributors
 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -48,7 +48,7 @@ class AIMEEvaluator(Evaluator):
         for i, row in enumerate(dataset):
             problem, answer = row.get("problem"), row.get("answer")
             if problem is None or answer is None:
-                logger.warning(f"Row {i}: missing problem/answer, skipped")
+                logger.warning("Row %s: missing problem/answer, skipped", i)
                 continue
             yield Action(
                 message=str(problem),

@@ -1,4 +1,4 @@
-# Copyright 2025 Horizon RL Contributors
+# Copyright 2025-2026 Horizon RL Contributors
 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import logging
-from functools import lru_cache
+from functools import cache
 
 import boto3
 from botocore.client import BaseClient
@@ -52,7 +52,7 @@ def get_session(
     if role_arn:
         return _create_assumed_role_session(role_arn, region, session_name)
     else:
-        logger.info(f"Creating boto3 session: region={region}, profile={profile_name}")
+        logger.info("Creating boto3 session: region=%s, profile=%s", region, profile_name)
         return boto3.Session(region_name=region, profile_name=profile_name)
 
 
@@ -61,10 +61,10 @@ def _create_assumed_role_session(role_arn: str, region: str, session_name: str) 
     from botocore.credentials import RefreshableCredentials
     from botocore.session import get_session as get_botocore_session
 
-    logger.info(f"Creating boto3 session with assumed role: role={role_arn}, region={region}")
+    logger.info("Creating boto3 session with assumed role: role=%s, region=%s", role_arn, region)
 
     def refresh() -> dict:
-        logger.info(f"Refreshing STS credentials for assumed role: {role_arn}")
+        logger.info("Refreshing STS credentials for assumed role: %s", role_arn)
         sts = boto3.client("sts", region_name=region)
         creds = sts.assume_role(RoleArn=role_arn, RoleSessionName=session_name)["Credentials"]
         return {
@@ -85,7 +85,7 @@ def _create_assumed_role_session(role_arn: str, region: str, session_name: str) 
     return boto3.Session(botocore_session=botocore_session, region_name=region)
 
 
-@lru_cache(maxsize=None)
+@cache
 def get_client(
     service_name: str,
     region: str = "us-east-1",
@@ -97,8 +97,8 @@ def get_client(
 
     Each client gets its own dedicated boto3 Session, avoiding the thread-safety
     issues of sharing a Session across clients. The client itself is thread-safe
-    and can be shared. If ``role_arn`` is provided, the underlying Session uses
-    ``RefreshableCredentials`` so the client auto-refreshes when credentials expire.
+    and can be shared. If `role_arn` is provided, the underlying Session uses
+    `RefreshableCredentials` so the client auto-refreshes when credentials expire.
 
     Args:
         service_name: AWS service name (e.g. "bedrock-agentcore", "lambda", "dynamodb").
@@ -114,7 +114,7 @@ def get_client(
         session = _create_assumed_role_session(role_arn, region, session_name)
     else:
         session = boto3.Session(region_name=region, profile_name=profile_name)
-    logger.info(f"Creating cached boto3 client: service={service_name}, region={region}")
+    logger.info("Creating cached boto3 client: service=%s, region=%s", service_name, region)
     return session.client(service_name, region_name=region)
 
 

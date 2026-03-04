@@ -1,4 +1,4 @@
-# Copyright 2025 Horizon RL Contributors
+# Copyright 2025-2026 Horizon RL Contributors
 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -33,14 +33,16 @@ class TerminalBenchRewardFunction(RewardFunction):
     """Execute test scripts in Docker and compute binary reward (0 or 1)."""
 
     def __init__(self, env: TerminalBenchEnv) -> None:
+        """Initialize with a reference to the Terminal-Bench environment."""
         self._env = env
 
     async def compute(self, action: Action, step_result: StepResult) -> RewardResult:
+        """Run verification tests in Docker and return a binary reward."""
         try:
             reward = await self._run_verification()
             return RewardResult(reward=reward)
         except Exception as e:
-            logger.exception(f"Verification failed due to {type(e).__name__}: {str(e)}")
+            logger.exception("Verification failed due to %s: %s", type(e).__name__, str(e))
             return RewardResult(reward=0.0, info={"error": str(e)})
 
     async def _run_verification(self) -> float:
@@ -67,5 +69,5 @@ class TerminalBenchRewardFunction(RewardFunction):
         reward_path = trial_paths.reward_text_path
         if reward_path.exists() and reward_path.stat().st_size > 0:
             return 1.0 if float(reward_path.read_text().strip()) >= 1.0 else 0.0
-        logger.warning(f"No reward file at {reward_path}")
+        logger.warning("No reward file at %s", reward_path)
         return 0.0

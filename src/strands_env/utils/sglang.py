@@ -1,4 +1,4 @@
-# Copyright 2025 Horizon RL Contributors
+# Copyright 2025-2026 Horizon RL Contributors
 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ def check_server_health(base_url: str, timeout: float = 5.0) -> None:
     """Check if the SGLang server is reachable.
 
     Sync convenience using httpx (available via openai's transitive dependency).
-    For async runtime use, see ``SGLangClient.health()`` which uses aiohttp.
+    For async runtime use, see `SGLangClient.health()` which uses aiohttp.
 
     Args:
         base_url: Base URL of the SGLang server.
@@ -43,7 +43,7 @@ def get_model_id(base_url: str, timeout: float = 5.0) -> str:
     """Get the model ID from the SGLang server.
 
     Sync convenience using httpx (available via openai's transitive dependency).
-    For async runtime use, see ``SGLangClient.get_model_info()`` which uses aiohttp.
+    For async runtime use, see `SGLangClient.get_model_info()` which uses aiohttp.
 
     Args:
         base_url: Base URL of the SGLang server.

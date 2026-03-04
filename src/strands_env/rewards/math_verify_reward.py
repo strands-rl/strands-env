@@ -1,4 +1,4 @@
-# Copyright 2025 Horizon RL Contributors
+# Copyright 2025-2026 Horizon RL Contributors
 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Reward function for math problems using math-verify for symbolic equivalence.
+r"""Reward function for math problems using math-verify for symbolic equivalence.
 
 Uses HuggingFace's math-verify library to parse LaTeX/expressions from both
-the model's ``\\boxed{}`` output and the ground truth, then checks equivalence
+the model's `\\boxed{}` output and the ground truth, then checks equivalence
 via SymPy (handling fractions, sets, nested expressions, etc.).
 """
 
@@ -45,18 +45,18 @@ _MATH_VERIFY_ERRORS = (Exception, MathVerifyTimeout)
 
 
 class MathVerifyReward(RewardFunction):
-    """Reward 1.0 if the model's ``\\boxed{}`` answer is mathematically equivalent to ground truth.
+    r"""Reward 1.0 if the model's `\boxed{}` answer is mathematically equivalent to ground truth.
 
-    Uses ``math_verify.parse`` to extract and convert answers to SymPy,
-    then ``math_verify.verify`` for equivalence checking. This handles:
+    Uses `math_verify.parse` to extract and convert answers to SymPy,
+    then `math_verify.verify` for equivalence checking. This handles:
 
-    - Fraction / decimal equivalence (``1/2`` = ``0.5``)
-    - Symbolic simplification (``\\sqrt{3}/3`` = ``1/\\sqrt{3}``)
-    - Sets and intervals (``{1,3} \\cup {2,4}`` = ``{1,2,3,4}``)
+    - Fraction / decimal equivalence (`1/2` = `0.5`)
+    - Symbolic simplification (`\\sqrt{3}/3` = `1/\\sqrt{3}`)
+    - Sets and intervals (`{1,3} \\cup {2,4}` = `{1,2,3,4}`)
     - Nested expressions and LaTeX normalization
 
     When either side parses to multiple candidate expressions (e.g. several
-    ``\\boxed{}`` in the response), ``verify`` returns True if **any**
+    `\\boxed{}` in the response), `verify` returns True if **any**
     gold-target pair matches (Cartesian product).
 
     Args:
@@ -64,7 +64,7 @@ class MathVerifyReward(RewardFunction):
         parse_timeout: Max seconds for parsing expressions from text (default 5).
         verify_timeout: Max seconds for SymPy simplification per comparison (default 5).
         answer_tail_chars: Only parse the last N chars of model response (default 500).
-            Set to 0 to parse full response. The final ``\\boxed{}`` answer is typically
+            Set to 0 to parse full response. The final `\\boxed{}` answer is typically
             at the end, so this avoids parsing long chain-of-thought reasoning.
     """
 
@@ -75,6 +75,7 @@ class MathVerifyReward(RewardFunction):
         verify_timeout: int = 5,
         answer_tail_chars: int = 500,
     ) -> None:
+        """Initialize the math-verify reward function."""
         self.float_rounding = float_rounding
         self.parse_timeout = parse_timeout
         self.verify_timeout = verify_timeout
@@ -82,12 +83,14 @@ class MathVerifyReward(RewardFunction):
 
     def _parse(self, text: str) -> list:
         """Parse text into math expressions. Raises on error or timeout."""
-        return list(parse(
-            text,
-            extraction_config=_EXTRACTION_CONFIG,
-            parsing_timeout=self.parse_timeout,
-            raise_on_error=True,
-        ))
+        return list(
+            parse(
+                text,
+                extraction_config=_EXTRACTION_CONFIG,
+                parsing_timeout=self.parse_timeout,
+                raise_on_error=True,
+            )
+        )
 
     @override
     async def compute(self, action: Action, step_result: StepResult) -> RewardResult:
@@ -103,7 +106,7 @@ class MathVerifyReward(RewardFunction):
         try:
             gold = self._parse(ground_truth)
         except _MATH_VERIFY_ERRORS as e:
-            logger.error(f"Failed to parse ground truth: {type(e).__name__}: {ground_truth[:100]}")
+            logger.error("Failed to parse ground truth: %s: %s", type(e).__name__, ground_truth[:100])
             return RewardResult(reward=0.0, info={"reason": "gold_parse_failed", "ground_truth": ground_truth})
         if not gold:
             return RewardResult(reward=0.0, info={"reason": "gold_parse_failed", "ground_truth": ground_truth})
@@ -113,7 +116,7 @@ class MathVerifyReward(RewardFunction):
         try:
             answer = self._parse(answer_text)
         except _MATH_VERIFY_ERRORS as e:
-            logger.error(f"Failed to parse answer: {type(e).__name__}: {answer_text[:100]}...")
+            logger.error("Failed to parse answer: %s: %s...", type(e).__name__, answer_text[:100])
             return RewardResult(reward=0.0, info={"reason": "answer_parse_failed", "response": content})
         if not answer:
             return RewardResult(reward=0.0, info={"reason": "answer_parse_failed", "response": content})
@@ -122,7 +125,7 @@ class MathVerifyReward(RewardFunction):
         try:
             matched = verify(gold, answer, float_rounding=self.float_rounding, timeout_seconds=self.verify_timeout)
         except _MATH_VERIFY_ERRORS as e:
-            logger.error(f"Failed to verify: {type(e).__name__}")
+            logger.error("Failed to verify: %s", type(e).__name__)
             matched = False
 
         return RewardResult(

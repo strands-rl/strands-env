@@ -1,4 +1,4 @@
-# Copyright 2025 Horizon RL Contributors
+# Copyright 2025-2026 Horizon RL Contributors
 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -59,8 +59,8 @@ class CodeInterpreterToolkit:
         if self._session_id is None:
             async with self._session_lock:
                 # Double-check after acquiring lock
-                if self._session_id is not None:
-                    return self._session_id
+                if self._session_id is not None:  # another coroutine may have set it
+                    return self._session_id  # type: ignore[unreachable]
 
                 response = await asyncio.to_thread(
                     self._client.start_code_interpreter_session,

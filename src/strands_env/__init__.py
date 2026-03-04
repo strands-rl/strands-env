@@ -1,4 +1,4 @@
-# Copyright 2025 Horizon RL Contributors
+# Copyright 2025-2026 Horizon RL Contributors
 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,7 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
-
-# Suppress transformers warning about missing PyTorch/TensorFlow/Flax
-os.environ.setdefault("TRANSFORMERS_NO_ADVISORY_WARNINGS", "1")
+"""Standardizing environment infrastructure with Strands Agents — step, observe, reward."""

@@ -1,4 +1,4 @@
-# Copyright 2025 Horizon RL Contributors
+# Copyright 2025-2026 Horizon RL Contributors
 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -22,8 +22,9 @@ from __future__ import annotations
 
 import importlib
 import logging
+from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .evaluator import Evaluator
@@ -75,7 +76,7 @@ def _discover_benchmarks() -> None:
             importlib.import_module(f"strands_env.eval.benchmarks.{module_name}")
         except ImportError as e:
             _UNAVAILABLE[module_name] = str(e)
-            logger.debug(f"Skipping benchmark module '{module_name}': {e}")
+            logger.debug("Skipping benchmark module '%s': %s", module_name, e)
 
     _DISCOVERED = True
 

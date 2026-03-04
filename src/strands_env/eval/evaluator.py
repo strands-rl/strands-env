@@ -1,4 +1,4 @@
-# Copyright 2025 Horizon RL Contributors
+# Copyright 2025-2026 Horizon RL Contributors
 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -63,7 +63,7 @@ class Evaluator:
         *,
         max_concurrency: int = 10,
         n_samples_per_prompt: int = 1,
-        output_path: Path | str = Path.cwd() / "results.jsonl",
+        output_path: Path | str | None = None,
         save_interval: int = 10,
         keep_tokens: bool = False,
     ):
@@ -77,6 +77,8 @@ class Evaluator:
             save_interval: Flush results to disk every N completed samples.
             keep_tokens: Keep token-level observation in results (only valid for `SGLangModel` backends).
         """
+        if output_path is None:
+            output_path = Path.cwd() / "results.jsonl"
         self.env_factory: AsyncEnvFactory = env_factory
         self.max_concurrency = max_concurrency
         self.n_samples_per_prompt = n_samples_per_prompt
@@ -137,7 +139,7 @@ class Evaluator:
 
         total = sum(len(s) for s in self.results.values())
         aborted_msg = f" (skipped {n_aborted} aborted for retry)" if n_aborted else ""
-        logger.info(f"Resumed {total} completed samples{aborted_msg} from {self.output_path}")
+        logger.info("Resumed %s completed samples%s from %s", total, aborted_msg, self.output_path)
 
     def save_results(self) -> None:
         """Save all samples to checkpoint file."""
@@ -161,16 +163,17 @@ class Evaluator:
             reward_str = f"{step_result.reward.reward:.2f}" if step_result.reward else "N/A"
             reward_info = step_result.reward.info if step_result.reward else {}
             logger.info(
-                f"[{action.task_context.id}]: "
-                f"reward={reward_str} | "
-                f"label={action.task_context.ground_truth} | "
-                f"reward_info={reward_info} | "
-                f"metrics={step_result.observation.metrics}"
+                "[%s]: reward=%s | label=%s | reward_info=%s | metrics=%s",
+                action.task_context.id,
+                reward_str,
+                action.task_context.ground_truth,
+                reward_info,
+                step_result.observation.metrics,
             )
             sample = EvalSample(action=action, step_result=step_result)
             sample.aborted = not self.validate_sample(sample)
             if sample.aborted:
-                logger.warning(f"[{action.task_context.id}]: sample aborted by validate_sample")
+                logger.warning("[%s]: sample aborted by validate_sample", action.task_context.id)
             return sample
         finally:
             await env.cleanup()
@@ -231,7 +234,6 @@ class Evaluator:
         Returns:
             Dict mapping metric names to values.
         """
-
         # Exclude entire prompt if any sample is aborted (keeps n consistent for pass@k)
         filtered = {pid: samples for pid, samples in results.items() if not any(s.aborted for s in samples)}
 
@@ -254,6 +256,6 @@ class Evaluator:
             for metric, value in sorted(metrics.items()):
                 lines.append(f"  {metric:<12} {value:>6.1%}")
             lines.append(f"{'─' * 40}")
-            logger.info("\n" + "\n".join(lines))
+            logger.info("\n%s", "\n".join(lines))
 
         return metrics

@@ -1,4 +1,4 @@
-# Copyright 2025 Horizon RL Contributors
+# Copyright 2025-2026 Horizon RL Contributors
 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,9 +19,9 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
-from typing import override
 
 from harbor.models.task.task import Task
+from typing_extensions import override
 
 from strands_env.core import Action, TaskContext
 from strands_env.environments.terminal_bench import TerminalBenchConfig

@@ -1,4 +1,4 @@
-# Copyright 2025 Horizon RL Contributors
+# Copyright 2025-2026 Horizon RL Contributors
 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -68,16 +68,16 @@ _REQUEST_HEADERS = {
 class WebScraperToolkit:
     """Web scraper with optional LLM extraction for strands agents.
 
-    Fetches web pages and extracts relevant content using ``trafilatura``
-    or ``html2text`` for main content extraction.  Optionally uses a LLM
-    summarizer (via ``summarizer_model_factory``).
+    Fetches web pages and extracts relevant content using `trafilatura`
+    or `html2text` for main content extraction.  Optionally uses a LLM
+    summarizer (via `summarizer_model_factory`).
 
-    Two ``@tool`` methods are provided — the environment picks which to
+    Two `@tool` methods are provided — the environment picks which to
     expose:
 
     * `scrape` — fetch + extract raw content (no LLM).
     * `scrape_and_summarize` — fetch + extract + LLM summarization
-      (requires ``summarizer_model_factory``).
+      (requires `summarizer_model_factory`).
 
     A single shared `aiohttp.ClientSession` (created lazily) and
     an `asyncio.Semaphore` cap concurrent requests.  Call
@@ -130,11 +130,11 @@ class WebScraperToolkit:
     async def extract_content(self, html: str, url: str) -> str:
         """Extract main content from HTML, stripping boilerplate and truncating to token budget.
 
-        Uses ``trafilatura`` as primary extractor; falls back to ``html2text``
-        for pages where ``trafilatura`` returns insufficient content.
+        Uses `trafilatura` as primary extractor; falls back to `html2text`
+        for pages where `trafilatura` returns insufficient content.
 
-        A fresh ``html2text`` instance is created per call for thread safety
-        (this method runs in a thread pool via ``asyncio.to_thread``).
+        A fresh `html2text` instance is created per call for thread safety
+        (this method runs in a thread pool via `asyncio.to_thread`).
         """
         import html2text
         import trafilatura
@@ -165,9 +165,9 @@ class WebScraperToolkit:
         return _truncate(content)
 
     async def summarize(self, content: str, instruction: str) -> str:
-        """Use a base ``Environment`` to summarize the content based on the instruction.
+        """Use a base `Environment` to summarize the content based on the instruction.
 
-        Uses ``Environment`` for client sharing (e.g. Bedrock) and exception handling.
+        Uses `Environment` for client sharing (e.g. Bedrock) and exception handling.
         """
         if self._summarizer_model_factory is None:
             logger.warning("`summarizer_model_factory` is not set. Returning raw content.")
@@ -195,14 +195,14 @@ class WebScraperToolkit:
         Returns:
             Extracted page content or an error message.
         """
-        logger.info(f"[scrape] url={url}")
+        logger.info("[scrape] url=%s", url)
 
         try:
             html = await self.fetch_html(url)
             content = await self.extract_content(html, url)
             return content
         except Exception as e:
-            logger.error(f"[scrape] error: url={url}, error={e}")
+            logger.error("[scrape] error: url=%s, error=%s", url, e)
             return f"Scrape failed for {url}: {e}"
 
     @tool
@@ -219,7 +219,7 @@ class WebScraperToolkit:
         Returns:
             LLM-summarized content or an error message.
         """
-        logger.info(f"[scrape_and_summarize] url={url}, instruction={instruction[:100]}")
+        logger.info("[scrape_and_summarize] url=%s, instruction=%s", url, instruction[:100])
 
         try:
             html = await self.fetch_html(url)
@@ -227,5 +227,5 @@ class WebScraperToolkit:
             content = await self.summarize(main_content, instruction)
             return content
         except Exception as e:
-            logger.error(f"[scrape_and_summarize] error: url={url}, error={e}")
+            logger.error("[scrape_and_summarize] error: url=%s, error=%s", url, e)
             return f"Scrape failed for {url}: {e}"

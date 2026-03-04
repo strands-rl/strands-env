@@ -1,4 +1,4 @@
-# Copyright 2025 Horizon RL Contributors
+# Copyright 2025-2026 Horizon RL Contributors
 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -269,7 +269,7 @@ def run_cmd(
         try:
             evaluator_cls = get_benchmark(benchmark)
         except KeyError as e:
-            raise click.ClickException(str(e))
+            raise click.ClickException(str(e)) from e
         benchmark_name = benchmark
     else:
         assert evaluator_path is not None

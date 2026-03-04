@@ -1,4 +1,4 @@
-# Copyright 2025 Horizon RL Contributors
+# Copyright 2025-2026 Horizon RL Contributors
 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -30,6 +30,8 @@ from strands_env.tools.web_search import WebSearchToolkit
 
 @dataclass
 class SearchConfig:
+    """Configuration for the web search tool provider."""
+
     timeout: int = 10
     max_concurrency: int = 10
     semaphore: asyncio.Semaphore | None = None
@@ -42,6 +44,8 @@ class SearchConfig:
 
 @dataclass
 class ScrapeConfig:
+    """Configuration for the web scraping tool."""
+
     timeout: int = 30
     max_concurrency: int = 10
     semaphore: asyncio.Semaphore | None = None
@@ -66,9 +70,12 @@ class WebSearchEnv(Environment):
         max_tool_iters: int | None = 5,
         max_tool_calls: int | None = 10,
         verbose: bool = False,
-        search_config: SearchConfig = SearchConfig(),
+        search_config: SearchConfig | None = None,
         scrape_config: ScrapeConfig | None = None,
     ):
+        """Initialize the web search environment with search and optional scrape configurations."""
+        if search_config is None:
+            search_config = SearchConfig()
         super().__init__(
             model_factory=model_factory,
             system_prompt=system_prompt,

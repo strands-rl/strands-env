@@ -1,4 +1,4 @@
-# Copyright 2025 Horizon RL Contributors
+# Copyright 2025-2026 Horizon RL Contributors
 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,8 +17,9 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, ClassVar, Sequence
+from typing import Any, ClassVar
 
 from strands import Agent
 from strands.agent.conversation_manager import ConversationManager, NullConversationManager
@@ -55,6 +56,7 @@ class Environment:
         max_parallel_tool_calls: int | None = None,
         verbose: bool = False,
     ):
+        """Initialize the environment with model factory, prompts, and limits."""
         self.model_factory = model_factory
         self.reward_fn = reward_fn
         self.max_tool_iters = max_tool_iters
@@ -70,10 +72,10 @@ class Environment:
 
         This is the right place for resource-heavy or async initialization
         (e.g., spinning up containers, creating sessions, connecting to services).
-        Keep ``__init__`` limited to storing config and lightweight state —
-        it is synchronous and cannot ``await``.
+        Keep `__init__` limited to storing config and lightweight state —
+        it is synchronous and cannot `await`.
 
-        Paired with ``cleanup`` which tears down what ``reset`` sets up.
+        Paired with `cleanup` which tears down what `reset` sets up.
         """
         pass
 
@@ -156,7 +158,7 @@ class Environment:
             for invocation in event_loop_metrics.agent_invocations
             for cycle in invocation.cycles
         ]
-        input_counts, output_counts = zip(*per_model_call_usage) if per_model_call_usage else ([], [])
+        input_counts, output_counts = zip(*per_model_call_usage, strict=True) if per_model_call_usage else ([], [])
         cycle_durations = event_loop_metrics.cycle_durations
 
         per_tool_metrics = {

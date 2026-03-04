@@ -1,4 +1,4 @@
-# Copyright 2025 Horizon RL Contributors
+# Copyright 2025-2026 Horizon RL Contributors
 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ MetricFn = Callable[[dict[str, list["EvalSample"]]], dict[str, float]]
 
 
 def compute_pass_at_k(
-    results: dict[str, list["EvalSample"]],
+    results: dict[str, list[EvalSample]],
     k_values: list[int],
     reward_threshold: float = 1.0,
 ) -> dict[str, float]:

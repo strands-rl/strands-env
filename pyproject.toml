@@ -44,6 +44,7 @@ dev = [
     "pytest-asyncio>=0.21.0",
     "pytest-cov>=4.0.0",
     "pytest-mock>=3.0.0",
+    "pytest-timeout>=2.0.0",
     # Linting & Build
     "pre-commit",
     "ruff>=0.1.0",
@@ -61,14 +62,23 @@ packages = ["src/strands_env"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+timeout = 90
 
 [tool.mypy]
-packages = ["src/strands_env"]
+python_version = "3.10"
 strict = false
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
+disallow_incomplete_defs = true
 check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
 ignore_missing_imports = true
 
 [tool.ruff]
@@ -76,5 +86,22 @@ line-length = 120
 fix = true
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "N", "W"]
+select = [
+    "B",   # flake8-bugbear
+    "D",   # pydocstyle
+    "E",   # pycodestyle
+    "F",   # pyflakes
+    "G",   # flake8-logging-format
+    "I",   # isort
+    "LOG", # logging
+    "N",   # pep8-naming
+    "UP",  # pyupgrade
+    "W",   # pycodestyle warnings
+]
 ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"!src/**/*.py" = ["D"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"

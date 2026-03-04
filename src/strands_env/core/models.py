@@ -1,4 +1,4 @@
-# Copyright 2025 Horizon RL Contributors
+# Copyright 2025-2026 Horizon RL Contributors
 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -119,9 +119,9 @@ def bedrock_model_factory(
     """Return a factory that creates `BedrockModel` instances.
 
     A single boto3 client (thread-safe) is created once from the session and
-    shared across all model instances.  ``BedrockModel`` doesn't accept a
+    shared across all model instances.  `BedrockModel` doesn't accept a
     pre-built client, so we extract it from a pilot instance and override
-    ``model.client`` on each subsequent one.
+    `model.client` on each subsequent one.
 
     Principle of operation: "one boto3 session, one boto3 client"
 
@@ -245,11 +245,11 @@ def kimi_model_factory(
 ) -> ModelFactory:
     """Return a factory that creates KimiModel instances for Moonshot AI.
 
-    Requires ``MOONSHOT_API_KEY`` environment variable to be set.
+    Requires `MOONSHOT_API_KEY` environment variable to be set.
 
     Args:
-        model_id: LiteLLM model ID with ``moonshot/`` prefix (default ``"moonshot/kimi-k2.5"``).
-        sampling_params: Sampling parameters for the model (e.g. ``{"max_new_tokens": 4096}``).
+        model_id: LiteLLM model ID with `moonshot/` prefix (default `"moonshot/kimi-k2.5"`).
+        sampling_params: Sampling parameters for the model (e.g. `{"max_new_tokens": 4096}`).
         client_args: Arguments for the LiteLLM client.
     """
     kimi_model_cls = _get_kimi_model_class()

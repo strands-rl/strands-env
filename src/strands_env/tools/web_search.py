@@ -1,4 +1,4 @@
-# Copyright 2025 Horizon RL Contributors
+# Copyright 2025-2026 Horizon RL Contributors
 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -39,7 +39,7 @@ class WebSearchToolkit:
     """Web search tools supporting different search providers.
 
     Supports multiple search providers.  Each provider is exposed as a
-    separate ``@tool`` method so the environment can pick which one to
+    separate `@tool` method so the environment can pick which one to
     use.  Credentials are validated lazily — only when the corresponding
     tool method is actually called.
 
@@ -57,7 +57,7 @@ class WebSearchToolkit:
     ):
         """Initialize Web Search Toolkit.
 
-        All credential parameters are optional.  When ``None``, the
+        All credential parameters are optional.  When `None`, the
         corresponding environment variable is checked.  Validation only
         happens when a tool method that needs the credential is called.
 
@@ -65,9 +65,8 @@ class WebSearchToolkit:
             timeout: HTTP request timeout in seconds.
             max_concurrency: Max concurrent requests (ignored if *semaphore* is provided).
             semaphore: Shared semaphore for global rate limiting across toolkit instances.
-            blocked_domains: Domains to exclude from results (e.g. ``["huggingface.co"]``).
+            blocked_domains: Domains to exclude from results (e.g. `["huggingface.co"]`).
         """
-
         self._timeout = timeout
         self._semaphore = semaphore or asyncio.Semaphore(max_concurrency)
         self._blocked_domains = blocked_domains or []
@@ -86,7 +85,7 @@ class WebSearchToolkit:
             self._session = None
 
     def _apply_blocked_domains(self, query: str) -> str:
-        """Append ``-site:`` exclusions to *query* for blocked domains."""
+        """Append `-site:` exclusions to *query* for blocked domains."""
         if self._blocked_domains:
             return query + " " + " ".join(f"-site:{d}" for d in self._blocked_domains)
         return query
@@ -125,7 +124,7 @@ class WebSearchToolkit:
         Returns:
             Search results with title, URL, and snippet for each result.
         """
-        logger.info(f"[serper_search] query={query}, top_k={top_k}")
+        logger.info("[serper_search] query=%s, top_k=%s", query, top_k)
 
         query = self._apply_blocked_domains(query)
 
@@ -143,7 +142,7 @@ class WebSearchToolkit:
 
             return self.format_results(data.get("organic", []))
         except Exception as e:
-            logger.error(f"[serper_search] error: {e}")
+            logger.error("[serper_search] error: %s", e)
             return f"Search failed: {e}."
 
     # ------------------------------------------------------------------
@@ -162,7 +161,7 @@ class WebSearchToolkit:
         Returns:
             Search results with title, URL, and snippet for each result.
         """
-        logger.info(f"[google_search] query={query}, top_k={top_k}")
+        logger.info("[google_search] query=%s, top_k=%s", query, top_k)
 
         top_k = min(top_k, MAX_RESULTS)
         query = self._apply_blocked_domains(query)
@@ -182,5 +181,5 @@ class WebSearchToolkit:
 
             return self.format_results(data.get("items", []))
         except Exception as e:
-            logger.error(f"[google_search] error: {e}")
+            logger.error("[google_search] error: %s", e)
             return f"Search failed: {e}."

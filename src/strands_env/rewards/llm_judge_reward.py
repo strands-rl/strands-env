@@ -1,4 +1,4 @@
-# Copyright 2025 Horizon RL Contributors
+# Copyright 2025-2026 Horizon RL Contributors
 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 
 class LLMJudgeReward(RewardFunction):
-    """Abstract base for LLM-as-judge reward functions.
+    r"""Abstract base for LLM-as-judge reward functions.
 
     Subclasses set `judgment_format` class attribute and implement
     `get_judge_prompt` and `get_reward`.
@@ -78,6 +78,7 @@ class LLMJudgeReward(RewardFunction):
         system_prompt: str | None = None,
         default_reward: float = 0.0,
     ) -> None:
+        """Initialize the LLM judge reward function."""
         self.judge_model = judge_model
         self.system_prompt = system_prompt
         self.default_reward = default_reward
@@ -97,7 +98,7 @@ class LLMJudgeReward(RewardFunction):
         try:
             prompt = await self.get_judge_prompt(action, step_result)
         except Exception as e:
-            logger.error(f"Judge prompt rendering failed: {e}")
+            logger.error("Judge prompt rendering failed: %s", e)
             return RewardResult(reward=self.default_reward, info={"reason": "prompt_error", "error": str(e)})
 
         agent = Agent(model=self.judge_model, system_prompt=self.system_prompt, tools=[])
@@ -111,13 +112,13 @@ class LLMJudgeReward(RewardFunction):
                 result = await agent.invoke_async(prompt)
                 judgment = result.message.get("content", [{}])[0].get("text", "")
         except Exception as e:
-            logger.error(f"Judge model invocation failed: {e}")
+            logger.error("Judge model invocation failed: %s", e)
             return RewardResult(reward=self.default_reward, info={"reason": "judge_error", "error": str(e)})
 
         try:
             reward = await self.get_reward(judgment)
         except Exception as e:
-            logger.error(f"Reward computation for judgment failed: {e}")
+            logger.error("Reward computation for judgment failed: %s", e)
             return RewardResult(reward=self.default_reward, info={"reason": "reward_error", "error": str(e)})
 
         if isinstance(judgment, BaseModel):

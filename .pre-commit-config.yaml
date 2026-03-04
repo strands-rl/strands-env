@@ -4,9 +4,7 @@ repos:
     hooks:
       - id: ruff
         args: [--fix]
-        files: ^(src/strands_env/|scripts/|dev/).*\.py$
       - id: ruff-format
-        files: ^(src/strands_env/|scripts/|dev/).*\.py$
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.5.0
@@ -17,6 +15,41 @@ repos:
       - id: check-added-large-files
         args: ['--maxkb=1000']
       - id: requirements-txt-fixer
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.4.1
+    hooks:
+      - id: codespell
+        additional_dependencies:
+          - tomli
+
+  - repo: https://github.com/Lucas-C/pre-commit-hooks
+    rev: v1.5.5
+    hooks:
+      - id: insert-license
+        files: \.py$
+        args:
+          - --license-filepath=.license-header.txt
+          - --comment-style=#
+
+  - repo: local
+    hooks:
+      - id: mypy
+        name: Type check (mypy)
+        entry: mypy src/strands_env
+        language: system
+        pass_filenames: false
+        types: [python]
+        stages: [pre-commit]
+      - id: unit-tests
+        name: Unit tests
+        entry: pytest tests/unit/ -x -q
+        language: system
+        pass_filenames: false
+        types: [python]
+        stages: [pre-commit]
 
   - repo: https://github.com/compilerla/conventional-pre-commit
     rev: v3.4.0
