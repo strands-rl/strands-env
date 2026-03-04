@@ -15,8 +15,9 @@ pip install -e ".[dev]"
 
 ### Linting
 ```bash
-ruff check src/
-ruff format --check src/
+ruff check src/ tests/ examples/
+ruff format --check src/ tests/ examples/
+mypy src/strands_env
 ```
 
 ### Testing
@@ -85,7 +86,7 @@ The package lives in `src/strands_env/` with these modules:
 
 **sglang.py** — Sync SGLang server utilities. `check_server_health(base_url)` for early validation. `get_model_id(base_url)` to query the served model. Client/tokenizer caching has moved to `strands_sglang.utils`.
 
-**aws.py** — AWS boto3 session caching. `get_session(region, profile_name, role_arn)` with `@lru_cache`. If `role_arn` provided, uses `RefreshableCredentials` for programmatic role assumption with auto-refresh; otherwise returns basic session.
+**aws.py** — AWS boto3 session caching. `get_session(region, profile_name, role_arn)` with `@cache`. If `role_arn` provided, uses `RefreshableCredentials` for programmatic role assumption with auto-refresh; otherwise returns basic session.
 
 ### `tools/`
 
@@ -109,7 +110,12 @@ The package lives in `src/strands_env/` with these modules:
 
 ## Code Style
 
-- Ruff for linting and formatting (line-length 120, rules: E, F, I, N, W)
+- Ruff for linting and formatting (line-length 120, rules: B, D, E, F, G, I, LOG, N, UP, W)
+- Pydocstyle with Google convention (enforced in `src/` only)
+- Mypy with near-strict settings (see `pyproject.toml` for full config)
+- Use lazy `%` formatting for logging (not f-strings)
+- Use single backticks `` `xx` `` in docstrings (not Sphinx-style double backticks)
+- `__init__` docstrings should be `"""Initialize a `ClassName` instance."""`
 - Conventional commits (feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert)
 - Python 3.10+ required
 - asyncio_mode = "auto" for pytest-asyncio
