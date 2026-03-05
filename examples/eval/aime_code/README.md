@@ -8,7 +8,7 @@ AIME math competition benchmark using `CodeSandboxEnv` (AWS Bedrock AgentCore Co
 |---|---|
 | `aime-2024` | [AIME 2024](https://huggingface.co/datasets/HuggingFaceH4/aime_2024) |
 | `aime-2025` | [AIME 2025](https://huggingface.co/datasets/MathArena/aime_2025) |
-| `aime-2026` | [AIME 2026](https://huggingface.co/datasets/MathArena/aime_2026) | 
+| `aime-2026` | [AIME 2026](https://huggingface.co/datasets/MathArena/aime_2026) |
 
 ## Setup
 
