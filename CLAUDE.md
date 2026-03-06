@@ -84,6 +84,8 @@ The package lives in `src/strands_env/` with these modules:
 
 **benchmarks/simpleqa_verified.py** — `SimpleQAVerifiedEvaluator` for the [google/simpleqa-verified](https://huggingface.co/datasets/google/simpleqa-verified) factuality benchmark. `SimpleQAJudgment` Pydantic model for structured grading (CORRECT/INCORRECT/NOT_ATTEMPTED). `SimpleQAReward(LLMJudgeReward[SimpleQAJudgment])` uses OpenAI's grading prompt template.
 
+**benchmarks/frames.py** — `FramesEvaluator` for the [google/frames-benchmark](https://huggingface.co/datasets/google/frames-benchmark) multi-hop reasoning benchmark (824 samples). `FramesJudgment` with TRUE/FALSE grading. `FramesReward(LLMJudgeReward[FramesJudgment])`. Wiki links and reasoning types stored in `TaskContext` extras.
+
 ### `utils/`
 
 **sglang.py** — Sync SGLang server utilities. `check_server_health(base_url)` for early validation. `get_model_id(base_url)` to query the served model. Client/tokenizer caching has moved to `strands_sglang.utils`.
