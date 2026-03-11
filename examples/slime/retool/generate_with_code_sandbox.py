@@ -25,6 +25,8 @@ Uses:
 import logging
 
 from slime.rollout.sglang_rollout import GenerateState
+from slime.utils import logging_utils
+from slime.utils.metric_utils import dict_add_prefix
 from slime.utils.types import Sample
 from strands_sglang import get_client_from_slime_args
 
@@ -130,3 +132,32 @@ async def generate_and_rm(args, sample: Sample, sampling_params) -> Sample:
         sample.response_length,
     )
     return sample
+
+
+def rollout_logging_with_tool_stats(rollout_id, args, samples, rollout_extra_metrics, rollout_time):
+    """
+    Logs rollout metrics including tool usage statistics.
+
+    Returns:
+        True to indicate we handled logging (prevents default logging)
+    """
+    from slime.ray.rollout import compute_metrics_from_samples, compute_perf_metrics_from_samples
+
+    log_dict = {**(rollout_extra_metrics or {})}
+    log_dict |= dict_add_prefix(compute_metrics_from_samples(args, samples), "rollout/")
+    log_dict |= dict_add_prefix(compute_perf_metrics_from_samples(args, samples, rollout_time), "perf/")
+
+    tool_iters = [getattr(sample, "tool_iters", 0) for sample in samples]
+    tool_calls = [getattr(sample, "tool_calls", 0) for sample in samples]
+
+    if any(tool_iters) or any(tool_calls):
+        log_dict["rollout/avg_tool_iters"] = sum(tool_iters) / len(tool_iters)
+        log_dict["rollout/avg_tool_calls"] = sum(tool_calls) / len(tool_calls)
+        log_dict["rollout/tool_usage_ratio"] = sum(1 for x in tool_iters if x > 0) / len(tool_iters)
+
+    logger.info("rollout %s: %s", rollout_id, log_dict)
+
+    log_dict["rollout/step"] = rollout_id
+    logging_utils.log(args, log_dict, step_key="rollout/step")
+
+    return True
