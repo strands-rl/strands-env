@@ -154,11 +154,17 @@ class Environment:
             }
 
         per_model_call_usage = [
-            (cycle.usage.get("inputTokens", 0), cycle.usage.get("outputTokens", 0))
+            (
+                cycle.usage.get("inputTokens", 0),
+                cycle.usage.get("outputTokens", 0),
+                cycle.usage.get("cacheReadInputTokens", 0),
+            )
             for invocation in event_loop_metrics.agent_invocations
             for cycle in invocation.cycles
         ]
-        input_counts, output_counts = zip(*per_model_call_usage, strict=True) if per_model_call_usage else ([], [])
+        input_counts, output_counts, cache_read_counts = (
+            zip(*per_model_call_usage, strict=True) if per_model_call_usage else ([], [], [])
+        )
         cycle_durations = event_loop_metrics.cycle_durations
 
         per_tool_metrics = {
@@ -177,5 +183,6 @@ class Environment:
             "model_latency_s": _summarize(cycle_durations, round_digits=4) if cycle_durations else None,
             "input_tokens": _summarize(input_counts) if input_counts else None,
             "output_tokens": _summarize(output_counts) if output_counts else None,
+            "cache_read_input_tokens": _summarize(cache_read_counts) if any(cache_read_counts) else None,
             "per_tool_metrics": per_tool_metrics or None,
         }

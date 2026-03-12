@@ -199,12 +199,16 @@ class TestStep:
 
 class TestComputeMetrics:
     @staticmethod
-    def _make_cycle(input_tokens, output_tokens):
+    def _make_cycle(input_tokens, output_tokens, cache_read_input_tokens=0):
         cycle = MagicMock()
-        cycle.usage = {"inputTokens": input_tokens, "outputTokens": output_tokens}
+        cycle.usage = {
+            "inputTokens": input_tokens,
+            "outputTokens": output_tokens,
+            "cacheReadInputTokens": cache_read_input_tokens,
+        }
         return cycle
 
-    def test_basic_metrics(self, env):
+    def test_basic_metrics_without_cache(self, env):
         cycles = [self._make_cycle(30, 15), self._make_cycle(35, 20), self._make_cycle(35, 15)]
         invocation = MagicMock()
         invocation.cycles = cycles

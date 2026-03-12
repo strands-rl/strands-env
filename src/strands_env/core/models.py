@@ -71,7 +71,7 @@ def sglang_model_factory(
     tool_parser: ToolParser | None = None,
     sampling_params: dict[str, Any] = DEFAULT_SAMPLING_PARAMS,
     return_logprob: bool = True,
-    enable_thinking: bool | None = None,
+    enable_thinking: bool = True,
 ) -> ModelFactory:
     """Return a factory that creates `SGLangModel` instances.
 
@@ -81,7 +81,7 @@ def sglang_model_factory(
         tool_parser: Tool parser for extracting tool calls from model output. Defaults to `HermesToolParser`.
         sampling_params: Sampling parameters for the model (e.g. `{"max_new_tokens": 4096}`).
         return_logprob: Whether to return logprobs for each token.
-        enable_thinking: Enable thinking mode for Qwen3 hybrid models.
+        enable_thinking: Enable thinking mode for models whose chat template supports it.
     """
     if tool_parser is None:
         tool_parser = HermesToolParser()
