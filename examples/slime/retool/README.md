@@ -28,7 +28,7 @@ Slime-based RL training for math problem solving using CodeSandboxEnv (based on 
 
 4. **Model checkpoints**:
    - HuggingFace: `/root/Qwen3-8B`
-   - Megatron-Core: `/root/Qwen3-8B-mcore` (convert using [SLIME guide](https://github.com/THUDM/slime/blob/e70e6476632ebd551d5eb82186ad1cc948e0d8f5/docs/en/get_started/quick_start.md?plain=1#L70))
+   - Megatron-Core: `/root/Qwen3-8B-mcore` (convert using [slime guide](https://github.com/THUDM/slime/blob/e70e6476632ebd551d5eb82186ad1cc948e0d8f5/docs/en/get_started/quick_start.md?plain=1#L70))
 
 ### Run Training
 
@@ -54,5 +54,5 @@ Training logs track:
 - `rollout/tool_usage_ratio`: Percentage of samples using tools
 
 ## References
-- [SLIME Framework](https://github.com/THUDM/slime)
+- [slime Framework](https://github.com/THUDM/slime)
 - [Retool Paper](https://arxiv.org/pdf/2504.11536)
