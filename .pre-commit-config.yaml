@@ -39,7 +39,7 @@ repos:
     hooks:
       - id: slime-casing
         name: Enforce lowercase "slime"
-        entry: sed -i '' -E 's/([^a-zA-Z]|^)(SLIME|Slime)([^a-zA-Z]|$)/\1slime\3/g'
+        entry: sed -i '' -E 's/([^a-zA-Z_]|^)(SLIME|Slime)([^a-zA-Z_]|$)/\1slime\3/g'
         language: system
         types_or: [python, markdown]
       - id: mypy
