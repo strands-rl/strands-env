@@ -23,10 +23,10 @@ Running Tests:
     pytest tests/integration/ -v          # Integration tests (require SGLang server)
 
 Configuration:
-    pytest tests/integration/ --sglang-base-url=http://localhost:30000
+    pytest tests/integration/ --sglang-base-url=http://localhost:30000 --tool-parser=hermes
 
     Or via environment variables:
-    SGLANG_BASE_URL=http://localhost:30000 pytest tests/integration/
+    SGLANG_BASE_URL=http://localhost:30000 TOOL_PARSER=hermes pytest tests/integration/
 """
 
 import os
@@ -39,6 +39,12 @@ def pytest_addoption(parser):
         action="store",
         default=os.environ.get("SGLANG_BASE_URL", "http://localhost:30000"),
         help="SGLang server URL (default: http://localhost:30000 or SGLANG_BASE_URL env var)",
+    )
+    parser.addoption(
+        "--tool-parser",
+        action="store",
+        default=os.environ.get("TOOL_PARSER", "hermes"),
+        help="Tool parser name: hermes, qwen_xml, glm (default: hermes or TOOL_PARSER env var)",
     )
 
 

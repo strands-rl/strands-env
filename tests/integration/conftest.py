@@ -25,6 +25,7 @@ Configuration (priority: CLI > env var > default):
 
 import pytest
 from strands_sglang import SGLangClient
+from strands_sglang.tool_parsers import get_tool_parser
 from transformers import AutoTokenizer
 
 from strands_env.core.models import DEFAULT_SAMPLING_PARAMS, sglang_model_factory
@@ -64,11 +65,18 @@ def tokenizer(sglang_model_id):
     return AutoTokenizer.from_pretrained(sglang_model_id)
 
 
+@pytest.fixture(scope="session")
+def tool_parser(request):
+    """Get tool parser from pytest config."""
+    return get_tool_parser(request.config.getoption("--tool-parser"))
+
+
 @pytest.fixture
-def model_factory(tokenizer, sglang_client):
+def model_factory(tokenizer, sglang_client, tool_parser):
     """Model factory for Environment integration tests."""
     return sglang_model_factory(
         tokenizer=tokenizer,
         client=sglang_client,
         sampling_params=DEFAULT_SAMPLING_PARAMS,
+        tool_parser=tool_parser,
     )
