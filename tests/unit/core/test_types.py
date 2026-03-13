@@ -14,7 +14,11 @@
 
 """Unit tests for core types."""
 
-from strands.types.exceptions import EventLoopException, MaxTokensReachedException
+from strands.types.exceptions import (
+    ContextWindowOverflowException,
+    EventLoopException,
+    MaxTokensReachedException,
+)
 from strands_sglang import MaxToolCallsReachedError, MaxToolIterationsReachedError, TokenManager
 
 from strands_env.core.types import (
@@ -166,6 +170,11 @@ class TestTerminationReason:
         error = EventLoopException(Exception())
         error.__cause__ = MaxTokensReachedException("max tokens reached")
         assert TerminationReason.from_error(error) == TerminationReason.MAX_TOKENS_REACHED
+
+    def test_context_window_overflow(self):
+        error = EventLoopException(Exception())
+        error.__cause__ = ContextWindowOverflowException(Exception("context window exceeded"))
+        assert TerminationReason.from_error(error) == TerminationReason.CONTEXT_WINDOW_OVERFLOW
 
     def test_timeout(self):
         class ReadTimeoutError(Exception):

@@ -15,7 +15,6 @@
 """Unit tests for benchmark registry."""
 
 import pytest
-from click.testing import CliRunner
 
 from strands_env.cli import cli
 from strands_env.eval import Evaluator, get_benchmark, list_benchmarks
@@ -73,10 +72,6 @@ class TestBenchmarkRegistry:
 
 
 class TestListCommand:
-    @pytest.fixture
-    def runner(self):
-        return CliRunner()
-
     def test_list_benchmarks(self, runner):
         """List command shows registered benchmarks."""
         result = runner.invoke(cli, ["eval", "list"])
@@ -87,10 +82,6 @@ class TestListCommand:
 
 
 class TestEvalCommand:
-    @pytest.fixture
-    def runner(self):
-        return CliRunner()
-
     def test_eval_requires_env(self, runner):
         """Eval run command requires --env option."""
         result = runner.invoke(cli, ["eval", "run", "aime-2024"])
@@ -99,7 +90,6 @@ class TestEvalCommand:
 
     def test_eval_unknown_benchmark(self, runner, tmp_path):
         """Eval run command fails for unknown benchmark."""
-        # Create a minimal hook file
         hook_file = tmp_path / "test_env.py"
         hook_file.write_text("""
 def create_env_factory(model_factory, env_config):
