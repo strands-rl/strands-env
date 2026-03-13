@@ -19,12 +19,13 @@ The model ID is auto-detected from the server via /get_model_info.
 Tests are skipped automatically if the server is not reachable.
 
 Configuration (priority: CLI > env var > default):
-    pytest --sglang-base-url=http://localhost:30000
-    SGLANG_BASE_URL=http://... pytest tests/integration/
+    pytest --sglang-base-url=http://localhost:30000 --tool-parser=hermes
+    SGLANG_BASE_URL=http://... TOOL_PARSER=hermes pytest tests/integration/
 """
 
 import pytest
 from strands_sglang import SGLangClient
+from strands_sglang.tool_parsers import get_tool_parser
 from transformers import AutoTokenizer
 
 from strands_env.core.models import DEFAULT_SAMPLING_PARAMS, sglang_model_factory
@@ -38,6 +39,12 @@ pytestmark = pytest.mark.integration
 def sglang_base_url(request):
     """Get SGLang server URL from pytest config."""
     return request.config.getoption("--sglang-base-url")
+
+
+@pytest.fixture(scope="session")
+def tool_parser_name(request):
+    """Get tool parser name from CLI option."""
+    return request.config.getoption("--tool-parser")
 
 
 @pytest.fixture
@@ -65,10 +72,11 @@ def tokenizer(sglang_model_id):
 
 
 @pytest.fixture
-def model_factory(tokenizer, sglang_client):
+def model_factory(tokenizer, sglang_client, tool_parser_name):
     """Model factory for Environment integration tests."""
     return sglang_model_factory(
         tokenizer=tokenizer,
         client=sglang_client,
+        tool_parser=get_tool_parser(tool_parser_name),
         sampling_params=DEFAULT_SAMPLING_PARAMS,
     )

@@ -21,15 +21,14 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 dependencies = [
-    "strands-sglang",
+    "strands-sglang>=0.3.4",
     "strands-agents-tools",
+    "openai",
     "datasets",
     "math-verify>=0.8.0",
     "click>=8.0.0",
     "tqdm>=4.0.0",
     "tiktoken>=0.5.0",
-    "trafilatura>=2.0.0",
-    "html2text",
     "python-dotenv",
 ]
 
@@ -37,7 +36,6 @@ dependencies = [
 strands-env = "strands_env.cli:main"
 
 [project.optional-dependencies]
-litellm = ["strands-agents[litellm]"]
 dev = [
     # Testing
     "pytest>=7.0.0",
@@ -53,6 +51,10 @@ dev = [
     # Type checking
     "mypy>=1.10.0",
 ]
+litellm = ["strands-agents[litellm]"]
+web-search = ["trafilatura>=2.0.0", "html2text"]
+terminal-bench = ["harbor>=0.1.43"]
+all = ["strands-env[dev,litellm,web-search,terminal-bench]"]
 
 [tool.hatch.version]
 source = "vcs"

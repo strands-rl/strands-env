@@ -1,1 +1,1 @@
-# No additional dependencies
+strands-env[web-search]
