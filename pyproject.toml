@@ -1,10 +1,10 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project]
 name = "strands-env"
-version = "0.2.3"
+dynamic = ["version"]
 description = "Standardizing environment infrastructure with Strands Agents — step, observe, reward."
 authors = [{name = "Yuan He", email = "yuanhe.cs.ai@gmail.com"}]
 requires-python = ">=3.10"
@@ -53,6 +53,9 @@ dev = [
     # Type checking
     "mypy>=1.10.0",
 ]
+
+[tool.hatch.version]
+source = "vcs"
 
 [tool.hatch.metadata]
 allow-direct-references = true
