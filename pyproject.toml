@@ -53,7 +53,7 @@ dev = [
 ]
 litellm = ["strands-agents[litellm]"]
 web-search = ["trafilatura>=2.0.0", "html2text"]
-terminal-bench = ["harbor>=0.1.43"]
+terminal-bench = ["harbor>=0.1.43; python_version>='3.12'"]
 all = ["strands-env[dev,litellm,web-search,terminal-bench]"]
 
 [tool.hatch.version]
