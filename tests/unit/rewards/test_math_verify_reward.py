@@ -14,32 +14,13 @@
 
 """Tests for MathVerifyReward."""
 
-from dataclasses import dataclass
-
-from strands_env.core.types import Action, TaskContext, TerminationReason
+from strands_env.core.types import Action, Observation, StepResult, TaskContext
 from strands_env.rewards.math_verify_reward import MathVerifyReward
 
 
-@dataclass
-class MockObservation:
-    messages: list[dict]
-
-    @property
-    def final_response(self) -> str | None:
-        from strands_env.core.types import Observation
-
-        return Observation.get_final_response(self.messages)
-
-
-@dataclass
-class MockStepResult:
-    observation: MockObservation
-    termination_reason: TerminationReason = TerminationReason.TASK_COMPLETE
-
-
-def make_step_result(content: str) -> MockStepResult:
+def make_step_result(content: str) -> StepResult:
     msg = {"role": "assistant", "content": [{"text": content}]}
-    return MockStepResult(observation=MockObservation(messages=[msg]))
+    return StepResult(observation=Observation(messages=[msg]))
 
 
 def make_action(ground_truth: str | None = None) -> Action:
@@ -47,7 +28,7 @@ def make_action(ground_truth: str | None = None) -> Action:
 
 
 class TestMathRewardFunction:
-    """Core behavior of MathRewardFunction."""
+    """Core behavior of MathVerifyReward."""
 
     async def test_exact_match(self):
         fn = MathVerifyReward()
@@ -114,7 +95,7 @@ class TestEdgeCases:
 
     async def test_no_final_response(self):
         fn = MathVerifyReward()
-        step = MockStepResult(observation=MockObservation(messages=[{"role": "user", "content": "hi"}]))
+        step = StepResult(observation=Observation(messages=[{"role": "user", "content": [{"text": "hi"}]}]))
         result = await fn.compute(make_action("4"), step)
         assert result.reward == 0.0
         assert result.info["reason"] == "no_final_response"

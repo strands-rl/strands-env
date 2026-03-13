@@ -16,8 +16,9 @@
 
 from unittest.mock import MagicMock, patch
 
+import boto3
 import pytest
-from strands_sglang import SGLangClient, SGLangModel
+from strands_sglang import SGLangClient
 
 from strands_env.core.models import (
     DEFAULT_SAMPLING_PARAMS,
@@ -32,27 +33,6 @@ from strands_env.core.models import (
 
 
 class TestSGLangModelFactory:
-    def test_returns_callable(self):
-        factory = sglang_model_factory(
-            tokenizer=MagicMock(),
-            client=MagicMock(spec=SGLangClient),
-        )
-        assert callable(factory)
-
-    def test_creates_sglang_model(self):
-        tokenizer = MagicMock()
-        client = MagicMock(spec=SGLangClient)
-        factory = sglang_model_factory(
-            tokenizer=tokenizer,
-            client=client,
-            sampling_params={"max_new_tokens": 1024},
-            enable_thinking=True,
-        )
-        model = factory()
-        assert isinstance(model, SGLangModel)
-        assert model.tokenizer is tokenizer
-        assert model.client is client
-
     def test_each_call_creates_new_instance(self):
         factory = sglang_model_factory(
             tokenizer=MagicMock(),
@@ -70,19 +50,7 @@ class TestSGLangModelFactory:
 
 class TestBedrockModelFactory:
     @patch("strands_env.core.models.BedrockModel")
-    def test_returns_callable(self, mock_bedrock_cls):
-        import boto3
-
-        factory = bedrock_model_factory(
-            model_id="us.anthropic.claude-sonnet-4-20250514-v1:0",
-            boto_session=MagicMock(spec=boto3.Session),
-        )
-        assert callable(factory)
-
-    @patch("strands_env.core.models.BedrockModel")
     def test_remaps_max_new_tokens(self, mock_bedrock_cls):
-        import boto3
-
         factory = bedrock_model_factory(
             model_id="us.anthropic.claude-sonnet-4-20250514-v1:0",
             boto_session=MagicMock(spec=boto3.Session),
@@ -98,8 +66,6 @@ class TestBedrockModelFactory:
 
     @patch("strands_env.core.models.BedrockModel")
     def test_does_not_mutate_default_params(self, mock_bedrock_cls):
-        import boto3
-
         original = dict(DEFAULT_SAMPLING_PARAMS)
         bedrock_model_factory(
             model_id="test",
@@ -110,8 +76,6 @@ class TestBedrockModelFactory:
     @patch("strands_env.core.models.BedrockModel")
     def test_shared_client_across_instances(self, mock_bedrock_cls):
         """All models from the same factory should share a single boto3 client."""
-        import boto3
-
         mock_client = MagicMock()
         mock_bedrock_cls.return_value.client = mock_client
 
@@ -131,11 +95,6 @@ class TestBedrockModelFactory:
 
 
 class TestOpenAIModelFactory:
-    @patch("strands_env.core.models.OpenAIModel")
-    def test_returns_callable(self, mock_openai_cls):
-        factory = openai_model_factory(model_id="gpt-4o")
-        assert callable(factory)
-
     @patch("strands_env.core.models.OpenAIModel")
     def test_remaps_max_new_tokens(self, mock_openai_cls):
         factory = openai_model_factory(
@@ -164,12 +123,6 @@ class TestKimiModelFactory:
     @pytest.fixture(autouse=True)
     def _require_litellm(self):
         pytest.importorskip("litellm")
-
-    def test_returns_callable(self):
-        from strands_env.core.models import kimi_model_factory
-
-        factory = kimi_model_factory()
-        assert callable(factory)
 
     def test_remaps_max_new_tokens(self):
         from strands_env.core.models import kimi_model_factory

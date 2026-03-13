@@ -30,6 +30,15 @@ pytest.importorskip("harbor", reason="harbor>=0.1.43 required for terminal_bench
 from strands_env.core.types import Action, TaskContext, TerminationReason
 from strands_env.environments.terminal_bench import TerminalBenchConfig, TerminalBenchEnv
 
+from .conftest import assert_successful_step, assert_token_observation, assert_token_usage
+
+FORCE_TOOL_PROMPT = (
+    "You are a terminal assistant. Always use execute_command. "
+    "Break every task into many small steps, each in a separate command."
+)
+
+MANY_STEPS_PROMPT = "Run 'echo 1', then 'echo 2', then 'echo 3', then 'echo 4', then 'echo 5' one at a time."
+
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -87,154 +96,57 @@ async def terminal_bench_env(model_factory, task_dir, tmp_path):
 
 
 class TestTerminalBench:
-    async def test_step_completes(self, terminal_bench_env):
-        """Agent can execute shell commands in Docker and complete normally."""
-        action = Action(message="Run 'echo hello world' in the terminal.")
-        result = await terminal_bench_env.step(action)
+    async def test_step_with_docker_reward(self, terminal_bench_env):
+        """Full pipeline: agent runs command in Docker, observation is complete, reward comes from test.sh."""
+        result = await terminal_bench_env.step(Action(message="Run 'echo hello world' in the terminal."))
 
-        assert result.termination_reason == TerminationReason.TASK_COMPLETE
-        assert result.observation.messages
-        assert result.observation.metrics["message_count"] > 0
+        assert_successful_step(result)
+        assert_token_observation(result)
+        assert_token_usage(result)
+        assert result.observation.metrics["per_tool_metrics"]["execute_command"]["calls"] >= 1
 
-    async def test_step_produces_token_observation(self, terminal_bench_env):
-        """SGLang model produces token-level observations for TITO training."""
-        action = Action(message="List the contents of the root directory.")
-        result = await terminal_bench_env.step(action)
-
-        tokens = result.observation.tokens
-        assert tokens is not None
-        assert len(tokens.token_ids) > 0
-        assert tokens.prompt_length > 0
-        assert len(tokens.rollout_token_ids) > 0
-        # Structural invariants: loss_mask and logprobs must align with token_ids
-        assert len(tokens.loss_mask) == len(tokens.token_ids)
-        assert len(tokens.logprobs) == len(tokens.token_ids)
-        # Rollout logprobs should contain actual float values (not all None)
-        rollout_lp = tokens.rollout_logprobs
-        assert any(lp is not None for lp in rollout_lp)
-
-    async def test_step_metrics(self, terminal_bench_env):
-        """Step produces expected metric keys with correct structure."""
-        action = Action(message="Check the current working directory with pwd.")
-        result = await terminal_bench_env.step(action)
-
-        metrics = result.observation.metrics
-        assert "message_count" in metrics
-        assert "tool_iters" in metrics
-        assert "tool_calls" in metrics
-        assert "model_calls" in metrics
-        assert metrics["model_calls"] >= 1
-        # Token usage dicts have total/max/mean/min
-        for key in ("input_tokens", "output_tokens"):
-            usage = metrics[key]
-            assert isinstance(usage, dict)
-            for subkey in ("total", "max", "mean", "min"):
-                assert subkey in usage
-                assert usage[subkey] > 0
-        # Per-tool metrics: execute_command should appear with correct structure
-        per_tool = metrics.get("per_tool_metrics")
-        assert per_tool is not None
-        assert "execute_command" in per_tool
-        tool_m = per_tool["execute_command"]
-        assert tool_m["calls"] >= 1
-        assert tool_m["successes"] >= 1
-        assert "latency_s" in tool_m
-
-    async def test_final_response(self, terminal_bench_env):
-        """Observation provides final assistant response text."""
-        action = Action(message="Run 'echo 42' and tell me the output.")
-        result = await terminal_bench_env.step(action)
-
-        response = result.observation.final_response
-        assert response is not None
-        assert len(response) > 0
-
-    async def test_conversation_history(self, terminal_bench_env):
-        """Multi-turn interaction with conversation history."""
-        action1 = Action(message="Run 'echo hello' in the terminal.")
-        result1 = await terminal_bench_env.step(action1)
-        assert result1.termination_reason == TerminationReason.TASK_COMPLETE
-
-        all_messages = result1.observation.messages
-        action2 = Action(
-            message="Now run 'echo world'.",
-            task_context=TaskContext(conversation_history=all_messages),
-        )
-        result2 = await terminal_bench_env.step(action2)
-        assert result2.termination_reason == TerminationReason.TASK_COMPLETE
-
-    async def test_reward_computation(self, terminal_bench_env):
-        """Default TerminalBenchRewardFunction computes reward via test.sh in Docker."""
-        action = Action(message="Run 'echo hello' in the terminal.")
-        result = await terminal_bench_env.step(action)
-
-        # test.sh always writes 1 to reward.txt, validating the full pipeline:
-        # upload tests → run test.sh → download results → parse reward
+        # Reward: test.sh always writes 1 to reward.txt, validating the full pipeline
+        # (upload tests → run test.sh → download results → parse reward)
         assert result.reward is not None
-        assert isinstance(result.reward.reward, float)
         assert result.reward.reward == 1.0
 
+    async def test_multi_turn_conversation(self, terminal_bench_env):
+        """Agent uses conversation history from a prior turn to maintain context."""
+        result1 = await terminal_bench_env.step(Action(message="Run 'echo hello' in the terminal."))
+        assert result1.termination_reason == TerminationReason.TASK_COMPLETE
 
-# ---------------------------------------------------------------------------
-# Tests — tool limits
-# ---------------------------------------------------------------------------
-
-
-class TestToolLimit:
-    async def test_tool_iteration_limit(self, model_factory, task_dir, tmp_path):
-        """Environment respects max_tool_iters."""
-        config = TerminalBenchConfig(
-            task_id="test-iter-limit",
-            task_dir=task_dir,
-            trial_dir=tmp_path / "trial",
-        )
-        env = TerminalBenchEnv(
-            model_factory=model_factory,
-            config=config,
-            system_prompt=(
-                "You are a terminal assistant. Always use execute_command. "
-                "Break every task into many small steps, each in a separate command."
+        result2 = await terminal_bench_env.step(
+            Action(
+                message="Now run 'echo world'.",
+                task_context=TaskContext(conversation_history=result1.observation.messages),
             ),
-            max_tool_iters=1,
+        )
+        assert result2.termination_reason == TerminationReason.TASK_COMPLETE
+
+    async def test_tool_iteration_limit(self, model_factory, task_dir, tmp_path):
+        """max_tool_iters terminates the agent after the specified number of tool rounds."""
+        config = TerminalBenchConfig(task_id="test-iter-limit", task_dir=task_dir, trial_dir=tmp_path / "trial")
+        env = TerminalBenchEnv(
+            model_factory=model_factory, config=config, system_prompt=FORCE_TOOL_PROMPT, max_tool_iters=1
         )
         try:
             await env.reset()
-            action = Action(
-                message="Run 'echo 1', then 'echo 2', then 'echo 3', then 'echo 4', then 'echo 5' one at a time."
-            )
-            result = await env.step(action)
+            result = await env.step(Action(message=MANY_STEPS_PROMPT))
 
             assert result.termination_reason == TerminationReason.MAX_TOOL_ITERATIONS_REACHED
             assert result.observation.metrics["tool_iters"] <= 1
         finally:
             await env.cleanup()
 
-    async def test_max_tool_calls(self, model_factory, task_dir, tmp_path):
-        """Environment respects max_tool_calls (distinct from max_tool_iters).
-
-        Note: parallel tool calls within a single iteration may exceed the limit
-        before the limiter fires, so we only assert on termination reason.
-        """
-        config = TerminalBenchConfig(
-            task_id="test-calls-limit",
-            task_dir=task_dir,
-            trial_dir=tmp_path / "trial",
-        )
+    async def test_max_tool_calls_limit(self, model_factory, task_dir, tmp_path):
+        """max_tool_calls terminates the agent after the specified total tool invocations."""
+        config = TerminalBenchConfig(task_id="test-calls-limit", task_dir=task_dir, trial_dir=tmp_path / "trial")
         env = TerminalBenchEnv(
-            model_factory=model_factory,
-            config=config,
-            system_prompt=(
-                "You are a terminal assistant. Always use execute_command. "
-                "Break every task into many small steps, each in a separate command."
-            ),
-            max_tool_calls=1,
+            model_factory=model_factory, config=config, system_prompt=FORCE_TOOL_PROMPT, max_tool_calls=1
         )
         try:
             await env.reset()
-            action = Action(
-                message="Run 'echo 1', then 'echo 2', then 'echo 3', then 'echo 4', then 'echo 5' one at a time."
-            )
-            result = await env.step(action)
+            result = await env.step(Action(message=MANY_STEPS_PROMPT))
 
             assert result.termination_reason == TerminationReason.MAX_TOOL_CALLS_REACHED
             assert result.observation.metrics["tool_calls"] >= 1
