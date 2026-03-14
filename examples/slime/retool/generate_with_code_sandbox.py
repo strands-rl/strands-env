@@ -24,10 +24,8 @@ Uses:
 
 import logging
 
-from slime.rollout.sglang_rollout import GenerateState
-from slime.utils import logging_utils
-from slime.utils.metric_utils import dict_add_prefix
-from slime.utils.types import Sample
+from slime.rollout.sglang_rollout import GenerateState  # type: ignore
+from slime.utils.types import Sample  # type: ignore
 from strands_sglang import get_client_from_slime_args
 
 from strands_env.core.models import sglang_model_factory
@@ -35,6 +33,9 @@ from strands_env.core.types import Action, TaskContext
 from strands_env.environments.code_sandbox import CodeMode, CodeSandboxEnv
 from strands_env.rewards.math_verify_reward import MathVerifyReward
 from strands_env.utils.aws import get_client
+from strands_env.utils.slime import log_rollout_metrics
+
+log_rollout_metrics = log_rollout_metrics
 
 logger = logging.getLogger(__name__)
 
@@ -62,9 +63,7 @@ async def generate_and_rm(args, sample: Sample, sampling_params) -> Sample:
         client=get_client_from_slime_args(args, timeout=300.0),
         sampling_params=sampling_params,
     )
-
     bedrock_client = get_client("bedrock-agentcore")
-
     reward_fn = MathVerifyReward(parse_timeout=None, verify_timeout=None)
     # Note: we temporarily set the parse_timout and verify_timeout as None because Math-Verify cannot handle timeout in threaded environments
     # Please see: https://github.com/verl-project/verl/issues/3407 and https://github.com/huggingface/Math-Verify/issues/42
@@ -81,7 +80,6 @@ async def generate_and_rm(args, sample: Sample, sampling_params) -> Sample:
     )
 
     prompt = sample.prompt if isinstance(sample.prompt, str) else sample.prompt[0]["content"]
-
     action = Action(
         message=prompt,
         task_context=TaskContext(
@@ -89,36 +87,30 @@ async def generate_and_rm(args, sample: Sample, sampling_params) -> Sample:
             conversation_history=[],
         ),
     )
-    sample.action = action
+    step_result = await env.step(action)
 
-    try:
-        step_result = await env.step(action)
-        sample.status = Sample.Status.COMPLETED
-
-    except Exception as e:
-        sample.status = Sample.Status.TRUNCATED
-        logger.warning("TRUNCATED: %s: %s", type(e).__name__, e)
-
+    # Extract token data from observation
     token_obs = step_result.observation.tokens
-    if token_obs is None:
-        raise RuntimeError("TokenObservation is None - ensure model_factory returns TokenManager")
-
     sample.tokens = token_obs.token_ids
     sample.loss_mask = token_obs.rollout_loss_mask
     sample.rollout_log_probs = token_obs.rollout_logprobs
     sample.response_length = len(token_obs.rollout_token_ids)
+    sample.response = state.tokenizer.decode(token_obs.rollout_token_ids, skip_special_tokens=False)
 
-    sample.response = step_result.observation.final_response or ""
+    # Set status
+    if step_result.termination_reason.value == "task_complete":
+        sample.status = Sample.Status.COMPLETED
+    else:
+        sample.status = Sample.Status.TRUNCATED
 
-    metrics = step_result.observation.metrics
-    sample.tool_iters = metrics.get("tool_iters", 0)
-    sample.tool_calls = metrics.get("tool_calls", 0)
-    sample.step_result = step_result
+    # Set metrics for custom rollout logging
+    sample.metrics = step_result.observation.metrics
 
     await env.cleanup()
 
+    # Compute retool reward
     if step_result.reward.reward == 0.0:
-        sample.reward = min(-0.6, -1 + (sample.tool_iters - 2) / 2 * 0.1)
+        sample.reward = min(-0.6, -1 + (sample.metrics.get("tool_iters", 0) - 2) / 2 * 0.1)
     else:
         sample.reward = step_result.reward.reward
 
@@ -126,38 +118,9 @@ async def generate_and_rm(args, sample: Sample, sampling_params) -> Sample:
         "reward=%.2f | status=%s | tool_iters=%s | tool_calls=%s | tokens=%s | resp_len=%s",
         sample.reward,
         sample.status.name,
-        sample.tool_iters,
-        sample.tool_calls,
+        sample.metrics.get("tool_iters", 0),
+        sample.metrics.get("tool_calls", 0),
         len(sample.tokens),
         sample.response_length,
     )
     return sample
-
-
-def rollout_logging_with_tool_stats(rollout_id, args, samples, rollout_extra_metrics, rollout_time):
-    """
-    Logs rollout metrics including tool usage statistics.
-
-    Returns:
-        True to indicate we handled logging (prevents default logging)
-    """
-    from slime.ray.rollout import compute_metrics_from_samples, compute_perf_metrics_from_samples
-
-    log_dict = {**(rollout_extra_metrics or {})}
-    log_dict |= dict_add_prefix(compute_metrics_from_samples(args, samples), "rollout/")
-    log_dict |= dict_add_prefix(compute_perf_metrics_from_samples(args, samples, rollout_time), "perf/")
-
-    tool_iters = [getattr(sample, "tool_iters", 0) for sample in samples]
-    tool_calls = [getattr(sample, "tool_calls", 0) for sample in samples]
-
-    if any(tool_iters) or any(tool_calls):
-        log_dict["rollout/avg_tool_iters"] = sum(tool_iters) / len(tool_iters)
-        log_dict["rollout/avg_tool_calls"] = sum(tool_calls) / len(tool_calls)
-        log_dict["rollout/tool_usage_ratio"] = sum(1 for x in tool_iters if x > 0) / len(tool_iters)
-
-    logger.info("rollout %s: %s", rollout_id, log_dict)
-
-    log_dict["rollout/step"] = rollout_id
-    logging_utils.log(args, log_dict, step_key="rollout/step")
-
-    return True

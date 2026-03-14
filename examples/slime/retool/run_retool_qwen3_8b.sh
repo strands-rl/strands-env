@@ -119,7 +119,7 @@ MISC_ARGS=(
 
 CUSTOM_ARGS=(
    --custom-generate-function-path examples.slime.retool.generate_with_code_sandbox.generate_and_rm
-   --custom-rollout-log-function-path examples.slime.retool.generate_with_code_sandbox.rollout_logging_with_tool_stats
+   --custom-rollout-log-function-path examples.slime.retool.generate_with_code_sandbox.log_rollout_metrics
 )
 
 export MASTER_ADDR=${MASTER_ADDR:-"127.0.0.1"}
