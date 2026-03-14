@@ -1,6 +1,6 @@
 # Retool: RL Training with AWS AgentCore Sandbox
 
-slime-based RL training for math problem solving using CodeSandboxEnv (based on AWS AgentCore CodeInterpreter) as a Python execution environment. Training models to leverage code tools to solve math problems.
+slime-based RL training for math problem solving using `CodeSandboxEnv` (based on AWS AgentCore CodeInterpreter) as a Python execution environment. Training models to leverage code tools to solve math problems.
 
 ## Files
 
