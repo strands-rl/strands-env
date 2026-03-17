@@ -81,8 +81,9 @@ class MCPTool(AgentTool):
 
     @override
     async def stream(self, tool_use: ToolUse, invocation_state: dict[str, Any], **kwargs: Any) -> ToolGenerator:
-        """Stream a tool result back to the agent. Delegates to `_call_tool()` 
-        and parses the MCP result into a Strands `ToolResult`.
+        """Stream a tool result back to the agent.
+
+        Delegates to `_call_tool()` and parses the MCP result into a Strands `ToolResult`.
         """
         result = await self._call_tool(self._mcp_tool.name, tool_use["input"])
         content = [{"text": item.text} for item in result.content if isinstance(item, TextContent)]
