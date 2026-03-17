@@ -12,34 +12,35 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""MCP environment for connecting an agent to an MCP server via `MCPClient`."""
+"""MCP environment base class for connecting an agent to MCP servers."""
 
 from __future__ import annotations
 
-import asyncio
 import logging
+from datetime import timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
 
-from strands.tools.mcp import MCPClient
 from typing_extensions import override
 
 from strands_env.core.environment import Environment
+from strands_env.core.models import ModelFactory
+from strands_env.core.types import RewardFunction
 
-if TYPE_CHECKING:
-    from strands.tools.mcp import MCPAgentTool
+from .tool import MCPTool
 
 logger = logging.getLogger(__name__)
 
+TOOL_CALL_TIMEOUT = timedelta(seconds=120)
+
 
 class MCPEnvironment(Environment):
-    """Environment backed by a single MCP server.
+    """Base environment backed by MCP servers.
 
     Notes:
-        - Accepts an optional pre-constructed `MCPClient` and manages its lifecycle:
-          `reset()` starts the client, `cleanup()` stops it.
-        - Subclasses may set `self._mcp_client` during `reset()` and call `super().reset()`
-          to start it.
+        - Provides shared tool storage (`self._tools`) and a default
+          `get_tools()` / `cleanup()` implementation.
+        - Subclasses override `reset()` to set up their connection, populate
+          `self._tools`, and manage their own connection lifecycle.
     """
 
     default_system_prompt_path = Path(__file__).parent / "system_prompt.md"
@@ -47,27 +48,34 @@ class MCPEnvironment(Environment):
     def __init__(
         self,
         *,
-        mcp_client: MCPClient | None = None,
-        **kwargs: Any,
+        model_factory: ModelFactory,
+        system_prompt: str | None = None,
+        reward_fn: RewardFunction | None = None,
+        tool_call_timeout: timedelta = TOOL_CALL_TIMEOUT,
+        max_tool_iters: int | None = None,
+        max_tool_calls: int | None = None,
+        max_parallel_tool_calls: int | None = None,
+        verbose: bool = False,
     ):
-        """Initialize an `MCPEnvironment` instance."""
-        super().__init__(**kwargs)
-        self._mcp_client = mcp_client
+        """Initialize a `MCPEnvironment` instance."""
+        super().__init__(
+            model_factory=model_factory,
+            system_prompt=system_prompt,
+            reward_fn=reward_fn,
+            max_tool_iters=max_tool_iters,
+            max_tool_calls=max_tool_calls,
+            max_parallel_tool_calls=max_parallel_tool_calls,
+            verbose=verbose,
+        )
+        self._tool_call_timeout = tool_call_timeout
+        self._tools: list[MCPTool] = []
 
     @override
-    async def reset(self) -> None:
-        if self._mcp_client:
-            await asyncio.to_thread(self._mcp_client.start)
-
-    @override
-    def get_tools(self) -> list[MCPAgentTool]:
-        """Return tools from the MCP client."""
-        if self._mcp_client is None:
-            return []
-        return list(self._mcp_client.list_tools_sync())
+    def get_tools(self) -> list:
+        """Return tool list directly."""
+        return list(self._tools)
 
     @override
     async def cleanup(self) -> None:
-        if self._mcp_client:
-            await asyncio.to_thread(self._mcp_client.stop, None, None, None)
-            self._mcp_client = None
+        """Clear tool list. Subclasses should close their own connections first, then call super."""
+        self._tools = []

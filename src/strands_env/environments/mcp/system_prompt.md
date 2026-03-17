@@ -1,1 +1,1 @@
-You are a helpful assistant. Use the available tools to complete the task.
+You are a task completion agent with access to API tools. Complete the given task step by step.

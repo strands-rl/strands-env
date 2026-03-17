@@ -12,10 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""MCP environment for connecting an agent to an MCP server."""
+"""MCP environment and tool base classes."""
 
 from .env import MCPEnvironment
+from .tool import MCPTool
 
-__all__ = [
-    "MCPEnvironment",
-]
+__all__ = ["MCPEnvironment", "MCPTool"]
