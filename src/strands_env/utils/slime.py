@@ -12,110 +12,160 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Utilities for logging `strands-env` metrics in `slime`."""
+"""Utilities for logging `strands-env` rollouts in `slime`."""
 
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+import random
+from typing import Any
 
-if TYPE_CHECKING:
-    from slime.utils.types import Sample  # type: ignore
+import wandb
+import weave
+from slime.rollout.sglang_rollout import GenerateState  # type: ignore
+from slime.utils.metric_utils import compute_rollout_step, compute_statistics, dict_add_prefix  # type: ignore
+from slime.utils.types import Sample  # type: ignore
+
+from strands_env.core.types import StepResult
 
 logger = logging.getLogger(__name__)
 
 # NOTE: response_len in default logging refers to loss_mask=1 tokens
 
 
-def collect_env_metrics(samples: list[Sample]) -> dict[str, float]:
-    """Aggregate strands-env observation metrics across samples.
+class RolloutLogger:
+    """Custom rollout logger for `slime` that logs env metrics to `wandb` and samples to `weave`.
 
-    Extracts metrics from `sample.metrics` (populated by `Environment.step()`)
-    and returns aggregated statistics (mean/median/max/min) suitable for logging.
+    Instantiate once and use `log_rollout_metrics` as the
+    `--custom-rollout-log-function-path` callback.
 
-    Args:
-        samples: List of slime `Sample` objects with a `metrics` dict attribute.
-
-    Returns:
-        Dict with `{name}_mean`, `{name}_median`, `{name}_max`, `{name}_min`
-        for each metric, including per-tool breakdowns.
+    Weave sample logging is controlled by `n_rollouts_per_step` (default 3).
+    Set to 0 to disable.
     """
-    from slime.utils.metric_utils import compute_statistics  # type: ignore
 
-    if not samples:
-        return {}
+    def __init__(self, n_rollouts_per_step: int = 3) -> None:
+        """Initialize a `RolloutLogger` instance."""
+        self._weave_init = False
+        self.dataset: weave.Dataset | None = None
+        self.run_name: str | None = None
+        self.n_rollouts_per_step = n_rollouts_per_step
 
-    per_sample: dict[str, list[float]] = {
-        "message_count": [],
-        "tool_iters": [],
-        "model_calls": [],
-        "model_latency_s": [],
-        "cache_hit_rate": [],
-    }
+    def log_rollouts(
+        self,
+        rollout_id: int,
+        args: Any,
+        samples: list[Sample],
+        rollout_extra_metrics: dict | None,
+        _rollout_time: float,
+    ) -> bool:
+        """Log env metrics to wandb and optionally publish samples to Weave.
 
-    for sample in samples:
-        # NOTE: need to set sample.metrics = step_result.observation.metrics in generate()
-        metrics: dict[str, Any] = getattr(sample, "metrics", None) or {}
-        if not metrics:
-            continue
+        Returns `False` so slime's default logging still runs.
+        """
+        # Check if step results are attached to samples
+        for sample in samples:
+            if not getattr(sample, "step_result", None):
+                logger.warning("Skip custom rollout logging for rollout %d: missing `step_result`", rollout_id)
+                return False
 
-        per_sample["message_count"].append(metrics.get("message_count", 0))
-        per_sample["tool_iters"].append(metrics.get("tool_iters", 0))
-        per_sample["model_calls"].append(metrics.get("model_calls", 0))
-        latency = metrics.get("model_latency_s")
-        per_sample["model_latency_s"].append(latency["total"] if latency else 0)
-        per_sample["cache_hit_rate"].append(metrics.get("cache_hit_rate") or 0)
+        self.log_rollout_metrics(samples=samples, rollout_extra_metrics=rollout_extra_metrics)
+        self.log_rollout_samples(rollout_id=rollout_id, args=args, samples=samples)
 
-        for tool_name, tm in (metrics.get("per_tool_metrics") or {}).items():
-            key = f"{tool_name}_tool"
-            calls = tm["calls"]
-            per_sample.setdefault(f"{key}_calls", []).append(calls)
-            per_sample.setdefault(f"{key}_latency_s", []).append(tm["latency_s"])
-            per_sample.setdefault(f"{key}_success_rate", []).append(tm["successes"] / calls)
-            per_sample.setdefault(f"{key}_parse_error_rate", []).append(tm.get("parse_errors", 0) / calls)
-
-    log_dict: dict[str, float] = {}
-    for name, values in per_sample.items():
-        log_dict |= {f"{name}_{k}": v for k, v in compute_statistics(values).items()}
-
-    return log_dict
-
-
-def log_rollout_metrics(
-    rollout_id: int,
-    args: Any,
-    samples: list[Sample],
-    rollout_extra_metrics: dict | None,
-    _rollout_time: float,
-) -> bool:
-    """Custom rollout log function for slime.
-
-    Injects strands-env environment metrics into `rollout_extra_metrics` so they
-    are merged into SLiME's single `wandb.log()` call. Returns `False` so slime's
-    default logging still runs.
-
-    Args:
-        rollout_id: Current rollout iteration number.
-        args: slime training arguments.
-        samples: List of samples from the rollout.
-        rollout_extra_metrics: Additional metrics dict from rollout pipeline — mutated
-            in place to include env metrics.
-        _rollout_time: Wall-clock time for the rollout (unused).
-
-    Returns:
-        `False` to continue with default slime logging.
-    """
-    from slime.utils.metric_utils import dict_add_prefix  # type: ignore
-
-    log_dict = collect_env_metrics(samples)
-    if not log_dict:
         return False
 
-    log_dict = dict_add_prefix(log_dict, "rollout/")
+    @staticmethod
+    def log_rollout_metrics(samples: list[Sample], rollout_extra_metrics: dict | None) -> None:
+        """Aggregate `StepResult.observation.metrics` across samples.
 
-    if rollout_extra_metrics is not None:
-        rollout_extra_metrics.update(log_dict)
-    else:
-        logger.warning("rollout_extra_metrics is None, env metrics will not be logged")
+        Note:
+            - Need to set `sample.metrics = step_result.observation.metrics` in `generate()`
+            - Overrides for more custom rollout logging metrics can be added here
+        """
+        per_sample: dict[str, list[float]] = {
+            "message_count": [],
+            "tool_iters": [],
+            "model_calls": [],
+            "model_latency_s": [],
+            "cache_hit_rate": [],
+        }
 
-    return False
+        for sample in samples:
+            metrics: dict[str, Any] = sample.step_result.observation.metrics
+            if not metrics:
+                continue
+
+            per_sample["message_count"].append(metrics.get("message_count", 0))
+            per_sample["tool_iters"].append(metrics.get("tool_iters", 0))
+            per_sample["model_calls"].append(metrics.get("model_calls", 0))
+            latency = metrics.get("model_latency_s")
+            per_sample["model_latency_s"].append(latency["total"] if latency else 0)
+            per_sample["cache_hit_rate"].append(metrics.get("cache_hit_rate") or 0)
+
+            for tool_name, tm in (metrics.get("per_tool_metrics") or {}).items():
+                key = f"{tool_name}_tool"
+                calls = tm["calls"]
+                per_sample.setdefault(f"{key}_calls", []).append(calls)
+                per_sample.setdefault(f"{key}_latency_s", []).append(tm["latency_s"])
+                per_sample.setdefault(f"{key}_success_rate", []).append(tm["successes"] / calls)
+                per_sample.setdefault(f"{key}_parse_error_rate", []).append(tm.get("parse_errors", 0) / calls)
+
+        log_dict: dict[str, float] = {}
+        for name, values in per_sample.items():
+            log_dict |= {f"{name}_{k}": v for k, v in compute_statistics(values).items()}
+        log_dict = dict_add_prefix(log_dict, "rollout/")
+        if rollout_extra_metrics is not None:
+            rollout_extra_metrics.update(log_dict)
+        else:
+            logger.warning("rollout_extra_metrics is None, env metrics will not be logged")
+
+    def log_rollout_samples(self, rollout_id: int, args: Any, samples: list[Sample]) -> None:
+        """Publish sampled rollout step_results to a single W&B Weave dataset per run."""
+        # Lazy Weave init from args.wandb_project
+        if not self._weave_init:
+            project = getattr(args, "wandb_project", None)
+            if not project:
+                return
+            weave.init(project)
+            self.run_name = wandb.run.name if wandb.run else "unknown"
+            self._weave_init = True
+
+        tokenizer = GenerateState(args).tokenizer
+        step = compute_rollout_step(args, rollout_id)
+        n_saved = min(len(samples), self.n_rollouts_per_step)
+        rows = []
+        for s in random.sample(samples, k=n_saved):
+            step_result: StepResult = s.step_result
+            obs = step_result.observation
+            token_obs = obs.tokens
+            if not token_obs:
+                logger.warning("[weave] rollout %d missing `token_obs`", rollout_id)
+                continue
+
+            rows.append(
+                {
+                    "rollout_id": rollout_id,
+                    "step": step,
+                    "prompt": tokenizer.decode(token_obs.initial_prompt_token_ids, skip_special_tokens=False),
+                    "response": tokenizer.decode(token_obs.rollout_token_ids, skip_special_tokens=False),
+                    "termination_reason": step_result.termination_reason.value,
+                    "reward": step_result.reward.reward if step_result.reward else None,
+                    "reward_info": step_result.reward.info if step_result.reward else None,
+                    "metrics": obs.metrics,
+                }
+            )
+
+        if not rows:
+            return
+
+        if self.dataset is None:
+            self.dataset = weave.Dataset(name=f"{self.run_name}_rollouts", rows=rows)
+            weave.publish(self.dataset)
+        else:
+            self.dataset = self.dataset.add_rows(rows)
+
+        logger.info(
+            "Published %d new samples to Weave (rollout %d, step %d)",
+            len(rows),
+            rollout_id,
+            step,
+        )
