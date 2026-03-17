@@ -12,14 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Terminal-Bench environment using Harbor's DockerEnvironment for container management and test execution."""
+"""Terminal-Bench environment using Harbor for container management and test execution.
+
+Supports two backends:
+- ``"docker"`` (default): Local Docker via Harbor's DockerEnvironment.
+- ``"eks"``: AWS EKS/Fargate via harbor-aws (``pip install harbor-aws``).
+"""
 
 from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Literal
 
 from harbor.environments.factory import EnvironmentFactory
 from harbor.models.environment_type import EnvironmentType
@@ -48,6 +53,9 @@ class TerminalBenchConfig:
         trial_dir: Path to trial output directory for storing results.
         env_config: Harbor EnvironmentConfig for Docker setup.
         timeout_s: Timeout in seconds for test execution.
+        backend: ``"docker"`` for local Docker, ``"eks"`` for AWS EKS/Fargate.
+        backend_kwargs: Extra kwargs forwarded to the backend constructor
+            (e.g. ``{"stack_name": "harbor-aws", "region": "us-east-1", "ecr_cache": True}``).
     """
 
     task_id: str
@@ -55,10 +63,12 @@ class TerminalBenchConfig:
     trial_dir: Path
     env_config: EnvironmentConfig = field(default_factory=EnvironmentConfig)
     timeout_s: int = 1200
+    backend: Literal["docker", "eks"] = "docker"
+    backend_kwargs: dict[str, Any] = field(default_factory=dict)
 
 
 class TerminalBenchEnv(Environment):
-    """Terminal-Bench environment using Harbor's DockerEnvironment for container management and test execution."""
+    """Terminal-Bench environment using Harbor for container management and test execution."""
 
     default_system_prompt_path = Path(__file__).parent / "system_prompt.md"
 
@@ -91,17 +101,31 @@ class TerminalBenchEnv(Environment):
 
     @override
     async def reset(self) -> None:
-        """Build and start the Docker environment."""
+        """Build and start the container environment."""
         self.trial_paths.mkdir()
         session_id = f"{self.config.task_id}-{uuid.uuid4().hex[:8]}"
-        self.docker_env = EnvironmentFactory.create_environment(
-            type=EnvironmentType.DOCKER,
-            environment_dir=self.task_paths.environment_dir,
-            environment_name=session_id,
-            session_id=session_id,
-            trial_paths=self.trial_paths,
-            task_env_config=self.config.env_config,
-        )
+
+        if self.config.backend == "eks":
+            from harbor_aws.adapter import AWSEnvironment
+
+            self.docker_env = AWSEnvironment(
+                environment_dir=self.task_paths.environment_dir,
+                environment_name=session_id,
+                session_id=session_id,
+                trial_paths=self.trial_paths,
+                task_env_config=self.config.env_config,
+                **self.config.backend_kwargs,
+            )
+        else:
+            self.docker_env = EnvironmentFactory.create_environment(
+                type=EnvironmentType.DOCKER,
+                environment_dir=self.task_paths.environment_dir,
+                environment_name=session_id,
+                session_id=session_id,
+                trial_paths=self.trial_paths,
+                task_env_config=self.config.env_config,
+            )
+
         await self.docker_env.start(force_build=True)
 
     @tool
@@ -115,7 +139,7 @@ class TerminalBenchEnv(Environment):
             Command output (stdout + stderr combined).
         """
         if not self.docker_env:
-            raise RuntimeError("Docker environment not initialized")
+            raise RuntimeError("Environment not initialized. Call reset() first.")
         result = await self.docker_env.exec(command, timeout_sec=self.config.timeout_s)
         output = result.stdout or ""
         if result.stderr:
@@ -131,7 +155,7 @@ class TerminalBenchEnv(Environment):
 
     @override
     async def cleanup(self) -> None:
-        """Stop and delete the Docker environment."""
+        """Stop and delete the environment."""
         if self.docker_env:
             await self.docker_env.stop(delete=True)
             self.docker_env = None
