@@ -12,19 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Integration tests for the base Environment with a calculator tool.
+"""Integration tests for CalculatorEnv.
 
-This is the primary integration test file for the core Environment class.
-It exercises the full step lifecycle: agent invocation → observation
+Exercises the full step lifecycle: agent invocation → observation
 (messages, tokens, metrics) → optional reward — against a real SGLang model.
 
 Requires a running SGLang server (default: http://localhost:30000).
 """
 
-from strands_tools import calculator
-
-from strands_env.core.environment import Environment
 from strands_env.core.types import Action, TaskContext, TerminationReason
+from strands_env.environments.calculator import CalculatorEnv
 from strands_env.rewards.math_verify_reward import MathVerifyReward
 
 from .conftest import assert_successful_step, assert_token_observation, assert_token_usage
@@ -39,17 +36,10 @@ FORCE_TOOL_PROMPT = (
 MANY_STEPS_PROMPT = "Compute 1+1, then 2+2, then 3+3, then 4+4, then 5+5 one at a time."
 
 
-class MathEnvironment(Environment):
-    """Simple math environment that provides a calculator tool."""
-
-    def get_tools(self) -> list:
-        return [calculator]
-
-
-class TestMathEnvironment:
+class TestCalculatorEnv:
     async def test_step_produces_complete_observation(self, model_factory):
         """A single step produces a complete observation with messages, token trajectory, and metrics."""
-        env = MathEnvironment(model_factory=model_factory, system_prompt=MATH_SYSTEM_PROMPT)
+        env = CalculatorEnv(model_factory=model_factory, system_prompt=MATH_SYSTEM_PROMPT)
         result = await env.step(Action(message="What is 17 * 23?"))
 
         assert_successful_step(result)
@@ -65,7 +55,7 @@ class TestMathEnvironment:
 
     async def test_multi_turn_conversation(self, model_factory):
         """Agent uses conversation history from a prior turn to maintain context."""
-        env = MathEnvironment(model_factory=model_factory, system_prompt=MATH_SYSTEM_PROMPT)
+        env = CalculatorEnv(model_factory=model_factory, system_prompt=MATH_SYSTEM_PROMPT)
 
         result1 = await env.step(Action(message="What is 10 + 5?"))
         assert result1.termination_reason == TerminationReason.TASK_COMPLETE
@@ -80,7 +70,7 @@ class TestMathEnvironment:
 
     async def test_reward_fn(self, model_factory):
         """MathVerifyReward computes a symbolic-match reward from the agent's boxed answer."""
-        env = MathEnvironment(
+        env = CalculatorEnv(
             model_factory=model_factory,
             system_prompt=MATH_SYSTEM_PROMPT + " Put your final answer inside \\boxed{}.",
             reward_fn=MathVerifyReward(),
@@ -95,7 +85,7 @@ class TestMathEnvironment:
 
     async def test_tool_iteration_limit(self, model_factory):
         """max_tool_iters terminates the agent after the specified number of tool rounds."""
-        env = MathEnvironment(model_factory=model_factory, system_prompt=FORCE_TOOL_PROMPT, max_tool_iters=1)
+        env = CalculatorEnv(model_factory=model_factory, system_prompt=FORCE_TOOL_PROMPT, max_tool_iters=1)
         result = await env.step(Action(message=MANY_STEPS_PROMPT))
 
         assert result.termination_reason == TerminationReason.MAX_TOOL_ITERATIONS_REACHED
@@ -103,7 +93,7 @@ class TestMathEnvironment:
 
     async def test_max_tool_calls_limit(self, model_factory):
         """max_tool_calls terminates the agent after the specified total tool invocations."""
-        env = MathEnvironment(model_factory=model_factory, system_prompt=FORCE_TOOL_PROMPT, max_tool_calls=1)
+        env = CalculatorEnv(model_factory=model_factory, system_prompt=FORCE_TOOL_PROMPT, max_tool_calls=1)
         result = await env.step(Action(message=MANY_STEPS_PROMPT))
 
         assert result.termination_reason == TerminationReason.MAX_TOOL_CALLS_REACHED

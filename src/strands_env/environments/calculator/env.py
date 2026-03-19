@@ -16,7 +16,7 @@
 
 from pathlib import Path
 
-from strands_tools import calculator
+from strands_tools.calculator import calculator
 from typing_extensions import override
 
 from strands_env.core.environment import Environment
