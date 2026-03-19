@@ -14,7 +14,7 @@
 
 """AgentWorldModel MCP environment — synthetic FastAPI + SQLite tasks exposed via MCP."""
 
-from .env import AWMConfig, AWMEnvironment
-from .reward import AWMRewardFunction
+from .env import AgentWorldModelConfig, AgentWorldModelEnvironment
+from .reward import AgentWorldModelRewardFunction
 
-__all__ = ["AWMConfig", "AWMEnvironment", "AWMRewardFunction"]
+__all__ = ["AgentWorldModelConfig", "AgentWorldModelEnvironment", "AgentWorldModelRewardFunction"]

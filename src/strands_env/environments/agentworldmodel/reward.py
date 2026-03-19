@@ -30,6 +30,7 @@ import json
 import logging
 import sqlite3
 import traceback
+from pathlib import Path
 from typing import Any
 
 from strands_env.core.types import Action, Observation, RewardFunction, RewardResult, StepResult
@@ -42,8 +43,8 @@ OUTCOME_AGENT_FAILED = "AGENT_FAILED"
 OUTCOME_VERIFY_ERROR = "VERIFY_ERROR"
 
 
-def _run_verification(verify_code: str, initial_db_path: str, work_db_path: str, final_answer: str) -> dict:
-    """Execute AWM verification code and return the result dict.
+def _run_verification(verify_code: str, initial_db_path: Path, work_db_path: Path, final_answer: str) -> dict:
+    """Execute AgentWorldModel verification code and return the result dict.
 
     Runs in a thread pool to avoid blocking the event loop with exec() + SQLite I/O.
     """
@@ -56,8 +57,8 @@ def _run_verification(verify_code: str, initial_db_path: str, work_db_path: str,
     )
 
 
-class AWMRewardFunction(RewardFunction):
-    """Run AWM's execution-based verification codes and return binary reward."""
+class AgentWorldModelRewardFunction(RewardFunction):
+    """Run AgentWorldModel's execution-based verification codes and return binary reward."""
 
     async def compute(self, action: Action, step_result: StepResult) -> RewardResult:
         """Compute reward by running verification code against the agent's final response."""

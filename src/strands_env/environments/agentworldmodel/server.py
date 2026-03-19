@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""AWM server script generation and lifecycle utilities."""
+"""AgentWorldModel server script generation and lifecycle utilities."""
 
 from __future__ import annotations
 
@@ -36,16 +36,14 @@ _MCP_INJECT = """\
     mcp = FastApiMCP(app)
     mcp.mount_http()"""
 SERVER_STARTUP_TIMEOUT = 30
-SERVER_POLL_INTERVAL = 0.3
-SERVER_CONNECT_TIMEOUT = 1
 
 
 def write_server_script(
     script_path: Path,
     port: int,
     scenario: str,
-    envs_path: str,
-    work_db_path: str,
+    envs_path: Path,
+    work_db_path: Path,
 ) -> None:
     """Generate a runnable FastAPI server script from gen_envs.jsonl.
 
@@ -79,11 +77,11 @@ def _wait_for_server_sync(port: int, scenario: str) -> None:
     deadline = time.monotonic() + SERVER_STARTUP_TIMEOUT
     while time.monotonic() < deadline:
         try:
-            with socket.create_connection(("127.0.0.1", port), timeout=SERVER_CONNECT_TIMEOUT):
+            with socket.create_connection(("127.0.0.1", port), timeout=1):
                 return
         except (ConnectionRefusedError, OSError):
-            time.sleep(SERVER_POLL_INTERVAL)
-    raise TimeoutError(f"AWM server for {scenario} did not start within {SERVER_STARTUP_TIMEOUT}s")
+            time.sleep(0.3)
+    raise TimeoutError(f"AgentWorldModel server for {scenario} did not start within {SERVER_STARTUP_TIMEOUT}s")
 
 
 async def wait_for_server(port: int, scenario: str) -> None:
