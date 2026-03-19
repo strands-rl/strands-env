@@ -30,15 +30,7 @@ JUDGE_MODEL_ID = os.getenv("JUDGE_MODEL_ID", "us.anthropic.claude-sonnet-4-20250
 
 
 def create_env_factory(model_factory: ModelFactory, env_config: EnvConfig):
-    """Create env_factory for chat-only SimpleQA-Verified evaluation.
-
-    Args:
-        model_factory: Model factory provided by CLI.
-        env_config: Environment configuration from CLI.
-
-    Returns:
-        Async env_factory function.
-    """
+    """Create env_factory for chat-only SimpleQA-Verified evaluation."""
     boto_session = get_session(region="us-west-2")
     judge_model_factory = bedrock_model_factory(
         model_id=JUDGE_MODEL_ID,
