@@ -14,7 +14,7 @@
 
 """Core module: environment, types, and model factories."""
 
-from .environment import AsyncEnvFactory, Environment
+from .environment import AsyncEnvFactory, Environment, EnvironmentConfig
 from .models import ModelFactory
 from .types import (
     Action,
@@ -31,6 +31,7 @@ __all__ = [
     "Action",
     "AsyncEnvFactory",
     "Environment",
+    "EnvironmentConfig",
     "ModelFactory",
     "Observation",
     "RewardFunction",

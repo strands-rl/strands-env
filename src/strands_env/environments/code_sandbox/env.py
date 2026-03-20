@@ -17,11 +17,11 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, Unpack
 
 from typing_extensions import override
 
-from strands_env.core.environment import Environment
+from strands_env.core.environment import Environment, EnvironmentConfig
 from strands_env.tools import CodeInterpreterToolkit
 from strands_env.utils.aws import get_client
 
@@ -29,6 +29,12 @@ if TYPE_CHECKING:
     from strands_env.core.models import ModelFactory
     from strands_env.core.types import RewardFunction
     from strands_env.utils.aws import BotoClient
+
+
+class CodeSandboxConfig(EnvironmentConfig, total=False):
+    """Serializable configuration for `CodeSandboxEnv`."""
+
+    mode: Literal["code", "terminal", "code_and_terminal"]
 
 
 class CodeSandboxEnv(Environment):
@@ -46,39 +52,33 @@ class CodeSandboxEnv(Environment):
         *,
         model_factory: ModelFactory,
         reward_fn: RewardFunction | None = None,
-        system_prompt: str | None = None,
-        max_tool_iters: int | None = None,
-        max_tool_calls: int | None = None,
-        verbose: bool = False,
         client: BotoClient | None = None,
-        mode: Literal["code", "terminal", "code_and_terminal"] = "code",
+        **config: Unpack[CodeSandboxConfig],
     ):
         """Initialize a `CodeSandboxEnv` instance."""
         super().__init__(
             model_factory=model_factory,
             reward_fn=reward_fn,
-            system_prompt=system_prompt,
-            max_tool_iters=max_tool_iters,
-            max_tool_calls=max_tool_calls,
-            verbose=verbose,
+            **config,
         )
-        self.mode = mode
-        self._toolkit = CodeInterpreterToolkit(client=client or get_client(service_name="bedrock-agentcore"))
+        self.mode = self.config.get("mode", "code")
+        self.client = client or get_client(service_name="bedrock-agentcore")
+        self.code_interpreter_toolkit = CodeInterpreterToolkit(client=self.client)
 
     @override
     def get_tools(self) -> list:
         """Return tools based on configured mode."""
         match self.mode:
             case "code":
-                return [self._toolkit.execute_code]
+                return [self.code_interpreter_toolkit.execute_code]
             case "terminal":
-                return [self._toolkit.execute_command]
+                return [self.code_interpreter_toolkit.execute_command]
             case "code_and_terminal":
-                return [self._toolkit.execute_code, self._toolkit.execute_command]
+                return [self.code_interpreter_toolkit.execute_code, self.code_interpreter_toolkit.execute_command]
             case _:
                 raise ValueError(f"Invalid mode: {self.mode}")
 
     @override
     async def cleanup(self) -> None:
         """Clean up code interpreter session."""
-        self._toolkit.cleanup()
+        self.code_interpreter_toolkit.cleanup()

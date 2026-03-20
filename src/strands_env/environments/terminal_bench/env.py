@@ -17,44 +17,39 @@
 from __future__ import annotations
 
 import uuid
-from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NotRequired, TypeAlias, Unpack
 
 from harbor.environments.factory import EnvironmentFactory
 from harbor.models.environment_type import EnvironmentType
-from harbor.models.task.config import EnvironmentConfig
+from harbor.models.task.config import EnvironmentConfig as _HarborEnvironmentConfig
 from harbor.models.task.paths import TaskPaths
 from harbor.models.trial.paths import TrialPaths
 from strands import tool
 from typing_extensions import override
 
 from strands_env.core import Environment, ModelFactory
+from strands_env.core.environment import EnvironmentConfig
 from strands_env.core.types import RewardFunction
 
-from .reward import TerminalBenchRewardFunction
+from .reward import TerminalBenchReward
 
 if TYPE_CHECKING:
     from harbor.environments.base import BaseEnvironment
 
 
-@dataclass
-class TerminalBenchConfig:
-    """Configuration for task-dependent arguments in `TerminalBenchEnv`.
+HarborEnvironmentConfig: TypeAlias = _HarborEnvironmentConfig
+HarborEnvironment: TypeAlias = BaseEnvironment
 
-    Attributes:
-        task_id: Unique identifier for the task.
-        task_dir: Path to task directory containing `Dockerfile`, `tests/`, `environment/`.
-        trial_dir: Path to trial output directory for storing results.
-        env_config: Harbor EnvironmentConfig for Docker setup.
-        timeout_s: Timeout in seconds for test execution.
-    """
+
+class TerminalBenchConfig(EnvironmentConfig):
+    """Serializable configuration for `TerminalBenchEnv`."""
 
     task_id: str
-    task_dir: Path
-    trial_dir: Path
-    env_config: EnvironmentConfig = field(default_factory=EnvironmentConfig)
-    timeout_s: int = 1200
+    task_dir: str
+    trial_dir: str
+    harbor_env_config: NotRequired[HarborEnvironmentConfig]
+    timeout_s: NotRequired[int]
 
 
 class TerminalBenchEnv(Environment):
@@ -66,41 +61,35 @@ class TerminalBenchEnv(Environment):
         self,
         *,
         model_factory: ModelFactory,
-        config: TerminalBenchConfig,
-        system_prompt: str | None = None,
         reward_fn: RewardFunction | None = None,
-        max_tool_iters: int | None = 25,
-        max_tool_calls: int | None = None,
-        verbose: bool = False,
+        **config: Unpack[TerminalBenchConfig],
     ):
         """Initialize a `TerminalBenchEnv` instance."""
         super().__init__(
             model_factory=model_factory,
-            system_prompt=system_prompt,
             reward_fn=None,
-            max_tool_iters=max_tool_iters,
-            max_tool_calls=max_tool_calls,
-            verbose=verbose,
+            **config,
         )
-
-        self.config = config
-        self.task_paths = TaskPaths(config.task_dir)
-        self.trial_paths = TrialPaths(trial_dir=config.trial_dir)
-        self.docker_env: BaseEnvironment | None = None
-        self.reward_fn = reward_fn or TerminalBenchRewardFunction(self)
+        self.task_id: str = self.config["task_id"]
+        self.timeout = self.config.get("timeout_s", 1200)
+        self.harbor_env_config = self.config.get("harbor_env_config", HarborEnvironmentConfig())
+        self.task_paths = TaskPaths(self.config["task_dir"])
+        self.trial_paths = TrialPaths(self.config["trial_dir"])
+        self.docker_env: HarborEnvironment | None = None
+        self.reward_fn = reward_fn or TerminalBenchReward(self)
 
     @override
     async def reset(self) -> None:
         """Build and start the Docker environment."""
         self.trial_paths.mkdir()
-        session_id = f"{self.config.task_id}-{uuid.uuid4().hex[:8]}"
+        session_id = f"{self.task_id}-{uuid.uuid4().hex[:8]}"
         self.docker_env = EnvironmentFactory.create_environment(
             type=EnvironmentType.DOCKER,
             environment_dir=self.task_paths.environment_dir,
             environment_name=session_id,
             session_id=session_id,
             trial_paths=self.trial_paths,
-            task_env_config=self.config.env_config,
+            task_env_config=self.harbor_env_config,
         )
         await self.docker_env.start(force_build=True)
 
@@ -114,9 +103,10 @@ class TerminalBenchEnv(Environment):
         Returns:
             Command output (stdout + stderr combined).
         """
+        # TODO: Align the terminal command ouput with OpenHand's output format.
         if not self.docker_env:
             raise RuntimeError("Docker environment not initialized")
-        result = await self.docker_env.exec(command, timeout_sec=self.config.timeout_s)
+        result = await self.docker_env.exec(command, timeout_sec=self.timeout)
         output = result.stdout or ""
         if result.stderr:
             output += f"\n[stderr]: {result.stderr}"

@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class TerminalBenchRewardFunction(RewardFunction):
+class TerminalBenchReward(RewardFunction):
     """Execute test scripts in Docker and compute binary reward (0 or 1)."""
 
     def __init__(self, env: TerminalBenchEnv) -> None:

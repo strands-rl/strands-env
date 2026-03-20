@@ -15,6 +15,6 @@
 """Terminal-Bench environment for Docker-based task evaluation."""
 
 from .env import TerminalBenchConfig, TerminalBenchEnv
-from .reward import TerminalBenchRewardFunction
+from .reward import TerminalBenchReward
 
-__all__ = ["TerminalBenchConfig", "TerminalBenchEnv", "TerminalBenchRewardFunction"]
+__all__ = ["TerminalBenchConfig", "TerminalBenchEnv", "TerminalBenchReward"]
