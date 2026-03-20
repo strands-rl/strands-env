@@ -124,6 +124,10 @@ class TestKimiModelFactory:
     def _require_litellm(self):
         pytest.importorskip("litellm")
 
+    @pytest.fixture(autouse=True)
+    def _set_moonshot_key(self, monkeypatch):
+        monkeypatch.setenv("MOONSHOT_API_KEY", "test-key")
+
     def test_remaps_max_new_tokens(self):
         from strands_env.core.models import kimi_model_factory
 

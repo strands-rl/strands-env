@@ -23,18 +23,15 @@ from strands_env.tools.web_search import WebSearchToolkit
 
 class TestApplyBlockedDomains:
     def test_appends_exclusions(self):
-        toolkit = WebSearchToolkit(blocked_domains=["example.com", "spam.org"])
-        result = toolkit._apply_blocked_domains("python asyncio")
+        result = WebSearchToolkit.apply_blocked_domains("python asyncio", ["example.com", "spam.org"])
         assert result == "python asyncio -site:example.com -site:spam.org"
 
     def test_empty_blocked_domains(self):
-        toolkit = WebSearchToolkit(blocked_domains=[])
-        result = toolkit._apply_blocked_domains("python asyncio")
+        result = WebSearchToolkit.apply_blocked_domains("python asyncio", [])
         assert result == "python asyncio"
 
     def test_no_blocked_domains(self):
-        toolkit = WebSearchToolkit()
-        result = toolkit._apply_blocked_domains("query")
+        result = WebSearchToolkit.apply_blocked_domains("query", [])
         assert result == "query"
 
 

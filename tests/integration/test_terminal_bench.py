@@ -28,7 +28,7 @@ import pytest
 pytest.importorskip("harbor", reason="harbor>=0.1.43 required for terminal_bench integration tests")
 
 from strands_env.core.types import Action, TaskContext, TerminationReason
-from strands_env.environments.terminal_bench import TerminalBenchConfig, TerminalBenchEnv
+from strands_env.environments.terminal_bench import TerminalBenchEnv
 
 from .conftest import assert_successful_step, assert_token_observation, assert_token_usage
 
@@ -79,12 +79,12 @@ def task_dir(tmp_path_factory, docker_available):
 @pytest.fixture
 async def terminal_bench_env(model_factory, task_dir, tmp_path):
     """TerminalBenchEnv with Docker reset and cleanup."""
-    config = TerminalBenchConfig(
+    env = TerminalBenchEnv(
+        model_factory=model_factory,
         task_id="test-task",
-        task_dir=task_dir,
-        trial_dir=tmp_path / "trial",
+        task_dir=str(task_dir),
+        trial_dir=str(tmp_path / "trial"),
     )
-    env = TerminalBenchEnv(model_factory=model_factory, config=config)
     await env.reset()
     yield env
     await env.cleanup()
@@ -125,9 +125,13 @@ class TestTerminalBench:
 
     async def test_tool_iteration_limit(self, model_factory, task_dir, tmp_path):
         """max_tool_iters terminates the agent after the specified number of tool rounds."""
-        config = TerminalBenchConfig(task_id="test-iter-limit", task_dir=task_dir, trial_dir=tmp_path / "trial")
         env = TerminalBenchEnv(
-            model_factory=model_factory, config=config, system_prompt=FORCE_TOOL_PROMPT, max_tool_iters=1
+            model_factory=model_factory,
+            task_id="test-iter-limit",
+            task_dir=str(task_dir),
+            trial_dir=str(tmp_path / "trial"),
+            system_prompt=FORCE_TOOL_PROMPT,
+            max_tool_iters=1,
         )
         try:
             await env.reset()
@@ -140,9 +144,13 @@ class TestTerminalBench:
 
     async def test_max_tool_calls_limit(self, model_factory, task_dir, tmp_path):
         """max_tool_calls terminates the agent after the specified total tool invocations."""
-        config = TerminalBenchConfig(task_id="test-calls-limit", task_dir=task_dir, trial_dir=tmp_path / "trial")
         env = TerminalBenchEnv(
-            model_factory=model_factory, config=config, system_prompt=FORCE_TOOL_PROMPT, max_tool_calls=1
+            model_factory=model_factory,
+            task_id="test-calls-limit",
+            task_dir=str(task_dir),
+            trial_dir=str(tmp_path / "trial"),
+            system_prompt=FORCE_TOOL_PROMPT,
+            max_tool_calls=1,
         )
         try:
             await env.reset()

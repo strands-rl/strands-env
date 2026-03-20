@@ -37,9 +37,9 @@ from .reward import TerminalBenchReward
 if TYPE_CHECKING:
     from harbor.environments.base import BaseEnvironment
 
+    HarborEnvironment: TypeAlias = BaseEnvironment
 
 HarborEnvironmentConfig: TypeAlias = _HarborEnvironmentConfig
-HarborEnvironment: TypeAlias = BaseEnvironment
 
 
 class TerminalBenchConfig(EnvironmentConfig):
@@ -73,8 +73,8 @@ class TerminalBenchEnv(Environment):
         self.task_id: str = self.config["task_id"]
         self.timeout = self.config.get("timeout", 1200)
         self.harbor_env_config = self.config.get("harbor_env_config", HarborEnvironmentConfig())
-        self.task_paths = TaskPaths(self.config["task_dir"])
-        self.trial_paths = TrialPaths(self.config["trial_dir"])
+        self.task_paths = TaskPaths(Path(self.config["task_dir"]))
+        self.trial_paths = TrialPaths(Path(self.config["trial_dir"]))
         self.docker_env: HarborEnvironment | None = None
         self.reward_fn = reward_fn or TerminalBenchReward(self)
 

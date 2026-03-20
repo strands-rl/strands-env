@@ -84,7 +84,7 @@ class TestCodeSandboxEnv:
 
     async def test_code_and_terminal_mode(self, model_factory, agentcore_client):
         """CODE_AND_TERMINAL mode: both execute_code and execute_command tools available."""
-        env = CodeSandboxEnv(model_factory=model_factory, client=agentcore_client, mode="code"_AND_TERMINAL)
+        env = CodeSandboxEnv(model_factory=model_factory, client=agentcore_client, mode="code_and_terminal")
         try:
             result = await env.step(
                 Action(message="Use code to compute 2 + 2, then use a shell command to echo the result."),

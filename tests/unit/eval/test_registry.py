@@ -88,23 +88,15 @@ class TestEvalCommand:
         assert result.exit_code != 0
         assert "Missing option" in result.output or "--env" in result.output
 
-    def test_eval_unknown_benchmark(self, runner, tmp_path):
+    def test_eval_unknown_benchmark(self, runner):
         """Eval run command fails for unknown benchmark."""
-        hook_file = tmp_path / "test_env.py"
-        hook_file.write_text("""
-def create_env_factory(model_factory, env_config):
-    async def env_factory(action):
-        return None
-    return env_factory
-""")
-        result = runner.invoke(cli, ["eval", "run", "nonexistent", "--env", str(hook_file)])
+        result = runner.invoke(cli, ["eval", "run", "nonexistent", "--env", "some.module"])
         assert result.exit_code != 0
-        assert "Unknown benchmark" in result.output
+        assert isinstance(result.exception, KeyError)
+        assert "Unknown benchmark" in str(result.exception)
 
-    def test_eval_invalid_hook_file(self, runner, tmp_path):
-        """Eval run command fails if hook file doesn't export create_env_factory."""
-        hook_file = tmp_path / "bad_env.py"
-        hook_file.write_text("# No create_env_factory here")
-        result = runner.invoke(cli, ["eval", "run", "aime-2024", "--env", str(hook_file)])
+    def test_eval_invalid_hook_module(self, runner):
+        """Eval run command fails if hook module doesn't exist."""
+        result = runner.invoke(cli, ["eval", "run", "aime-2024", "--env", "nonexistent.module"])
         assert result.exit_code != 0
-        assert "create_env_factory" in result.output
+        assert isinstance(result.exception, ValueError)
