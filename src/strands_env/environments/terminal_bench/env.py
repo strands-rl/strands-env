@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import uuid
 from pathlib import Path
-from typing import TYPE_CHECKING, NotRequired, TypeAlias, Unpack
+from typing import TYPE_CHECKING, TypeAlias
 
 from harbor.environments.factory import EnvironmentFactory
 from harbor.models.environment_type import EnvironmentType
@@ -26,7 +26,7 @@ from harbor.models.task.config import EnvironmentConfig as _HarborEnvironmentCon
 from harbor.models.task.paths import TaskPaths
 from harbor.models.trial.paths import TrialPaths
 from strands import tool
-from typing_extensions import override
+from typing_extensions import NotRequired, Unpack, override
 
 from strands_env.core import Environment, ModelFactory
 from strands_env.core.environment import EnvironmentConfig
@@ -65,16 +65,12 @@ class TerminalBenchEnv(Environment):
         **config: Unpack[TerminalBenchConfig],
     ):
         """Initialize a `TerminalBenchEnv` instance."""
-        super().__init__(
-            model_factory=model_factory,
-            reward_fn=None,
-            **config,
-        )
-        self.task_id: str = self.config["task_id"]
-        self.timeout = self.config.get("timeout", 1200)
+        super().__init__(model_factory=model_factory, reward_fn=None, **config)  # type: ignore[misc]
+        self.task_id: str = str(self.config["task_id"])
+        self.timeout: int = int(self.config.get("timeout", 1200))
         self.harbor_env_config = self.config.get("harbor_env_config", HarborEnvironmentConfig())
-        self.task_paths = TaskPaths(Path(self.config["task_dir"]))
-        self.trial_paths = TrialPaths(Path(self.config["trial_dir"]))
+        self.task_paths = TaskPaths(Path(str(self.config["task_dir"])))
+        self.trial_paths = TrialPaths(Path(str(self.config["trial_dir"])))
         self.docker_env: HarborEnvironment | None = None
         self.reward_fn = reward_fn or TerminalBenchReward(self)
 

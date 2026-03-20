@@ -19,14 +19,14 @@ from __future__ import annotations
 import logging
 from collections.abc import Awaitable, Callable, Sequence
 from pathlib import Path
-from typing import Any, ClassVar, TypeAlias, Unpack
+from typing import Any, ClassVar, TypeAlias
 
 from strands import Agent
 from strands.agent.conversation_manager import ConversationManager, NullConversationManager
 from strands.handlers.callback_handler import PrintingCallbackHandler
 from strands.telemetry.metrics import EventLoopMetrics
 from strands_sglang import TokenManager, ToolLimiter
-from typing_extensions import TypedDict
+from typing_extensions import TypedDict, Unpack
 
 from .models import ModelFactory
 from .types import (
@@ -71,12 +71,12 @@ class Environment:
         self.reward_fn = reward_fn
 
         # Unpack config into instance variables.
-        self.config = dict(config)
-        self.max_tool_iters = self.config.get("max_tool_iters")
-        self.max_tool_calls = self.config.get("max_tool_calls")
-        self.max_parallel_tool_calls = self.config.get("max_parallel_tool_calls")
-        self.verbose = self.config.get("verbose", False)
-        self.system_prompt = self.config.get("system_prompt") or (
+        self.config: dict[str, Any] = dict(config)
+        self.max_tool_iters: int | None = self.config.get("max_tool_iters")
+        self.max_tool_calls: int | None = self.config.get("max_tool_calls")
+        self.max_parallel_tool_calls: int | None = self.config.get("max_parallel_tool_calls")
+        self.verbose: bool = self.config.get("verbose", False)
+        self.system_prompt: str | None = self.config.get("system_prompt") or (
             self.default_system_prompt_path.read_text().strip()
             if self.default_system_prompt_path and self.default_system_prompt_path.exists()
             else None

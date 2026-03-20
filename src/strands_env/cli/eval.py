@@ -189,22 +189,25 @@ def run_cmd(
         evaluator_cls = load_evaluator_hook(evaluator_path)
         benchmark_name = evaluator_cls.benchmark_name
 
+    # Load env factory hook (validate before building model factory)
+    env_factory_creator = load_env_factory_hook(env_hook)
+
     # Build model factory
     model_config = ModelConfig(
         backend=backend,
         base_url=base_url,
-        model_id=model_id,
+        model_id=model_id or ModelConfig.model_id,
         tokenizer_path=tokenizer_path,
         tool_parser=tool_parser,
-        region=region,
+        region=region or ModelConfig.region,
         profile_name=profile_name,
         role_arn=role_arn,
         sampling=SamplingConfig(temperature=temperature, max_new_tokens=max_tokens, top_p=top_p, top_k=top_k),
     )
     model_factory = build_model_factory(config=model_config, max_concurrency=max_concurrency)
 
-    # Create env_factory from hook
-    env_factory = load_env_factory_hook(env_hook)(model_factory, **(env_config or {}))
+    # Create env_factory
+    env_factory = env_factory_creator(model_factory, **(env_config or {}))
 
     # Output paths
     output_dir = output or Path(f"{benchmark_name}_eval")

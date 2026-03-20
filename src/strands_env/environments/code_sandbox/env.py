@@ -17,9 +17,9 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal, Unpack
+from typing import TYPE_CHECKING, Literal
 
-from typing_extensions import override
+from typing_extensions import Unpack, override
 
 from strands_env.core.environment import Environment, EnvironmentConfig
 from strands_env.tools import CodeInterpreterToolkit
@@ -56,12 +56,8 @@ class CodeSandboxEnv(Environment):
         **config: Unpack[CodeSandboxConfig],
     ):
         """Initialize a `CodeSandboxEnv` instance."""
-        super().__init__(
-            model_factory=model_factory,
-            reward_fn=reward_fn,
-            **config,
-        )
-        self.mode = self.config.get("mode", "code")
+        super().__init__(model_factory=model_factory, reward_fn=reward_fn, **config)  # type: ignore[misc]
+        self.mode: str = self.config.get("mode", "code")
         self.client = client or get_client(service_name="bedrock-agentcore")
         self.code_interpreter_toolkit = CodeInterpreterToolkit(client=self.client)
 

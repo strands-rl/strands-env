@@ -16,9 +16,9 @@
 
 import asyncio
 from pathlib import Path
-from typing import Literal, Unpack
+from typing import Literal
 
-from typing_extensions import override
+from typing_extensions import Unpack, override
 
 from strands_env.core.environment import Environment, EnvironmentConfig
 from strands_env.core.models import ModelFactory
@@ -57,17 +57,13 @@ class WebSearchEnv(Environment):
         **config: Unpack[WebSearchConfig],
     ):
         """Initialize a `WebSearchEnv` instance."""
-        super().__init__(
-            model_factory=model_factory,
-            reward_fn=reward_fn,
-            **config,
-        )
+        super().__init__(model_factory=model_factory, reward_fn=reward_fn, **config)  # type: ignore[misc]
 
-        provider = self.config.get("search_provider", "serper")
+        provider: str = self.config.get("search_provider", "serper")
         self.search_toolkit = WebSearchToolkit(
-            timeout=self.config.get("search_timeout", 10),
+            timeout=int(self.config.get("search_timeout", 10)),
             concurrency=search_concurrency,
-            blocked_domains=self.config.get("blocked_domains"),
+            blocked_domains=self.config.get("blocked_domains"),  # type: ignore[arg-type]
         )
         self.search_tool = getattr(self.search_toolkit, f"{provider}_search")
 
@@ -75,9 +71,9 @@ class WebSearchEnv(Environment):
         self.scraper_toolkit: WebScraperToolkit | None = None
         if self.config.get("scrape_enabled", False):
             self.scraper_toolkit = WebScraperToolkit(
-                timeout=self.config.get("scrape_timeout", 30),
+                timeout=int(self.config.get("scrape_timeout", 30)),
                 concurrency=scrape_concurrency,
-                token_budget=self.config.get("scrape_token_budget", 5000),
+                token_budget=int(self.config.get("scrape_token_budget", 5000)),
                 summarizer_model_factory=summarizer_model_factory,
             )
             self.scrape_tool = (
