@@ -16,9 +16,8 @@
 
 from __future__ import annotations
 
-from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from typing_extensions import override
 
@@ -27,23 +26,9 @@ from strands_env.tools import CodeInterpreterToolkit
 from strands_env.utils.aws import get_client
 
 if TYPE_CHECKING:
-    from botocore.client import BaseClient
-
     from strands_env.core.models import ModelFactory
     from strands_env.core.types import RewardFunction
-
-
-class CodeMode(str, Enum):
-    """Tool modes for `CodeSandboxEnv`."""
-
-    CODE = "code"
-    """Only `execute_code` tool (Python execution)."""
-
-    TERMINAL = "terminal"
-    """Only `execute_command` tool (shell commands)."""
-
-    CODE_AND_TERMINAL = "code_and_terminal"
-    """Both `execute_code` and `execute_command` tools."""
+    from strands_env.utils.aws import BotoClient
 
 
 class CodeSandboxEnv(Environment):
@@ -51,7 +36,7 @@ class CodeSandboxEnv(Environment):
 
     Notes:
         Provides `execute_code` (Python) and/or `execute_command` (shell) tools
-        depending on the configured `CodeMode`.
+        depending on the configured mode.
     """
 
     default_system_prompt_path = Path(__file__).parent / "system_prompt.md"
@@ -60,13 +45,13 @@ class CodeSandboxEnv(Environment):
         self,
         *,
         model_factory: ModelFactory,
-        system_prompt: str | None = None,
         reward_fn: RewardFunction | None = None,
-        max_tool_iters: int | None = 10,
-        max_tool_calls: int | None = 50,
+        system_prompt: str | None = None,
+        max_tool_iters: int | None = None,
+        max_tool_calls: int | None = None,
         verbose: bool = False,
-        client: BaseClient | None = None,
-        mode: CodeMode = CodeMode.CODE,
+        client: BotoClient | None = None,
+        mode: Literal["code", "terminal", "code_and_terminal"] = "code",
     ):
         """Initialize a `CodeSandboxEnv` instance."""
         super().__init__(
@@ -83,12 +68,15 @@ class CodeSandboxEnv(Environment):
     @override
     def get_tools(self) -> list:
         """Return tools based on configured mode."""
-        tool_map: dict[CodeMode, list] = {
-            CodeMode.CODE: [self._toolkit.execute_code],
-            CodeMode.TERMINAL: [self._toolkit.execute_command],
-            CodeMode.CODE_AND_TERMINAL: [self._toolkit.execute_code, self._toolkit.execute_command],
-        }
-        return tool_map[self.mode]
+        match self.mode:
+            case "code":
+                return [self._toolkit.execute_code]
+            case "terminal":
+                return [self._toolkit.execute_command]
+            case "code_and_terminal":
+                return [self._toolkit.execute_code, self._toolkit.execute_command]
+            case _:
+                raise ValueError(f"Invalid mode: {self.mode}")
 
     @override
     async def cleanup(self) -> None:
