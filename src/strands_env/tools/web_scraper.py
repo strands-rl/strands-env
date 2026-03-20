@@ -79,8 +79,7 @@ class WebScraperToolkit:
     def __init__(
         self,
         timeout: int = DEFAULT_TIMEOUT,
-        max_concurrency: int = DEFAULT_MAX_CONCURRENCY,
-        semaphore: asyncio.Semaphore | None = None,
+        concurrency: asyncio.Semaphore | int = DEFAULT_MAX_CONCURRENCY,
         token_budget: int = DEFAULT_TOKEN_BUDGET,
         summarizer_model_factory: ModelFactory | None = None,
     ):
@@ -88,22 +87,21 @@ class WebScraperToolkit:
 
         Args:
             timeout: HTTP request timeout in seconds.
-            max_concurrency: Max concurrent requests (ignored if *semaphore* is provided).
-            semaphore: Shared semaphore for global rate limiting across toolkit instances.
+            concurrency: Semaphore or max concurrent requests for rate limiting.
             token_budget: Max tokens of page content to keep after extraction.
             summarizer_model_factory: Optional factory for creating model instances for LLM summarization.
         """
-        self._timeout = timeout
-        self._semaphore = semaphore or asyncio.Semaphore(max_concurrency)
+        self.timeout = timeout
+        self.semaphore = concurrency if isinstance(concurrency, asyncio.Semaphore) else asyncio.Semaphore(concurrency)
+        self.token_budget = token_budget
+        self.summarizer_model_factory = summarizer_model_factory
         self._session: aiohttp.ClientSession | None = None
-        self._token_budget = token_budget
         self._encoding = tiktoken.encoding_for_model("gpt-4")
-        self._summarizer_model_factory = summarizer_model_factory
 
     def _get_session(self) -> aiohttp.ClientSession:
         """Get or create the shared HTTP session."""
         if self._session is None or self._session.closed:
-            self._session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=self._timeout))
+            self._session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=self.timeout))
         return self._session
 
     async def cleanup(self) -> None:
@@ -114,7 +112,7 @@ class WebScraperToolkit:
 
     async def fetch_html(self, url: str) -> str:
         """Fetch a web page and return the HTML."""
-        async with self._semaphore:
+        async with self.semaphore:
             async with self._get_session().get(url, headers=_REQUEST_HEADERS) as response:
                 response.raise_for_status()
                 return await response.text()
@@ -133,8 +131,8 @@ class WebScraperToolkit:
 
         def _truncate(text: str) -> str:
             tokens = self._encoding.encode(text)
-            if len(tokens) > self._token_budget:
-                return self._encoding.decode(tokens[: self._token_budget]) + "...(content truncated)"
+            if len(tokens) > self.token_budget:
+                return self._encoding.decode(tokens[: self.token_budget]) + "...(content truncated)"
             return text
 
         content = await asyncio.to_thread(
@@ -162,12 +160,12 @@ class WebScraperToolkit:
         Notes:
             Uses `Environment` for client sharing (e.g. Bedrock) and exception handling.
         """
-        if self._summarizer_model_factory is None:
+        if self.summarizer_model_factory is None:
             logger.warning("`summarizer_model_factory` is not set. Returning raw content.")
             return content
 
         prompt = EXTRACTION_PROMPT_TEMPLATE.format(instruction=instruction, content=content)
-        environment = Environment(model_factory=self._summarizer_model_factory)
+        environment = Environment(model_factory=self.summarizer_model_factory)
         result = await environment.step(action=Action(message=prompt))
         return result.observation.final_response or "No summary available."
 

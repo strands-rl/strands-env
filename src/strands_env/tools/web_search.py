@@ -48,27 +48,25 @@ class WebSearchToolkit:
     def __init__(
         self,
         timeout: int = DEFAULT_TIMEOUT,
-        max_concurrency: int = DEFAULT_MAX_CONCURRENCY,
-        semaphore: asyncio.Semaphore | None = None,
+        concurrency: asyncio.Semaphore | int = DEFAULT_MAX_CONCURRENCY,
         blocked_domains: list[str] | None = None,
     ):
         """Initialize a `WebSearchToolkit` instance.
 
         Args:
             timeout: HTTP request timeout in seconds.
-            max_concurrency: Max concurrent requests (ignored if *semaphore* is provided).
-            semaphore: Shared semaphore for global rate limiting across toolkit instances.
+            concurrency: Semaphore or max concurrent requests for API rate limiting.
             blocked_domains: Domains to exclude from results (e.g. `["huggingface.co"]`).
         """
-        self._timeout = timeout
-        self._semaphore = semaphore or asyncio.Semaphore(max_concurrency)
-        self._blocked_domains = blocked_domains or []
+        self.timeout = timeout
+        self.semaphore = concurrency if isinstance(concurrency, asyncio.Semaphore) else asyncio.Semaphore(concurrency)
+        self.blocked_domains = blocked_domains or []
         self._session: aiohttp.ClientSession | None = None
 
     def _get_session(self) -> aiohttp.ClientSession:
         """Get or create the shared HTTP session."""
         if self._session is None or self._session.closed:
-            self._session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=self._timeout))
+            self._session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=self.timeout))
         return self._session
 
     async def cleanup(self) -> None:
@@ -77,10 +75,11 @@ class WebSearchToolkit:
             await self._session.close()
             self._session = None
 
-    def _apply_blocked_domains(self, query: str) -> str:
+    @staticmethod
+    def apply_blocked_domains(query: str, blocked_domains: list[str]) -> str:
         """Append `-site:` exclusions to *query* for blocked domains."""
-        if self._blocked_domains:
-            return query + " " + " ".join(f"-site:{d}" for d in self._blocked_domains)
+        if blocked_domains:
+            return query + " " + " ".join(f"-site:{d}" for d in blocked_domains)
         return query
 
     @staticmethod
@@ -120,7 +119,7 @@ class WebSearchToolkit:
         """
         logger.info("[serper_search] query=%s, top_k=%s", query, top_k)
 
-        query = self._apply_blocked_domains(query)
+        query = self.apply_blocked_domains(query, self.blocked_domains)
 
         headers = {
             "X-API-KEY": os.environ["SERPER_API_KEY"],
@@ -129,7 +128,7 @@ class WebSearchToolkit:
         payload = {"q": query, "num": top_k}
 
         try:
-            async with self._semaphore:
+            async with self.semaphore:
                 async with self._get_session().post(GOOGLE_SERPER_DEV_URL, json=payload, headers=headers) as response:
                     response.raise_for_status()
                     data = await response.json()
@@ -158,7 +157,7 @@ class WebSearchToolkit:
         logger.info("[google_search] query=%s, top_k=%s", query, top_k)
 
         top_k = min(top_k, MAX_RESULTS)
-        query = self._apply_blocked_domains(query)
+        query = self.apply_blocked_domains(query, self.blocked_domains)
 
         params = {
             "key": os.environ["GOOGLE_API_KEY"],
@@ -168,7 +167,7 @@ class WebSearchToolkit:
         }
 
         try:
-            async with self._semaphore:
+            async with self.semaphore:
                 async with self._get_session().get(GOOGLE_CUSTOM_SEARCH_URL, params=params) as response:
                     response.raise_for_status()
                     data = await response.json()
