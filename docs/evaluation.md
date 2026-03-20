@@ -60,7 +60,7 @@ strands-env eval run --evaluator <dotted.module.path> --env <dotted.module.path>
 ```bash
 # Using registered benchmark with code sandbox env
 strands-env eval run aime-2024 \
-    --env examples.eval.aime_code.code_sandbox_env \
+    --env examples.eval.aime.code_sandbox_env \
     --base-url http://localhost:30000
 
 # Using custom evaluator module

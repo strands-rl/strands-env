@@ -12,36 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""CLI entry point for Strands Agents Environments."""
+"""Example environment hook for math reasoning evaluation with `Environment`."""
 
-from __future__ import annotations
-
-import os
-import sys
-
-import click
-
-# Add cwd to sys.path so local modules (e.g., examples/) are importable as dotted paths.
-if os.getcwd() not in sys.path:
-    sys.path.insert(0, os.getcwd())
-
-from .eval import eval_group
+from strands_env.core import Environment
+from strands_env.core.models import ModelFactory
+from strands_env.rewards import MathVerifyReward
 
 
-@click.group()
-def cli() -> None:
-    """Strands Agents Environments: CLI main entrypoint."""
-    pass
+def create_env_factory(model_factory: ModelFactory, **env_config):
+    """Create env_factory for `CodeSandboxEnv`."""
+    reward_fn = MathVerifyReward()
 
+    async def env_factory(_action):
+        return Environment(model_factory=model_factory, reward_fn=reward_fn, **env_config)
 
-# Register command groups
-cli.add_command(eval_group)
-
-
-def main() -> None:
-    """Run the Strands Agents Environments CLI."""
-    cli()
-
-
-if __name__ == "__main__":
-    main()
+    return env_factory
