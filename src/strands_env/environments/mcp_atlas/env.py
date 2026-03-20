@@ -1,0 +1,120 @@
+# Copyright 2025-2026 Horizon RL Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""MCP-Atlas environment backed by a Docker container."""
+
+from __future__ import annotations
+
+import logging
+from typing import Literal
+
+import httpx
+from mcp.types import Tool as MCPToolDef
+from strands.types.tools import ToolResultContent
+from typing_extensions import NotRequired, Unpack, override
+
+from strands_env.core.environment import Environment, EnvironmentConfig
+from strands_env.core.models import ModelFactory
+from strands_env.core.types import RewardFunction
+from strands_env.tools.mcp_tool import MCPToolAdapter
+
+logger = logging.getLogger(__name__)
+
+
+class MCPAtlasConfig(EnvironmentConfig):
+    """Serializable configuration for `MCPAtlasEnvironment`."""
+
+    enabled_tools: NotRequired[list[str]]
+    tool_timeout: NotRequired[int]
+
+
+class MCPAtlasTool(MCPToolAdapter):
+    """MCP tool that calls the MCP-Atlas container's REST API."""
+
+    def __init__(
+        self,
+        mcp_tool: MCPToolDef,
+        http_client: httpx.AsyncClient,
+        timeout: int = 60,
+    ):
+        """Initialize a `MCPAtlasTool` instance."""
+        super().__init__(mcp_tool)
+        self._http_client = http_client
+        self._call_timeout = timeout
+
+    @override
+    async def call_tool(self, name: str, args: dict) -> tuple[list[ToolResultContent], Literal["success", "error"]]:
+        """Execute tool via HTTP POST to the MCP-Atlas container."""
+        response = await self._http_client.post(
+            "/call-tool", json={"tool_name": name, "tool_args": args}, timeout=self._call_timeout
+        )
+        if response.status_code != 200:  # upstream MCP server error
+            return [ToolResultContent(text=response.text)], "error"
+        content = [ToolResultContent(text=str(item)) for item in response.json()]
+        return content, "success"
+
+
+class MCPAtlasEnvironment(Environment):
+    """MCP-Atlas benchmark environment backed by a Docker container.
+
+    Notes:
+        - A shared ``httpx.AsyncClient`` is passed in at construction time;
+          the caller owns its lifecycle (create once, close after all tasks).
+        - ``reset()`` fetches tools from the container and applies per-task
+          filtering.
+        - ``cleanup()`` clears the tool list only.
+    """
+
+    def __init__(
+        self,
+        *,
+        model_factory: ModelFactory,
+        http_client: httpx.AsyncClient,
+        reward_fn: RewardFunction | None = None,
+        **config: Unpack[MCPAtlasConfig],
+    ):
+        """Initialize a `MCPAtlasEnvironment` instance."""
+        super().__init__(
+            model_factory=model_factory,
+            reward_fn=reward_fn,
+            **config,  # type: ignore[misc]
+        )
+        self._http_client = http_client
+        self._tools: list[MCPAtlasTool] = []
+        self._tool_timeout: int = int(self.config.get("tool_timeout", 60))
+        enabled = self.config.get("enabled_tools")
+        self._enabled_tools = set(enabled) if enabled else None
+
+    @override
+    async def reset(self) -> None:
+        """Fetch tools from the container and apply per-task filter."""
+        response = await self._http_client.post("/list-tools", timeout=self._tool_timeout)
+        response.raise_for_status()
+        all_tools = response.json()
+        self._tools = [
+            MCPAtlasTool(MCPToolDef.model_validate(tool), self._http_client, timeout=self._tool_timeout)
+            for tool in all_tools
+            if self._enabled_tools is None or tool["name"] in self._enabled_tools
+        ]
+        logger.info("MCP-Atlas: %d tools enabled", len(self._tools))
+
+    @override
+    def get_tools(self) -> list:
+        """Return the MCP tools discovered during ``reset()``."""
+        return list(self._tools)
+
+    @override
+    async def cleanup(self) -> None:
+        """Clear tool list. The shared HTTP client is not closed here."""
+        self._tools = []
