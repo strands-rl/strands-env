@@ -22,9 +22,7 @@ from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FuturesTimeoutError
 from functools import wraps
-from typing import Any, TypeVar
-
-T = TypeVar("T")
+from typing import Any
 
 
 def requires_env(*env_vars: str) -> Callable[..., Any]:
@@ -75,7 +73,7 @@ def requires_env(*env_vars: str) -> Callable[..., Any]:
     return decorator
 
 
-def with_timeout(timeout: float | None) -> Callable[[Callable[..., T]], Callable[..., T]]:
+def with_timeout(timeout: float | None) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """Decorator that enforces a timeout on function execution using `ThreadPoolExecutor`.
 
     This is useful when the function's own timeout mechanism relies on
@@ -95,12 +93,12 @@ def with_timeout(timeout: float | None) -> Callable[[Callable[..., T]], Callable
             ...
     """
 
-    def decorator(func: Callable[..., T]) -> Callable[..., T]:
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         if timeout is None:
             return func
 
         @wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> T:
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             with ThreadPoolExecutor(max_workers=1) as executor:
                 future = executor.submit(func, *args, **kwargs)
                 try:
