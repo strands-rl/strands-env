@@ -18,11 +18,15 @@ from __future__ import annotations
 
 import logging
 import random
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import wandb
 import weave
 from slime.rollout.sglang_rollout import GenerateState  # type: ignore
+
+if TYPE_CHECKING:
+    from weave.trace.refs import ObjectRef
+    from weave.trace.weave_client import WeaveClient
 from slime.utils.metric_utils import compute_rollout_step, compute_statistics, dict_add_prefix  # type: ignore
 from slime.utils.types import Sample  # type: ignore
 
@@ -46,6 +50,8 @@ class RolloutLogger:
     def __init__(self, n_rollouts_per_step: int = 3, log_per_tool_metrics: bool = False) -> None:
         """Initialize a `RolloutLogger` instance."""
         self._weave_init = False
+        self._weave_client: WeaveClient | None = None
+        self._prev_ref: ObjectRef | None = None
         self.dataset: weave.Dataset | None = None
         self.run_name: str | None = None
         self.n_rollouts_per_step = n_rollouts_per_step
@@ -154,7 +160,7 @@ class RolloutLogger:
             project = getattr(args, "wandb_project", None)
             if not project:
                 return
-            weave.init(project)
+            self._weave_client = weave.init(project)
             self.run_name = wandb.run.name if wandb.run else "unknown"
             self._weave_init = True
 
@@ -186,11 +192,19 @@ class RolloutLogger:
         if not rows:
             return
 
+        dataset_name = f"{self.run_name}_rollouts"
         if self.dataset is None:
-            self.dataset = weave.Dataset(name=f"{self.run_name}_rollouts", rows=weave.Table(rows=rows))
-            weave.publish(self.dataset)
+            self.dataset = weave.Dataset(name=dataset_name, rows=weave.Table(rows=rows))
+            self._prev_ref = weave.publish(self.dataset)
         else:
-            self.dataset = self.dataset.add_rows(rows)
+            self.dataset = self.dataset.add_rows(rows)  # auto-publishes
+            # Delete previous version (each version is a superset, so old ones are redundant).
+            if self._prev_ref is not None and self._weave_client is not None:
+                try:
+                    self._weave_client.delete_object_version(self._prev_ref)
+                except Exception:
+                    logger.debug("Failed to delete previous Weave dataset version", exc_info=True)
+            self._prev_ref = weave.ref(dataset_name)
 
         logger.info(
             "Published %d new samples to Weave (rollout %d, step %d)",
