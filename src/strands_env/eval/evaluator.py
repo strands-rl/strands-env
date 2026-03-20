@@ -20,23 +20,19 @@ import asyncio
 import json
 import logging
 from collections import defaultdict
-from collections.abc import Awaitable, Callable, Iterable
+from collections.abc import Iterable
 from functools import partial
 from pathlib import Path
-from typing import TypeAlias
 
 from pydantic import BaseModel
 from tqdm import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
 
-from strands_env.core import Action, Environment, StepResult
+from strands_env.core import Action, AsyncEnvFactory, StepResult
 
 from .metrics import MetricFn, compute_pass_at_k
 
 logger = logging.getLogger(__name__)
-
-#: Type alias for environment factory function (async).
-AsyncEnvFactory: TypeAlias = Callable[[Action], Awaitable[Environment]]
 
 
 class EvalSample(BaseModel):

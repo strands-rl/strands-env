@@ -14,6 +14,6 @@
 
 """Code sandbox environment using AWS Bedrock AgentCore Code Interpreter."""
 
-from .env import CodeMode, CodeSandboxEnv
+from .env import CodeSandboxConfig, CodeSandboxEnv
 
-__all__ = ["CodeMode", "CodeSandboxEnv"]
+__all__ = ["CodeSandboxConfig", "CodeSandboxEnv"]

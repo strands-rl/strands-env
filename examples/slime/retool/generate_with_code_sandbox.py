@@ -30,7 +30,7 @@ from strands_sglang import get_client_from_slime_args
 
 from strands_env.core.models import sglang_model_factory
 from strands_env.core.types import Action, TaskContext
-from strands_env.environments.code_sandbox import CodeMode, CodeSandboxEnv
+from strands_env.environments.code_sandbox import CodeSandboxEnv
 from strands_env.rewards.math_verify_reward import MathVerifyReward
 from strands_env.utils.aws import get_client
 from strands_env.utils.slime import RolloutLogger
@@ -69,7 +69,7 @@ async def generate_and_rm(args, sample: Sample, sampling_params) -> Sample:
     env = CodeSandboxEnv(
         model_factory=model_factory,
         client=bedrock_client,
-        mode=CodeMode.CODE,
+        mode="code",
         reward_fn=reward_fn,
         system_prompt=SYSTEM_PROMPT,
         max_tool_iters=MAX_TOOL_ITERS,

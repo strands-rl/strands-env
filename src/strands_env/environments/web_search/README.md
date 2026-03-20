@@ -18,21 +18,19 @@ export GOOGLE_CSE_ID="your-cse-id"
 ## Usage
 
 ```python
-from strands_env.environments.web_search import WebSearchEnv, SearchConfig, ScrapeConfig
+from strands_env.environments.web_search import WebSearchEnv
 
 # Search only (default)
 env = WebSearchEnv(model_factory=model_factory)
 
 # Search + scrape
-env = WebSearchEnv(
-    model_factory=model_factory,
-    scrape_config=ScrapeConfig(),
-)
+env = WebSearchEnv(model_factory=model_factory, scrape_enabled=True)
 
 # Search + scrape with LLM summarization
 env = WebSearchEnv(
     model_factory=model_factory,
-    scrape_config=ScrapeConfig(summarizer_model_factory=summarizer_factory),
+    scrape_enabled=True,
+    summarizer_model_factory=summarizer_factory,
 )
 
 result = await env.step(action)
@@ -46,14 +44,26 @@ Depends on configuration:
 | Config | Tools |
 |---|---|
 | Default | `serper_search` |
-| `provider="google"` | `google_search` |
-| `+ ScrapeConfig()` | search + `scrape` |
-| `+ ScrapeConfig(summarizer_model_factory=...)` | search + `scrape_and_summarize` |
+| `search_provider="google"` | `google_search` |
+| `scrape_enabled=True` | search + `scrape` |
+| `scrape_enabled=True` + `summarizer_model_factory` | search + `scrape_and_summarize` |
 
 ## Configuration
 
-- **`SearchConfig`** — `provider` (`"serper"` or `"google"`), `timeout`, `max_concurrency`, `blocked_domains`
-- **`ScrapeConfig`** — `token_budget` (default 5000 tokens), `timeout`, `max_concurrency`, `summarizer_model_factory`
+Serializable config via `WebSearchConfig` (passed as `**kwargs`):
+
+- `search_provider` — `"serper"` (default) or `"google"`
+- `search_timeout` — HTTP timeout in seconds (default 10)
+- `blocked_domains` — domains to exclude from results
+- `scrape_enabled` — enable web scraping (default `False`)
+- `scrape_timeout` — scrape HTTP timeout (default 30)
+- `scrape_token_budget` — max tokens of page content to keep (default 5000)
+
+Non-serializable params (named args):
+
+- `search_concurrency` — `Semaphore` or `int` for search rate limiting (default 10)
+- `scrape_concurrency` — `Semaphore` or `int` for scrape rate limiting (default 10)
+- `summarizer_model_factory` — model factory for LLM-based content summarization
 
 ## Reward
 

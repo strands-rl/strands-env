@@ -17,15 +17,16 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Sequence
+from collections.abc import Awaitable, Callable, Sequence
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import Any, ClassVar, TypeAlias
 
 from strands import Agent
 from strands.agent.conversation_manager import ConversationManager, NullConversationManager
 from strands.handlers.callback_handler import PrintingCallbackHandler
 from strands.telemetry.metrics import EventLoopMetrics
 from strands_sglang import TokenManager, ToolLimiter
+from typing_extensions import TypedDict, Unpack
 
 from .models import ModelFactory
 from .types import (
@@ -39,6 +40,19 @@ from .types import (
 
 logger = logging.getLogger(__name__)
 
+#: Type alias for environment factory function (async).
+AsyncEnvFactory: TypeAlias = Callable[[Any], Awaitable["Environment"]]
+
+
+class EnvironmentConfig(TypedDict, total=False):
+    """Serializable configuration for `Environment`."""
+
+    system_prompt: str | None
+    max_tool_iters: int | None
+    max_tool_calls: int | None
+    max_parallel_tool_calls: int | None
+    verbose: bool
+
 
 class Environment:
     """Base RL rollout environment for Strands agents."""
@@ -49,23 +63,24 @@ class Environment:
         self,
         *,
         model_factory: ModelFactory,
-        system_prompt: str | None = None,
         reward_fn: RewardFunction | None = None,
-        max_tool_iters: int | None = None,
-        max_tool_calls: int | None = None,
-        max_parallel_tool_calls: int | None = None,
-        verbose: bool = False,
+        **config: Unpack[EnvironmentConfig],
     ):
         """Initialize an `Environment` instance."""
         self.model_factory = model_factory
         self.reward_fn = reward_fn
-        self.max_tool_iters = max_tool_iters
-        self.max_tool_calls = max_tool_calls
-        self.max_parallel_tool_calls = max_parallel_tool_calls
-        self.verbose = verbose
 
-        path = self.default_system_prompt_path
-        self.system_prompt = system_prompt or (path.read_text().strip() if path and path.exists() else None)
+        # Unpack config into instance variables.
+        self.config: dict[str, Any] = dict(config)
+        self.max_tool_iters: int | None = self.config.get("max_tool_iters")
+        self.max_tool_calls: int | None = self.config.get("max_tool_calls")
+        self.max_parallel_tool_calls: int | None = self.config.get("max_parallel_tool_calls")
+        self.verbose: bool = self.config.get("verbose", False)
+        self.system_prompt: str | None = self.config.get("system_prompt") or (
+            self.default_system_prompt_path.read_text().strip()
+            if self.default_system_prompt_path and self.default_system_prompt_path.exists()
+            else None
+        )
 
     async def reset(self) -> None:
         """Reset for a new episode. Override for environment-specific init.

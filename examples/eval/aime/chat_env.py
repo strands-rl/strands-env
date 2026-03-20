@@ -12,18 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Example environment hook for math reasoning evaluation with `CalculatorEnv`."""
+"""Example environment hook for math reasoning evaluation with `Environment`."""
 
+from strands_env.core import Environment
 from strands_env.core.models import ModelFactory
-from strands_env.environments.calculator import CalculatorEnv
 from strands_env.rewards import MathVerifyReward
 
 
 def create_env_factory(model_factory: ModelFactory, **env_config):
-    """Create env_factory for `CalculatorEnv`."""
+    """Create env_factory for `CodeSandboxEnv`."""
     reward_fn = MathVerifyReward()
 
     async def env_factory(_action):
-        return CalculatorEnv(model_factory=model_factory, reward_fn=reward_fn, **env_config)
+        return Environment(model_factory=model_factory, reward_fn=reward_fn, **env_config)
 
     return env_factory

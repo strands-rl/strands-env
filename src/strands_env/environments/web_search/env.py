@@ -15,45 +15,30 @@
 """Web search environment with web search and web scraping tools."""
 
 import asyncio
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-from typing_extensions import override
+from typing_extensions import Unpack, override
 
-from strands_env.core.environment import Environment
+from strands_env.core.environment import Environment, EnvironmentConfig
 from strands_env.core.models import ModelFactory
 from strands_env.core.types import RewardFunction
 from strands_env.tools.web_scraper import WebScraperToolkit
 from strands_env.tools.web_search import WebSearchToolkit
 
 
-@dataclass
-class SearchConfig:
-    """Configuration for the web search tool provider."""
+class WebSearchConfig(EnvironmentConfig, total=False):
+    """Serializable configuration for `WebSearchEnv`."""
 
-    timeout: int = 10
-    max_concurrency: int = 10
-    semaphore: asyncio.Semaphore | None = None
-    blocked_domains: list[str] | None = None
-    provider: Literal["serper", "google"] = "serper"
+    # Search
+    search_provider: Literal["serper", "google"]
+    search_timeout: int
+    blocked_domains: list[str]
 
-    def _search_tool_name(self) -> str:
-        return f"{self.provider}_search"
-
-
-@dataclass
-class ScrapeConfig:
-    """Configuration for the web scraping tool."""
-
-    timeout: int = 30
-    max_concurrency: int = 10
-    semaphore: asyncio.Semaphore | None = None
-    token_budget: int = 5000
-    summarizer_model_factory: ModelFactory | None = None
-
-    def _scrape_tool_name(self) -> str:
-        return "scrape" if self.summarizer_model_factory is None else "scrape_and_summarize"
+    # Scrape
+    scrape_enabled: bool
+    scrape_timeout: int
+    scrape_token_budget: int
 
 
 class WebSearchEnv(Environment):
@@ -65,52 +50,42 @@ class WebSearchEnv(Environment):
         self,
         *,
         model_factory: ModelFactory,
-        system_prompt: str | None = None,
         reward_fn: RewardFunction | None = None,
-        max_tool_iters: int | None = 5,
-        max_tool_calls: int | None = 10,
-        verbose: bool = False,
-        search_config: SearchConfig | None = None,
-        scrape_config: ScrapeConfig | None = None,
+        search_concurrency: asyncio.Semaphore | int = 10,
+        scrape_concurrency: asyncio.Semaphore | int = 10,
+        summarizer_model_factory: ModelFactory | None = None,
+        **config: Unpack[WebSearchConfig],
     ):
         """Initialize a `WebSearchEnv` instance."""
-        if search_config is None:
-            search_config = SearchConfig()
-        super().__init__(
-            model_factory=model_factory,
-            system_prompt=system_prompt,
-            reward_fn=reward_fn,
-            max_tool_iters=max_tool_iters,
-            max_tool_calls=max_tool_calls,
-            verbose=verbose,
-        )
-        # By default, only use the search tool.
-        self._search_tool_name = search_config._search_tool_name()
+        super().__init__(model_factory=model_factory, reward_fn=reward_fn, **config)  # type: ignore[misc]
+
+        provider: str = self.config.get("search_provider", "serper")
         self.search_toolkit = WebSearchToolkit(
-            timeout=search_config.timeout,
-            max_concurrency=search_config.max_concurrency,
-            semaphore=search_config.semaphore,
-            blocked_domains=search_config.blocked_domains,
+            timeout=int(self.config.get("search_timeout", 10)),
+            concurrency=search_concurrency,
+            blocked_domains=self.config.get("blocked_domains"),  # type: ignore[arg-type]
         )
-        # If scrape_config is provided, use the scrape tool.
-        self._scrape_tool_name: str | None = None
+        self.search_tool = getattr(self.search_toolkit, f"{provider}_search")
+
+        self.scrape_tool = None
         self.scraper_toolkit: WebScraperToolkit | None = None
-        if scrape_config is not None:
-            self._scrape_tool_name = scrape_config._scrape_tool_name()
+        if self.config.get("scrape_enabled", False):
             self.scraper_toolkit = WebScraperToolkit(
-                token_budget=scrape_config.token_budget,
-                timeout=scrape_config.timeout,
-                max_concurrency=scrape_config.max_concurrency,
-                semaphore=scrape_config.semaphore,
-                summarizer_model_factory=scrape_config.summarizer_model_factory,
+                timeout=int(self.config.get("scrape_timeout", 30)),
+                concurrency=scrape_concurrency,
+                token_budget=int(self.config.get("scrape_token_budget", 5000)),
+                summarizer_model_factory=summarizer_model_factory,
+            )
+            self.scrape_tool = (
+                self.scraper_toolkit.scrape_and_summarize if summarizer_model_factory else self.scraper_toolkit.scrape
             )
 
     @override
     def get_tools(self) -> list:
-        tools = [getattr(self.search_toolkit, self._search_tool_name)]
-        if self.scraper_toolkit is not None:
-            assert self._scrape_tool_name is not None
-            tools.append(getattr(self.scraper_toolkit, self._scrape_tool_name))
+        """Return search and optionally scrape tools."""
+        tools = [self.search_tool]
+        if self.scrape_tool is not None:
+            tools.append(self.scrape_tool)
         return tools
 
     async def cleanup(self) -> None:

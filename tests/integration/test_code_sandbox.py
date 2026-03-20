@@ -22,7 +22,7 @@ Requires:
 import pytest
 
 from strands_env.core.types import Action, RewardResult, StepResult, TaskContext, TerminationReason
-from strands_env.environments.code_sandbox import CodeMode, CodeSandboxEnv
+from strands_env.environments.code_sandbox import CodeSandboxEnv
 from strands_env.utils.aws import check_credentials, get_client, get_session
 
 from .conftest import assert_successful_step, assert_token_observation, assert_token_usage
@@ -51,7 +51,7 @@ def agentcore_client():
 @pytest.fixture
 async def code_env(model_factory, agentcore_client):
     """CodeSandboxEnv in CODE mode with automatic cleanup."""
-    env = CodeSandboxEnv(model_factory=model_factory, client=agentcore_client, mode=CodeMode.CODE)
+    env = CodeSandboxEnv(model_factory=model_factory, client=agentcore_client, mode="code")
     yield env
     await env.cleanup()
 
@@ -75,7 +75,7 @@ class TestCodeSandboxEnv:
 
     async def test_terminal_mode(self, model_factory, agentcore_client):
         """TERMINAL mode: agent executes shell commands."""
-        env = CodeSandboxEnv(model_factory=model_factory, client=agentcore_client, mode=CodeMode.TERMINAL)
+        env = CodeSandboxEnv(model_factory=model_factory, client=agentcore_client, mode="terminal")
         try:
             result = await env.step(Action(message="Use a shell command to print 'hello' with echo."))
             assert_successful_step(result)
@@ -84,7 +84,7 @@ class TestCodeSandboxEnv:
 
     async def test_code_and_terminal_mode(self, model_factory, agentcore_client):
         """CODE_AND_TERMINAL mode: both execute_code and execute_command tools available."""
-        env = CodeSandboxEnv(model_factory=model_factory, client=agentcore_client, mode=CodeMode.CODE_AND_TERMINAL)
+        env = CodeSandboxEnv(model_factory=model_factory, client=agentcore_client, mode="code_and_terminal")
         try:
             result = await env.step(
                 Action(message="Use code to compute 2 + 2, then use a shell command to echo the result."),
@@ -105,7 +105,7 @@ class TestCodeSandboxEnv:
         env = CodeSandboxEnv(
             model_factory=model_factory,
             client=agentcore_client,
-            mode=CodeMode.CODE,
+            mode="code",
             reward_fn=ContainsReward(),
         )
         try:
@@ -129,7 +129,7 @@ class TestCodeSandboxEnv:
         env = CodeSandboxEnv(
             model_factory=model_factory,
             client=agentcore_client,
-            mode=CodeMode.CODE,
+            mode="code",
             system_prompt=FORCE_TOOL_PROMPT,
             max_tool_iters=1,
         )
@@ -146,7 +146,7 @@ class TestCodeSandboxEnv:
         env = CodeSandboxEnv(
             model_factory=model_factory,
             client=agentcore_client,
-            mode=CodeMode.CODE,
+            mode="code",
             system_prompt=FORCE_TOOL_PROMPT,
             max_tool_calls=1,
         )

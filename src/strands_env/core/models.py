@@ -53,6 +53,8 @@ from strands_sglang import SGLangClient, SGLangModel
 from strands_sglang.tool_parsers import HermesToolParser, ToolParser
 from transformers import PreTrainedTokenizerBase
 
+from strands_env.utils.decorators import requires_env
+
 #: Factory that produces a fresh `Model` per step (for concurrent step isolation).
 ModelFactory = Callable[[], Model]
 
@@ -241,6 +243,7 @@ def _get_kimi_model_class() -> type:
     return KimiModel
 
 
+@requires_env("MOONSHOT_API_KEY")
 def kimi_model_factory(
     *,
     model_id: str = "moonshot/kimi-k2.5",

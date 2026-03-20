@@ -66,13 +66,13 @@ class TerminalBenchEvaluator(Evaluator):
     def _load_single_task(self, task_dir: Path) -> Action:
         """Load a single task from a directory."""
         task = Task(task_dir)
-        config = TerminalBenchConfig(
-            task_id=task.name,
-            task_dir=task_dir.resolve(),
-            trial_dir=self.output_path.parent / task.name,
-            env_config=task.config.environment,
-            timeout_s=int(task.config.verifier.timeout_sec),
-        )
+        config: TerminalBenchConfig = {
+            "task_id": task.name,
+            "task_dir": str(task_dir.resolve()),
+            "trial_dir": str(self.output_path.parent / task.name),
+            "harbor_env_config": task.config.environment,
+            "timeout": int(task.config.verifier.timeout_sec),
+        }
         return Action(
             message=task.instruction,
             task_context=TerminalBenchTaskContext(id=task.name, config=config),
@@ -84,12 +84,12 @@ class TerminalBenchEvaluator(Evaluator):
         assert isinstance(action.task_context, TerminalBenchTaskContext)
         ctx = action.task_context
         sample_idx = int(ctx.id.rsplit("_", 1)[1]) if "_" in ctx.id else 0
-        ctx.config.trial_dir = self.output_path.parent / ctx.config.task_id / str(sample_idx)
+        ctx.config["trial_dir"] = str(self.output_path.parent / ctx.config["task_id"] / str(sample_idx))
 
         sample = await super().evaluate_sample(action)
 
         # Save agent messages
-        agent_dir = ctx.config.trial_dir / "agent"
+        agent_dir = Path(ctx.config["trial_dir"]) / "agent"
         agent_dir.mkdir(parents=True, exist_ok=True)
         (agent_dir / "messages.json").write_text(
             json.dumps(sample.step_result.observation.messages, indent=2, default=str)

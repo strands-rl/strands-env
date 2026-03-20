@@ -25,7 +25,7 @@ import os
 import pytest
 
 from strands_env.core.types import Action, TerminationReason
-from strands_env.environments.web_search import ScrapeConfig, SearchConfig, WebSearchEnv
+from strands_env.environments.web_search import WebSearchEnv
 
 from .conftest import assert_successful_step
 
@@ -51,7 +51,7 @@ class TestSerperWebSearchEnv:
 
     async def test_search_and_scrape(self, model_factory):
         """Agent can search and scrape pages when scrape_config is provided."""
-        env = WebSearchEnv(model_factory=model_factory, scrape_config=ScrapeConfig())
+        env = WebSearchEnv(model_factory=model_factory, scrape_enabled=True)
         try:
             result = await env.step(Action(message="What is the population of Tokyo?"))
             assert_successful_step(result)
@@ -82,7 +82,7 @@ class TestSerperWebSearchEnv:
 class TestGoogleWebSearchEnv:
     async def test_search_completes_with_response(self, model_factory):
         """Agent can search with Google Custom Search and produce a response."""
-        env = WebSearchEnv(model_factory=model_factory, search_config=SearchConfig(provider="google"))
+        env = WebSearchEnv(model_factory=model_factory, search_provider="google")
         try:
             result = await env.step(Action(message="What is the speed of light?"))
             assert_successful_step(result)

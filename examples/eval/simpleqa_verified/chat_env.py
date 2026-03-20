@@ -19,7 +19,6 @@ The judge model uses Bedrock by default. Set JUDGE_MODEL_ID to override.
 
 import os
 
-from strands_env.cli.config import EnvConfig
 from strands_env.core import Environment
 from strands_env.core.models import ModelFactory, bedrock_model_factory
 from strands_env.eval.benchmarks.simpleqa_verified import SimpleQAReward
@@ -29,16 +28,8 @@ from strands_env.utils.aws import get_session
 JUDGE_MODEL_ID = os.getenv("JUDGE_MODEL_ID", "us.anthropic.claude-sonnet-4-20250514-v1:0")
 
 
-def create_env_factory(model_factory: ModelFactory, env_config: EnvConfig):
-    """Create env_factory for chat-only SimpleQA-Verified evaluation.
-
-    Args:
-        model_factory: Model factory provided by CLI.
-        env_config: Environment configuration from CLI.
-
-    Returns:
-        Async env_factory function.
-    """
+def create_env_factory(model_factory: ModelFactory, **env_config):
+    """Create env_factory for chat-only SimpleQA-Verified evaluation."""
     boto_session = get_session(region="us-west-2")
     judge_model_factory = bedrock_model_factory(
         model_id=JUDGE_MODEL_ID,
@@ -48,11 +39,6 @@ def create_env_factory(model_factory: ModelFactory, env_config: EnvConfig):
     reward_fn = SimpleQAReward(judge_model=judge_model_factory())
 
     async def env_factory(_action):
-        return Environment(
-            model_factory=model_factory,
-            reward_fn=reward_fn,
-            system_prompt=env_config.system_prompt,
-            verbose=env_config.verbose,
-        )
+        return Environment(model_factory=model_factory, reward_fn=reward_fn, **env_config)
 
     return env_factory

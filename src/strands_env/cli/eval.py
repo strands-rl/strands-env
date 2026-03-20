@@ -25,11 +25,41 @@ from typing import Literal
 import click
 
 from strands_env.eval import get_benchmark, list_benchmarks, list_unavailable_benchmarks
+from strands_env.utils.loader import load_env_factory_hook, load_evaluator_hook
 
-from .config import EnvConfig, EvalConfig, ModelConfig, SamplingConfig
-from .utils import build_model_factory, load_env_hook, load_evaluator_hook
+from .models import ModelConfig, SamplingConfig, build_model_factory
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Custom Click Types
+# ---------------------------------------------------------------------------
+
+
+class JsonType(click.ParamType):
+    """Click parameter type that accepts inline JSON or a path to a JSON file."""
+
+    name = "JSON"
+
+    def convert(self, value: str, param: click.Parameter | None, ctx: click.Context | None) -> dict:
+        """Convert value to dict."""
+        path = Path(value)
+        if path.is_file():
+            with open(path, encoding="utf-8") as f:
+                return json.load(f)
+        try:
+            return json.loads(value)
+        except json.JSONDecodeError as e:
+            self.fail(f"Invalid JSON: {e}", param, ctx)
+
+
+JSON = JsonType()
+
+
+# ---------------------------------------------------------------------------
+# CLI Commands
+# ---------------------------------------------------------------------------
 
 
 @click.group("eval")
@@ -59,171 +89,58 @@ def list_cmd() -> None:
 
 @eval_group.command("run")
 @click.argument("benchmark", required=False)
-# Hook files
+# Hooks (dotted paths)
 @click.option(
     "--evaluator",
     "evaluator_path",
-    type=click.Path(exists=True, path_type=Path),
+    type=str,
     default=None,
-    help="Path to evaluator hook file (Python file exporting EvaluatorClass). Mutually exclusive with BENCHMARK.",
+    help="Dotted path to evaluator module (exporting EvaluatorClass). Mutually exclusive with BENCHMARK.",
 )
 @click.option(
     "--env",
     "-e",
-    "env_path",
-    type=click.Path(exists=True, path_type=Path),
+    "env_hook",
+    type=str,
     required=True,
-    help="Path to environment hook file (Python file exporting create_env_factory).",
+    help="Dotted path to environment hook module (exporting create_env_factory).",
+)
+@click.option(
+    "--env-config",
+    type=JSON,
+    default=None,
+    help="Environment config as inline JSON or path to JSON file.",
 )
 # Model config
 @click.option(
-    "--backend",
-    "-b",
-    type=click.Choice(["sglang", "bedrock", "kimi"]),
-    default="sglang",
-    help="Model backend.",
+    "--backend", "-b", type=click.Choice(["sglang", "bedrock", "kimi"]), default="sglang", help="Model backend."
 )
-@click.option(
-    "--base-url",
-    type=str,
-    default="http://localhost:30000",
-    help="Base URL for SGLang server.",
-)
-@click.option(
-    "--model-id",
-    type=str,
-    default=None,
-    help="Model ID. Auto-detected for SGLang if not provided.",
-)
-@click.option(
-    "--tokenizer-path",
-    type=str,
-    default=None,
-    help="Tokenizer path for SGLang. Defaults to model_id if not provided.",
-)
-@click.option(
-    "--region",
-    type=str,
-    default=None,
-    help="AWS region for Bedrock.",
-)
-@click.option(
-    "--profile-name",
-    type=str,
-    default=None,
-    help="AWS profile name for Bedrock.",
-)
-@click.option(
-    "--role-arn",
-    type=str,
-    default=None,
-    help="AWS role ARN for Bedrock (optional).",
-)
-@click.option(
-    "--tool-parser",
-    type=str,
-    default=None,
-    help="Tool parser: name (e.g., 'hermes', 'qwen_xml') or path to hook file.",
-)
+@click.option("--base-url", type=str, default="http://localhost:30000", help="Base URL for SGLang server.")
+@click.option("--model-id", type=str, default=None, help="Model ID. Auto-detected for SGLang if not provided.")
+@click.option("--tokenizer-path", type=str, default=None, help="Tokenizer path for SGLang.")
+@click.option("--region", type=str, default=None, help="AWS region for Bedrock.")
+@click.option("--profile-name", type=str, default=None, help="AWS profile name for Bedrock.")
+@click.option("--role-arn", type=str, default=None, help="AWS role ARN for Bedrock.")
+@click.option("--tool-parser", type=str, default=None, help="Tool parser name (e.g., 'hermes', 'qwen_xml').")
 # Sampling params
-@click.option(
-    "--temperature",
-    type=float,
-    default=None,
-    help="Sampling temperature. If not set, uses the model's default.",
-)
-@click.option(
-    "--max-tokens",
-    type=int,
-    default=16384,
-    help="Maximum new tokens to generate.",
-)
-@click.option(
-    "--top-p",
-    type=float,
-    default=None,
-    help="Top-p sampling parameter. If not set, uses the model's default.",
-)
-@click.option(
-    "--top-k",
-    type=int,
-    default=None,
-    help="Top-k sampling parameter.",
-)
-# Environment config
-@click.option(
-    "--system-prompt",
-    type=click.Path(exists=True, path_type=Path),
-    default=None,
-    help="Path to system prompt file (overrides environment default).",
-)
-@click.option(
-    "--max-tool-iters",
-    type=int,
-    default=None,
-    help="Maximum tool iterations per step.",
-)
-@click.option(
-    "--max-tool-calls",
-    type=int,
-    default=None,
-    help="Maximum tool calls per step.",
-)
-@click.option(
-    "--max-parallel-tool-calls",
-    type=int,
-    default=None,
-    help="Maximum parallel tool calls per model response (excess are cancelled, not executed).",
-)
+@click.option("--temperature", type=float, default=None, help="Sampling temperature.")
+@click.option("--max-tokens", type=int, default=16384, help="Maximum new tokens to generate.")
+@click.option("--top-p", type=float, default=None, help="Top-p sampling parameter.")
+@click.option("--top-k", type=int, default=None, help="Top-k sampling parameter.")
 # Eval settings
-@click.option(
-    "--n-samples-per-prompt",
-    type=int,
-    default=1,
-    help="Number of samples per prompt (for pass@k).",
-)
-@click.option(
-    "--max-concurrency",
-    type=int,
-    default=10,
-    help="Maximum concurrent evaluations.",
-)
-@click.option(
-    "--output",
-    "-o",
-    type=click.Path(path_type=Path),
-    default=None,
-    help="Output directory. Defaults to {benchmark}_eval/.",
-)
-@click.option(
-    "--max-samples",
-    type=int,
-    default=None,
-    help="Maximum number of dataset samples to evaluate (useful for debugging).",
-)
-@click.option(
-    "--save-interval",
-    type=int,
-    default=10,
-    help="Save results every N samples.",
-)
-@click.option(
-    "--keep-tokens",
-    is_flag=True,
-    default=False,
-    help="Keep token-level observations in results.",
-)
+@click.option("--n-samples-per-prompt", type=int, default=1, help="Number of samples per prompt (for pass@k).")
+@click.option("--max-concurrency", type=int, default=10, help="Maximum concurrent evaluations.")
+@click.option("--output", "-o", type=click.Path(path_type=Path), default=None, help="Output directory.")
+@click.option("--max-samples", type=int, default=None, help="Maximum dataset samples to evaluate.")
+@click.option("--save-interval", type=int, default=10, help="Save results every N samples.")
+@click.option("--keep-tokens", is_flag=True, default=False, help="Keep token-level observations in results.")
 # Debug
-@click.option(
-    "--debug",
-    is_flag=True,
-    default=False,
-    help="Enable debug logging.",
-)
+@click.option("--debug", is_flag=True, default=False, help="Enable debug logging.")
 def run_cmd(
     benchmark: str | None,
-    evaluator_path: Path | None,
-    env_path: Path,
+    evaluator_path: str | None,
+    env_hook: str,
+    env_config: dict | None,
     # Model
     backend: Literal["sglang", "bedrock", "kimi"],
     base_url: str,
@@ -238,11 +155,6 @@ def run_cmd(
     max_tokens: int,
     top_p: float | None,
     top_k: int | None,
-    # Environment
-    system_prompt: Path | None,
-    max_tool_iters: int | None,
-    max_tool_calls: int | None,
-    max_parallel_tool_calls: int | None,
     # Eval
     n_samples_per_prompt: int,
     max_concurrency: int,
@@ -255,139 +167,82 @@ def run_cmd(
     """Run benchmark evaluation.
 
     BENCHMARK is the name of a registered benchmark (e.g., 'aime-2024').
-    Alternatively, use --evaluator to specify a custom evaluator hook file.
+    Alternatively, use --evaluator to specify a custom evaluator module.
 
     Examples:
-        strands-env eval run aime-2024 --env my_env.py
-        strands-env eval run --evaluator my_evaluator.py --env my_env.py
+        strands-env eval run aime-2024 -e examples.eval.simple_math.calculator_env
+        strands-env eval run --evaluator my_package.evaluator -e my_package.env_hook
     """
-    # Setup logging
-    level = logging.DEBUG if debug else logging.INFO
-    logging.basicConfig(level=level, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    logging.basicConfig(
+        level=logging.DEBUG if debug else logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    )
 
-    # Validate: either benchmark or evaluator_path, not both, not neither
-    if benchmark and evaluator_path:
-        raise click.ClickException("Cannot specify both BENCHMARK and --evaluator. Use one or the other.")
-    if not benchmark and not evaluator_path:
-        raise click.ClickException("Must specify either BENCHMARK or --evaluator.")
-
-    # Get evaluator class from registry or hook file
+    # Resolve evaluator; benchmark takes precedence over evaluator_path
     if benchmark:
-        try:
-            evaluator_cls = get_benchmark(benchmark)
-        except KeyError as e:
-            raise click.ClickException(str(e)) from e
+        evaluator_cls = get_benchmark(benchmark)
         benchmark_name = benchmark
+        if evaluator_path:
+            logger.warning("Registered %s benchmark, ignoring --evaluator %s.", benchmark, evaluator_path)
     else:
         assert evaluator_path is not None
         evaluator_cls = load_evaluator_hook(evaluator_path)
         benchmark_name = evaluator_cls.benchmark_name
 
-    # Load hook file (validate before building model factory)
-    env_factory_creator = load_env_hook(env_path)
+    # Load env factory hook (validate before building model factory)
+    env_factory_creator = load_env_factory_hook(env_hook)
 
-    # Build configs
-    sampling_config = SamplingConfig(
-        temperature=temperature,
-        max_new_tokens=max_tokens,
-        top_p=top_p,
-        top_k=top_k,
-    )
+    # Build model factory
     model_config = ModelConfig(
         backend=backend,
         base_url=base_url,
-        model_id=model_id,
+        model_id=model_id or ModelConfig.model_id,
         tokenizer_path=tokenizer_path,
         tool_parser=tool_parser,
-        region=region,
+        region=region or ModelConfig.region,
         profile_name=profile_name,
         role_arn=role_arn,
-        sampling=sampling_config,
+        sampling=SamplingConfig(temperature=temperature, max_new_tokens=max_tokens, top_p=top_p, top_k=top_k),
     )
-    env_config = EnvConfig(
-        system_prompt_path=system_prompt,
-        max_tool_iters=max_tool_iters,
-        max_tool_calls=max_tool_calls,
-        max_parallel_tool_calls=max_parallel_tool_calls,
-        verbose=False,  # Always False for eval
-    )
-    eval_config = EvalConfig(
-        n_samples_per_prompt=n_samples_per_prompt,
+    model_factory = build_model_factory(config=model_config, max_concurrency=max_concurrency)
+
+    # Create env_factory
+    env_factory = env_factory_creator(model_factory, **(env_config or {}))
+
+    # Output paths
+    output_dir = output or Path(f"{benchmark_name}_eval")
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Create evaluator and load dataset
+    evaluator = evaluator_cls(
+        env_factory=env_factory,
         max_concurrency=max_concurrency,
-        output_dir=output,
+        n_samples_per_prompt=n_samples_per_prompt,
+        output_path=output_dir / "results.jsonl",
         save_interval=save_interval,
         keep_tokens=keep_tokens,
     )
-
-    # Build model factory
-    model_factory = build_model_factory(model_config, eval_config.max_concurrency)
-
-    # Create env_factory from hook
-    env_factory = env_factory_creator(model_factory, env_config)
-
-    # Get output paths based on benchmark name
-    output_dir = eval_config.get_output_dir(benchmark_name)
-    results_path = output_dir / "results.jsonl"
-    metrics_path = output_dir / "metrics.json"
-    config_path = output_dir / "config.json"
-
-    # Create output directory
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    # Create evaluator
-    evaluator = evaluator_cls(
-        env_factory=env_factory,
-        max_concurrency=eval_config.max_concurrency,
-        n_samples_per_prompt=eval_config.n_samples_per_prompt,
-        output_path=results_path,
-        save_interval=eval_config.save_interval,
-        keep_tokens=eval_config.keep_tokens,
-    )
-
-    # Load dataset once (convert to list since we need to iterate twice if resolving system_prompt)
-    actions = list(evaluator.load_dataset())
-    if max_samples is not None:
-        actions = actions[:max_samples]
-
-    # Resolve system_prompt from environment if not provided via CLI
-    resolved_system_prompt = env_config.system_prompt
-    if resolved_system_prompt is None and actions:
-        # Use first action from dataset to create environment and get system_prompt
-        async def get_env_system_prompt() -> str | None:
-            env = await env_factory(actions[0])
-            return env.system_prompt
-
-        resolved_system_prompt = asyncio.run(get_env_system_prompt())
+    actions = list(evaluator.load_dataset())[:max_samples]
 
     # Save config for reproducibility
     config_data = {
         "benchmark": benchmark_name,
-        "evaluator_path": str(evaluator_path) if evaluator_path else None,
-        "env_path": str(env_path),
-        "model": model_config.to_dict(),
-        "env": {
-            "system_prompt": resolved_system_prompt,
-            "max_tool_iters": env_config.max_tool_iters,
-            "max_tool_calls": env_config.max_tool_calls,
-            "max_parallel_tool_calls": env_config.max_parallel_tool_calls,
-        },
-        "eval": eval_config.to_dict(),
+        "evaluator_path": evaluator_path,
+        "env_hook": env_hook,
+        "env_config": env_config or {},
+        "model_config": model_config.to_dict(),
     }
-    with open(config_path, "w", encoding="utf-8") as f:
+    with open(output_dir / "config.json", "w", encoding="utf-8") as f:
         json.dump(config_data, f, indent=2)
-    click.echo(f"Saved config to {config_path}")
 
-    # Run evaluation
-    click.echo(f"Running {benchmark_name} evaluation with {env_path}")
-    click.echo(f"  Backend: {backend}, Model: {model_id or '(auto-detect)'}")
-    click.echo(f"  Samples per prompt: {n_samples_per_prompt}, Concurrency: {max_concurrency}")
-    click.echo(f"  Dataset samples: {len(actions)}{' (limited by --max-samples)' if max_samples is not None else ''}")
-    click.echo(f"  Output directory: {output_dir}")
+    click.echo(
+        f"Running {benchmark_name} | {backend} | {model_id or '(auto)'} | "
+        f"{len(actions)} samples | n={n_samples_per_prompt} | concurrency={max_concurrency} | {output_dir}"
+    )
 
+    # Run and save metrics
     results = asyncio.run(evaluator.run(actions))
     metrics = evaluator.compute_metrics(results)
-
-    # Save metrics to JSON
-    with open(metrics_path, "w", encoding="utf-8") as f:
+    with open(output_dir / "metrics.json", "w", encoding="utf-8") as f:
         json.dump(metrics, f, indent=2)
-    click.echo(f"Saved metrics to {metrics_path}")
+    click.echo(f"Done. Metrics saved to {output_dir / 'metrics.json'}")

@@ -18,11 +18,14 @@ from __future__ import annotations
 
 import logging
 from functools import cache
+from typing import TypeAlias
 
 import boto3
 from botocore.client import BaseClient
 
 logger = logging.getLogger(__name__)
+
+BotoClient: TypeAlias = BaseClient
 
 
 def get_session(
@@ -89,7 +92,7 @@ def get_client(
     profile_name: str | None = None,
     role_arn: str | None = None,
     session_name: str = "strands-env",
-) -> BaseClient:
+) -> BotoClient:
     """Get a cached boto3 client.
 
     Args:

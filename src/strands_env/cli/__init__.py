@@ -16,7 +16,14 @@
 
 from __future__ import annotations
 
+import os
+import sys
+
 import click
+
+# Add cwd to sys.path so local modules (e.g., examples/) are importable as dotted paths.
+if os.getcwd() not in sys.path:
+    sys.path.insert(0, os.getcwd())
 
 from .eval import eval_group
 

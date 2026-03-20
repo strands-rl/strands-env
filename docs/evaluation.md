@@ -16,44 +16,43 @@ strands-env eval list
 
 ```bash
 # Using a registered benchmark
-strands-env eval run <benchmark> --env <hook_file> [options]
+strands-env eval run <benchmark> --env <dotted.module.path> [options]
 
-# Using a custom evaluator hook
-strands-env eval run --evaluator <evaluator_file> --env <hook_file> [options]
+# Using a custom evaluator module
+strands-env eval run --evaluator <dotted.module.path> --env <dotted.module.path> [options]
 ```
 
 **Required arguments:**
 - `<benchmark>` - Benchmark name (e.g., `aime-2024`, `aime-2025`), OR
-- `--evaluator` - Path to evaluator hook file (mutually exclusive with benchmark)
-- `--env`, `-e` - Path to environment hook file
+- `--evaluator` - Dotted path to evaluator module (exporting `EvaluatorClass`)
+- `--env`, `-e` - Dotted path to environment hook module (exporting `create_env_factory`)
+
+**Environment config:**
+- `--env-config` - JSON config as inline string or path to JSON file (passed as `**kwargs` to `create_env_factory`)
 
 **Model options:**
-- `--backend`, `-b` - Model backend: `sglang` (default) or `bedrock`
+- `--backend`, `-b` - Model backend: `sglang` (default), `bedrock`, or `kimi`
 - `--base-url` - SGLang server URL (default: `http://localhost:30000`)
-- `--model-id` - Model ID (auto-detected for SGLang, required for Bedrock)
+- `--model-id` - Model ID (auto-detected for SGLang)
 - `--tokenizer-path` - Tokenizer path (defaults to model_id)
-- `--tool-parser` - Tool parser name (e.g., `hermes`, `qwen_xml`) or path to hook file
+- `--tool-parser` - Tool parser name (e.g., `hermes`, `qwen_xml`)
 - `--region` - AWS region for Bedrock
 - `--profile-name` - AWS profile name for Bedrock
 - `--role-arn` - AWS role ARN to assume for Bedrock
 
 **Sampling options:**
-- `--temperature` - Sampling temperature (default: 0.7)
+- `--temperature` - Sampling temperature
 - `--max-tokens` - Maximum new tokens (default: 16384)
-- `--top-p` - Top-p sampling (default: 0.95)
+- `--top-p` - Top-p sampling
 - `--top-k` - Top-k sampling
 
 **Evaluation options:**
 - `--n-samples-per-prompt` - Samples per prompt for pass@k (default: 1)
 - `--max-concurrency` - Maximum concurrent evaluations (default: 10)
 - `--output`, `-o` - Output directory (default: `{benchmark}_eval/`)
+- `--max-samples` - Maximum dataset samples to evaluate
 - `--save-interval` - Save results every N samples (default: 10)
 - `--keep-tokens` - Keep token-level observations in results
-
-**Other options:**
-- `--system-prompt` - Path to system prompt file
-- `--max-tool-iters` - Maximum tool iterations per step (default: None)
-- `--max-tool-calls` - Maximum tool calls per step (default: None)
 - `--debug` - Enable debug logging
 
 ### Examples
@@ -61,27 +60,26 @@ strands-env eval run --evaluator <evaluator_file> --env <hook_file> [options]
 ```bash
 # Using registered benchmark with code sandbox env
 strands-env eval run aime-2024 \
-    --env examples/eval/aime_code/code_sandbox_env.py \
+    --env examples.eval.aime.code_sandbox_env \
     --base-url http://localhost:30000
 
-# Using custom evaluator hook (custom benchmark)
+# Using custom evaluator module
 strands-env eval run \
-    --evaluator examples/eval/simple_math/simple_math_evaluator.py \
-    --env examples/eval/simple_math/calculator_env.py \
+    --evaluator examples.eval.simple_math.simple_math_evaluator \
+    --env examples.eval.simple_math.calculator_env \
     --base-url http://localhost:30000
 
 # Pass@8 evaluation with high concurrency
 strands-env eval run aime-2024 \
-    --env examples/eval/simple_math/calculator_env.py \
+    --env examples.eval.simple_math.calculator_env \
     --base-url http://localhost:30000 \
     --n-samples-per-prompt 8 \
     --max-concurrency 30
 
-# With custom tool parser
+# With env config override
 strands-env eval run aime-2024 \
-    --env examples/eval/simple_math/calculator_env.py \
-    --base-url http://localhost:30000 \
-    --tool-parser qwen_xml
+    --env examples.eval.simple_math.calculator_env \
+    --env-config '{"max_tool_iters": 5}'
 ```
 
 ## Hook Files
@@ -91,25 +89,12 @@ Environment hook files define how environments are created for each evaluation s
 ### Structure
 
 ```python
-from strands_env.cli.config import EnvConfig
 from strands_env.core.models import ModelFactory
 
-def create_env_factory(model_factory: ModelFactory, env_config: EnvConfig):
-    """Create an async environment factory.
-
-    Args:
-        model_factory: Factory for creating model instances.
-        env_config: Environment configuration from CLI.
-
-    Returns:
-        Async function that creates an Environment for each action.
-    """
+def create_env_factory(model_factory: ModelFactory, **env_config):
+    """Create an async environment factory."""
     async def env_factory(action):
-        return YourEnvironment(
-            model_factory=model_factory,
-            system_prompt=env_config.system_prompt,
-            max_tool_iters=env_config.max_tool_iters,
-        )
+        return YourEnvironment(model_factory=model_factory, **env_config)
 
     return env_factory
 ```
@@ -118,21 +103,15 @@ def create_env_factory(model_factory: ModelFactory, env_config: EnvConfig):
 
 ```python
 # examples/eval/simple_math/calculator_env.py
-from strands_env.cli.config import EnvConfig
 from strands_env.core.models import ModelFactory
 from strands_env.environments.calculator import CalculatorEnv
-from strands_env.rewards import MathRewardFunction
+from strands_env.rewards import MathVerifyReward
 
-def create_env_factory(model_factory: ModelFactory, env_config: EnvConfig):
-    reward_fn = MathRewardFunction()
+def create_env_factory(model_factory: ModelFactory, **env_config):
+    reward_fn = MathVerifyReward()
 
     async def env_factory(_action):
-        return CalculatorEnv(
-            model_factory=model_factory,
-            reward_fn=reward_fn,
-            system_prompt=env_config.system_prompt,
-            max_tool_iters=env_config.max_tool_iters,
-        )
+        return CalculatorEnv(model_factory=model_factory, reward_fn=reward_fn, **env_config)
 
     return env_factory
 ```
@@ -141,22 +120,15 @@ def create_env_factory(model_factory: ModelFactory, env_config: EnvConfig):
 
 ```python
 # examples/eval/aime_code/code_sandbox_env.py
-from strands_env.cli.config import EnvConfig
 from strands_env.core.models import ModelFactory
-from strands_env.environments.code_sandbox import CodeMode, CodeSandboxEnv
-from strands_env.rewards import MathRewardFunction
+from strands_env.environments.code_sandbox import CodeSandboxEnv
+from strands_env.rewards import MathVerifyReward
 
-def create_env_factory(model_factory: ModelFactory, env_config: EnvConfig):
-    reward_fn = MathRewardFunction()
+def create_env_factory(model_factory: ModelFactory, **env_config):
+    reward_fn = MathVerifyReward()
 
     async def env_factory(_action):
-        return CodeSandboxEnv(
-            model_factory=model_factory,
-            reward_fn=reward_fn,
-            system_prompt=env_config.system_prompt,
-            max_tool_iters=env_config.max_tool_iters,
-            mode=CodeMode.CODE,
-        )
+        return CodeSandboxEnv(model_factory=model_factory, reward_fn=reward_fn, mode="code", **env_config)
 
     return env_factory
 ```
@@ -194,7 +166,7 @@ EvaluatorClass = MyEvaluator
 
 Then run:
 ```bash
-strands-env eval run --evaluator my_evaluator.py --env my_env.py --base-url http://localhost:30000
+strands-env eval run --evaluator my_package.my_evaluator --env my_package.my_env --base-url http://localhost:30000
 ```
 
 ### Registered Evaluator
@@ -273,40 +245,17 @@ class MyEvaluator(Evaluator):
         return {"my_metric": compute_something(results)}
 ```
 
-## Tool Parser Hook
+## Tool Parser
 
-For models that use non-standard tool calling formats, you can specify a custom tool parser via `--tool-parser`. This accepts either:
+For models that use non-standard tool calling formats, specify a predefined parser name from `strands-sglang` via `--tool-parser`:
 
-1. A predefined parser name from `strands-sglang` (e.g., `hermes`, `qwen_xml`)
-2. A path to a Python hook file
-
-### Hook File Format
-
-The hook file must export either `tool_parser` (instance) or `ToolParserClass` (subclass):
-
-```python
-# my_tool_parser.py
-from strands_sglang.tool_parsers import ToolParser, ToolParseResult
-
-class MyToolParser(ToolParser):
-    def parse(self, text: str) -> list[ToolParseResult]:
-        # Custom parsing logic
-        ...
-
-# Export as instance
-tool_parser = MyToolParser()
-
-# OR export as class (will be instantiated)
-ToolParserClass = MyToolParser
-```
-
-Then use:
 ```bash
 strands-env eval run aime-2024 \
-    --env my_env.py \
-    --base-url http://localhost:30000 \
-    --tool-parser my_tool_parser.py
+    --env examples.eval.simple_math.calculator_env \
+    --tool-parser qwen_xml
 ```
+
+Available parsers: `hermes` (default), `qwen_xml`, `glm`.
 
 ## Output Files
 

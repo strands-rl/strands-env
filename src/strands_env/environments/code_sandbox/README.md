@@ -15,14 +15,14 @@ A sandboxed code execution environment using AWS Bedrock AgentCore Code Interpre
 ## Usage
 
 ```python
-from strands_env.environments.code_sandbox import CodeSandboxEnv, CodeMode
+from strands_env.environments.code_sandbox import CodeSandboxEnv
 from strands_env.utils.aws import get_client
 
 client = get_client("bedrock-agentcore", region="us-east-1")
 env = CodeSandboxEnv(
     model_factory=model_factory,
     client=client,
-    mode=CodeMode.CODE,  # CODE, TERMINAL, or CODE_AND_TERMINAL
+    mode="code",  # "code", "terminal", or "code_and_terminal"
 )
 
 result = await env.step(action)
@@ -31,13 +31,13 @@ await env.cleanup()  # Clean up code interpreter session
 
 ## Tools
 
-Depends on the configured `CodeMode`:
+Depends on the configured mode:
 
 | Mode | Tools |
 |---|---|
-| `CODE` | `execute_code` (Python) |
-| `TERMINAL` | `execute_command` (shell) |
-| `CODE_AND_TERMINAL` | Both |
+| `"code"` | `execute_code` (Python) |
+| `"terminal"` | `execute_command` (shell) |
+| `"code_and_terminal"` | Both |
 
 ## Reward
 

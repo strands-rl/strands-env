@@ -18,7 +18,7 @@ Set `JUDGE_MODEL_ID` to override the default judge (defaults to `us.anthropic.cl
 
 ```bash
 strands-env eval run frames \
-    --env examples/eval/frames/chat_env.py \
+    --env examples.eval.frames.chat_env \
     --backend sglang \
     --base-url http://localhost:30000 \
     --max-tokens 16384 \

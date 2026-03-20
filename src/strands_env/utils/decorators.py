@@ -16,22 +16,23 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FuturesTimeoutError
 from functools import wraps
-from typing import Any, TypeVar
-
-T = TypeVar("T")
+from typing import Any
 
 
 def requires_env(*env_vars: str) -> Callable[..., Any]:
     """Decorator that validates environment variables at call time.
 
+    Works with both sync and async functions, methods and standalone functions.
+
     Notes:
-        Returns an error string if any required env var is missing,
-        avoiding the need for credential parameters in `__init__`.
+        For async tool methods, returns an error string on missing vars.
+        For sync functions, raises `EnvironmentError`.
 
     Example:
         class MyToolkit:
@@ -40,22 +41,39 @@ def requires_env(*env_vars: str) -> Callable[..., Any]:
             async def serper_search(self, query: str) -> str:
                 api_key = os.environ["SERPER_API_KEY"]
                 ...
+
+        @requires_env("MOONSHOT_API_KEY")
+        def kimi_model_factory(*, model_id: str = "moonshot/kimi-k2.5") -> ModelFactory:
+            ...
     """
 
-    def decorator(fn: Callable[..., Any]) -> Callable[..., Any]:
-        @wraps(fn)
-        async def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
-            missing = [v for v in env_vars if not os.getenv(v)]
-            if missing:
-                return f"Error: missing required environment variable(s): {', '.join(missing)}"
-            return await fn(self, *args, **kwargs)
+    def _check() -> str | None:
+        missing = [v for v in env_vars if not os.getenv(v)]
+        return f"Error: missing required environment variable(s): {', '.join(missing)}" if missing else None
 
-        return wrapper
+    def decorator(fn: Callable[..., Any]) -> Callable[..., Any]:
+        if asyncio.iscoroutinefunction(fn):
+
+            @wraps(fn)
+            async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
+                if err := _check():
+                    return err
+                return await fn(*args, **kwargs)
+
+            return async_wrapper
+
+        @wraps(fn)
+        def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
+            if err := _check():
+                raise OSError(err)
+            return fn(*args, **kwargs)
+
+        return sync_wrapper
 
     return decorator
 
 
-def with_timeout(timeout: float | None) -> Callable[[Callable[..., T]], Callable[..., T]]:
+def with_timeout(timeout: float | None) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """Decorator that enforces a timeout on function execution using `ThreadPoolExecutor`.
 
     This is useful when the function's own timeout mechanism relies on
@@ -75,12 +93,12 @@ def with_timeout(timeout: float | None) -> Callable[[Callable[..., T]], Callable
             ...
     """
 
-    def decorator(func: Callable[..., T]) -> Callable[..., T]:
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         if timeout is None:
             return func
 
         @wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> T:
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             with ThreadPoolExecutor(max_workers=1) as executor:
                 future = executor.submit(func, *args, **kwargs)
                 try:

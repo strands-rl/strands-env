@@ -38,10 +38,9 @@ from typing import Literal
 import click
 from dotenv import load_dotenv
 
-from strands_env.cli.config import ModelConfig, SamplingConfig
-from strands_env.cli.utils import build_model_factory
+from strands_env.cli.models import ModelConfig, SamplingConfig, build_model_factory
 from strands_env.core.types import Action
-from strands_env.environments.web_search import ScrapeConfig, WebSearchEnv
+from strands_env.environments.web_search import WebSearchEnv
 
 QUESTION = "What are the key features announced in the latest Python 3.13 release?"
 
@@ -69,7 +68,7 @@ async def run_demo(
     env = WebSearchEnv(
         model_factory=model_factory,
         system_prompt=SYSTEM_PROMPT,
-        scrape_config=ScrapeConfig(),
+        scrape_enabled=True,
         verbose=False,
     )
 

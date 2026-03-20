@@ -15,8 +15,8 @@ No additional setup required beyond `strands-env`.
 
 ```bash
 strands-env eval run \
-    --evaluator examples/eval/simple_math/simple_math_evaluator.py \
-    --env examples/eval/simple_math/calculator_env.py \
+    --evaluator examples.eval.simple_math.simple_math_evaluator \
+    --env examples.eval.simple_math.calculator_env \
     --backend sglang \
     --base-url http://localhost:30000 \
     --max-tokens 16384 \

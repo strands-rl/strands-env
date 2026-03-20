@@ -25,11 +25,10 @@
 
 ```bash
 strands-env eval run terminal-bench-2 \
-    --env examples/eval/terminal_bench/terminal_bench_env.py \
+    --env examples.eval.terminal_bench.terminal_bench_env \
     --base-url http://localhost:30000 \
     --backend sglang \
     --max-tokens 16384 \
-    --max-tool-iters 30 \
     --n-samples-per-prompt 1 \
     --max-concurrency 10
 ```

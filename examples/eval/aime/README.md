@@ -22,7 +22,7 @@ Requires AWS credentials with Bedrock AgentCore access.
 
 ```bash
 strands-env eval run aime-2026 \
-    --env examples/eval/aime_code/code_sandbox_env.py \
+    --env examples.eval.aime.code_sandbox_env \
     --backend sglang \
     --base-url http://localhost:30000 \
     --max-tokens 16384 \

@@ -27,15 +27,15 @@ A Docker-based environment for [Terminal-Bench](https://github.com/terminal-benc
 ## Usage
 
 ```python
-from strands_env.environments.terminal_bench import TerminalBenchEnv, TerminalBenchConfig
+from strands_env.environments.terminal_bench import TerminalBenchEnv
 
-config = TerminalBenchConfig(
+env = TerminalBenchEnv(
+    model_factory=model_factory,
     task_id="task-001",
-    task_dir=Path("/path/to/task"),
-    trial_dir=Path("/path/to/output"),
-    timeout_s=1200,
+    task_dir="/path/to/task",
+    trial_dir="/path/to/output",
+    timeout=1200,
 )
-env = TerminalBenchEnv(model_factory=model_factory, config=config)
 
 await env.reset()       # Build and start Docker container
 result = await env.step(action)  # action.message = task.instruction
@@ -48,7 +48,7 @@ await env.cleanup()     # Stop and delete container
 
 ## Reward
 
-Built-in `TerminalBenchRewardFunction` (binary 0/1):
+Built-in `TerminalBenchReward` (binary 0/1):
 1. Uploads `tests/` to the container
 2. Runs `test.sh`
 3. Parses `reward.txt` output — returns 1.0 if the value is >= 1, else 0.0

@@ -16,34 +16,25 @@
 
 from __future__ import annotations
 
-from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
-from typing_extensions import override
+from typing_extensions import Unpack, override
 
-from strands_env.core.environment import Environment
+from strands_env.core.environment import Environment, EnvironmentConfig
 from strands_env.tools import CodeInterpreterToolkit
 from strands_env.utils.aws import get_client
 
 if TYPE_CHECKING:
-    from botocore.client import BaseClient
-
     from strands_env.core.models import ModelFactory
     from strands_env.core.types import RewardFunction
+    from strands_env.utils.aws import BotoClient
 
 
-class CodeMode(str, Enum):
-    """Tool modes for `CodeSandboxEnv`."""
+class CodeSandboxConfig(EnvironmentConfig, total=False):
+    """Serializable configuration for `CodeSandboxEnv`."""
 
-    CODE = "code"
-    """Only `execute_code` tool (Python execution)."""
-
-    TERMINAL = "terminal"
-    """Only `execute_command` tool (shell commands)."""
-
-    CODE_AND_TERMINAL = "code_and_terminal"
-    """Both `execute_code` and `execute_command` tools."""
+    mode: Literal["code", "terminal", "code_and_terminal"]
 
 
 class CodeSandboxEnv(Environment):
@@ -51,7 +42,7 @@ class CodeSandboxEnv(Environment):
 
     Notes:
         Provides `execute_code` (Python) and/or `execute_command` (shell) tools
-        depending on the configured `CodeMode`.
+        depending on the configured mode.
     """
 
     default_system_prompt_path = Path(__file__).parent / "system_prompt.md"
@@ -60,37 +51,30 @@ class CodeSandboxEnv(Environment):
         self,
         *,
         model_factory: ModelFactory,
-        system_prompt: str | None = None,
         reward_fn: RewardFunction | None = None,
-        max_tool_iters: int | None = 10,
-        max_tool_calls: int | None = 50,
-        verbose: bool = False,
-        client: BaseClient | None = None,
-        mode: CodeMode = CodeMode.CODE,
+        client: BotoClient | None = None,
+        **config: Unpack[CodeSandboxConfig],
     ):
         """Initialize a `CodeSandboxEnv` instance."""
-        super().__init__(
-            model_factory=model_factory,
-            reward_fn=reward_fn,
-            system_prompt=system_prompt,
-            max_tool_iters=max_tool_iters,
-            max_tool_calls=max_tool_calls,
-            verbose=verbose,
-        )
-        self.mode = mode
-        self._toolkit = CodeInterpreterToolkit(client=client or get_client(service_name="bedrock-agentcore"))
+        super().__init__(model_factory=model_factory, reward_fn=reward_fn, **config)  # type: ignore[misc]
+        self.mode: str = self.config.get("mode", "code")
+        self.client = client or get_client(service_name="bedrock-agentcore")
+        self.code_interpreter_toolkit = CodeInterpreterToolkit(client=self.client)
 
     @override
     def get_tools(self) -> list:
         """Return tools based on configured mode."""
-        tool_map: dict[CodeMode, list] = {
-            CodeMode.CODE: [self._toolkit.execute_code],
-            CodeMode.TERMINAL: [self._toolkit.execute_command],
-            CodeMode.CODE_AND_TERMINAL: [self._toolkit.execute_code, self._toolkit.execute_command],
-        }
-        return tool_map[self.mode]
+        match self.mode:
+            case "code":
+                return [self.code_interpreter_toolkit.execute_code]
+            case "terminal":
+                return [self.code_interpreter_toolkit.execute_command]
+            case "code_and_terminal":
+                return [self.code_interpreter_toolkit.execute_code, self.code_interpreter_toolkit.execute_command]
+            case _:
+                raise ValueError(f"Invalid mode: {self.mode}")
 
     @override
     async def cleanup(self) -> None:
         """Clean up code interpreter session."""
-        self._toolkit.cleanup()
+        self.code_interpreter_toolkit.cleanup()

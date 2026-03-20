@@ -58,21 +58,19 @@ The package lives in `src/strands_env/` with these modules:
 
 **models.py** — `ModelFactory = Callable[[], Model]` type and four factory functions (`sglang_model_factory`, `bedrock_model_factory`, `openai_model_factory`, `kimi_model_factory`). Each returns a zero-arg lambda that creates a fresh Model instance per `step()` call for concurrent isolation. Bedrock, OpenAI, and Kimi remap `max_new_tokens` → `max_tokens` with a shallow dict copy to avoid mutating defaults. The Kimi factory targets Moonshot AI via LiteLLM (requires `MOONSHOT_API_KEY`) and uses a custom subclass that preserves `reasoning_content` for multi-turn conversations.
 
-**environment.py** — Base `Environment` class. `step(action)` creates a fresh model via factory, attaches a `TokenManager`, builds an `Agent` with tools/hooks (always includes `ToolLimiter`), runs `invoke_async`, then collects metrics and optional reward. Subclasses override `get_tools()` and `get_hooks()` to customize. Messages are sliced so only new messages from the current step appear in the observation.
+**environment.py** — Base `Environment` class. `EnvironmentConfig` TypedDict defines the serializable config shape (`system_prompt`, `max_tool_iters`, `max_tool_calls`, `max_parallel_tool_calls`, `verbose`). `__init__` takes `model_factory`, `reward_fn`, and `**config: Unpack[EnvironmentConfig]`. Subclass configs inherit from `EnvironmentConfig` to add env-specific keys. `step(action)` creates a fresh model via factory, attaches a `TokenManager`, builds an `Agent` with tools/hooks (always includes `ToolLimiter`), runs `invoke_async`, then collects metrics and optional reward. Subclasses override `get_tools()` and `get_hooks()` to customize. Messages are sliced so only new messages from the current step appear in the observation.
 
 ### `cli/`
 
 **__init__.py** — CLI entry point with `strands-env` command group. Registers subcommand groups.
 
-**eval.py** — Evaluation CLI commands: `strands-env eval list` shows registered/unavailable benchmarks, `strands-env eval run` executes benchmark evaluation with environment and optional evaluator hooks.
+**eval.py** — Evaluation CLI commands: `strands-env eval list` shows registered/unavailable benchmarks, `strands-env eval run` executes benchmark evaluation. Env hooks are specified as dotted paths (`--env examples.eval.simple_math.calculator_env`). Environment config is passed as `--env-config` (inline JSON or path to JSON file) via custom `JsonType` click parameter.
 
-**config.py** — Configuration dataclasses: `SamplingConfig`, `ModelConfig`, `EnvConfig`, `EvalConfig`. Each has `to_dict()` for serialization. Config saved to output directory for reproducibility.
-
-**utils.py** — `build_model_factory(config, max_concurrency)` creates SGLang, Bedrock, or Kimi model factories. `load_env_hook(path)` loads environment hooks. `load_evaluator_hook(path)` loads evaluator hooks. `load_tool_parser(arg)` loads a tool parser by name (e.g., "hermes") or from a hook file path. SGLang health check with clear error messages.
+**models.py** — `SamplingConfig` and `ModelConfig` dataclasses. `build_model_factory(config, max_concurrency)` creates SGLang, Bedrock, or Kimi model factories with `match/case` dispatch.
 
 ### `eval/`
 
-**evaluator.py** — `AsyncEnvFactory = Callable[[Action], Awaitable[Environment]]` type alias. `EvalSample` bundles step result with an `aborted` flag for checkpoint resume. `Evaluator` class orchestrates concurrent rollouts with JSONL checkpointing and pass@k metrics. Takes an async `env_factory` for flexible environment creation. Uses tqdm with `logging_redirect_tqdm` for clean progress output. Subclasses implement `load_dataset()` for different benchmarks and optionally override `validate_sample()` to mark failed samples as aborted (excluded from metrics, retried on resume).
+**evaluator.py** — `EvalSample` bundles step result with an `aborted` flag for checkpoint resume. `Evaluator` class orchestrates concurrent rollouts with JSONL checkpointing and pass@k metrics. Takes an async `env_factory` (`AsyncEnvFactory`, defined in `core/environment.py`) for flexible environment creation. Uses tqdm with `logging_redirect_tqdm` for clean progress output. Subclasses implement `load_dataset()` for different benchmarks and optionally override `validate_sample()` to mark failed samples as aborted (excluded from metrics, retried on resume).
 
 **registry.py** — Benchmark registry with `@register_eval(name)` decorator. Auto-discovers benchmark modules from `benchmarks/` subdirectory on first access. `get_benchmark(name)`, `list_benchmarks()`, and `list_unavailable_benchmarks()` for discovery. Modules with missing dependencies are tracked as unavailable.
 
@@ -90,6 +88,8 @@ The package lives in `src/strands_env/` with these modules:
 
 ### `utils/`
 
+**loader.py** — Generic module/function/hook loading utilities (no CLI dependency). `load_module(name)` imports by dotted path. `load_class(name)` and `load_function(name)` import a class or callable by dotted path. `load_env_factory_hook(hook_path)` and `load_evaluator_hook(hook_path)` are convenience wrappers that append the expected attribute name (`.create_env_factory`, `.EvaluatorClass`) and delegate to the generic loaders. Used by both CLI and Ray actors.
+
 **sglang.py** — Sync SGLang server utilities. `check_server_health(base_url)` for early validation. `get_model_id(base_url)` to query the served model. Client/tokenizer caching has moved to `strands_sglang.utils`.
 
 **aws.py** — AWS boto3 session and client utilities. `get_session(region, profile_name, role_arn)` creates a **fresh** session each call (sessions are not thread-safe). `get_client(service_name, ...)` with `@cache` returns a cached, thread-safe boto3 client (each client gets its own dedicated session). If `role_arn` provided, uses `RefreshableCredentials` for programmatic role assumption with auto-refresh.
@@ -98,9 +98,9 @@ The package lives in `src/strands_env/` with these modules:
 
 **code_interpreter.py** — `CodeInterpreterToolkit` wraps AWS Bedrock AgentCore Code Interpreter. Provides `execute_code` (Python) and `execute_command` (shell) tools. Sessions are lazily created and can be cleaned up via `cleanup()`.
 
-**web_search.py** — `WebSearchToolkit` with Serper and Google Custom Search providers, shared aiohttp session, asyncio.Semaphore rate limiting, and domain blocking. Credentials validated lazily via `@requires_env` decorator at call time.
+**web_search.py** — `WebSearchToolkit` with Serper and Google Custom Search providers, shared aiohttp session, and `concurrency: Semaphore | int` for API rate limiting. Domain blocking via `apply_blocked_domains` static method. Credentials validated lazily via `@requires_env` decorator at call time.
 
-**web_scraper.py** — `WebScraperToolkit` using trafilatura (primary) or html2text (fallback) for content extraction. Optional LLM-based summarization via a `summarizer_model_factory`. Token budget (default 5000) limits extracted content length via tiktoken encoding.
+**web_scraper.py** — `WebScraperToolkit` using trafilatura (primary) or html2text (fallback) for content extraction. Optional LLM-based summarization via a `summarizer_model_factory`. `concurrency: Semaphore | int` for rate limiting. Token budget (default 5000) limits extracted content length via tiktoken encoding.
 
 ### `rewards/`
 
@@ -112,20 +112,17 @@ The package lives in `src/strands_env/` with these modules:
 
 **calculator/** — `CalculatorEnv` provides a simple calculator tool for math problems. Useful for testing and as a reference implementation.
 
-**code_sandbox/** — `CodeSandboxEnv` uses AWS Bedrock AgentCore Code Interpreter for sandboxed code execution. `CodeMode` enum controls tool availability:
-- `CODE`: Only `execute_code` (Python execution)
-- `TERMINAL`: Only `execute_command` (shell commands)
-- `CODE_AND_TERMINAL`: Both tools
+**code_sandbox/** — `CodeSandboxEnv` uses AWS Bedrock AgentCore Code Interpreter for sandboxed code execution. `CodeSandboxConfig` extends `EnvironmentConfig` with `mode: Literal["code", "terminal", "code_and_terminal"]`.
 
 **mcp/** — `MCPEnvironment` backed by a single MCP server. Manages `MCPClient` lifecycle via `reset()` (starts client) and `cleanup()` (stops client). Supports optional pre-constructed client or subclass-managed initialization.
 
-**web_search/** — `WebSearchEnv` with pluggable search providers. `SearchConfig` selects provider ("serper" or "google"). `ScrapeConfig` enables optional web scraping with LLM-based summarization via a `summarizer_model_factory`.
+**web_search/** — `WebSearchEnv` with pluggable search providers. `WebSearchConfig` extends `EnvironmentConfig` with search/scrape settings (`search_provider`, `search_timeout`, `blocked_domains`, `scrape_enabled`, `scrape_timeout`, `scrape_token_budget`). Non-serializable params (`search_concurrency`, `scrape_concurrency`, `summarizer_model_factory`) are named args.
 
-**terminal_bench/** — `TerminalBenchEnv` using Harbor's `DockerEnvironment` for task execution. `TerminalBenchConfig` holds task_id, directories, and timeout. Provides `execute_command` tool for shell commands in Docker. `TerminalBenchRewardFunction` runs verification tests in the container for binary (0/1) reward.
+**terminal_bench/** — `TerminalBenchEnv` using Harbor's `DockerEnvironment` for task execution. `TerminalBenchConfig` extends `EnvironmentConfig` with `task_id`, `task_dir`, `trial_dir`, `harbor_env_config`, `timeout`. Provides `execute_command` tool for shell commands in Docker. `TerminalBenchReward` runs verification tests in the container for binary (0/1) reward.
 
 ### Other `utils/`
 
-**decorators.py** — `@requires_env(*env_vars)` decorator for async tool methods that validates required environment variables at invocation time, returning an error string if any are missing.
+**decorators.py** — `@requires_env(*env_vars)` decorator that validates environment variables at call time. Works with both sync and async functions: async functions return an error string on missing vars; sync functions raise `OSError`. `@with_timeout(seconds)` enforces a timeout on function execution using `ThreadPoolExecutor`.
 
 ### Key Design Decisions
 
@@ -133,6 +130,8 @@ The package lives in `src/strands_env/` with these modules:
 - **TITO token tracking**: `TokenManager` on SGLang models captures exact token IDs and logprobs during generation. `TokenObservation.from_token_manager()` extracts prompt/rollout split. Non-SGLang models get an empty `TokenManager` (returns `None` from `from_token_manager`).
 - **`list()` copies**: Tools, hooks, and messages are copied via `list()` before passing to Agent to prevent cross-step mutation.
 - **ToolLimiter**: Always prepended to hooks list. Supports `max_tool_iters` and `max_tool_calls`. Raises `MaxToolIterationsReachedError` or `MaxToolCallsReachedError` which `TerminationReason.from_error()` maps to `MAX_TOOL_ITERATIONS_REACHED` or `MAX_TOOL_CALLS_REACHED`.
+- **TypedDict configs**: Environment configs use `TypedDict` with `Unpack` for `**kwargs` typing. Base `EnvironmentConfig` defines common serializable fields; subclass configs (e.g., `CodeSandboxConfig`, `WebSearchConfig`, `TerminalBenchConfig`) inherit and add env-specific keys. Non-serializable dependencies (`model_factory`, `reward_fn`, semaphores, etc.) stay as named params. The `self.config` dict stores the full config for subclass access and serialization.
+- **Dotted path hooks**: Environment and evaluator hooks are loaded by dotted module path (e.g., `examples.eval.simple_math.calculator_env`), not file paths. The `utils/loader.py` module provides generic loading utilities shared by CLI and Ray actors.
 
 ## Code Style
 

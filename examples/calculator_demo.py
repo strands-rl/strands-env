@@ -35,8 +35,7 @@ from typing import Literal
 
 import click
 
-from strands_env.cli.config import ModelConfig, SamplingConfig
-from strands_env.cli.utils import build_model_factory
+from strands_env.cli.models import ModelConfig, SamplingConfig, build_model_factory
 from strands_env.core.types import Action, TaskContext
 from strands_env.environments.calculator.env import CalculatorEnv
 from strands_env.rewards import MathVerifyReward
@@ -59,6 +58,7 @@ async def run_demo(
         backend=backend,
         model_id=model_id,
         base_url=base_url,
+        tool_parser="qwen_xml",  # for Qwen/Qwen3.5 models
         sampling=SamplingConfig(),
     )
     model_factory = build_model_factory(config, max_concurrency=1)

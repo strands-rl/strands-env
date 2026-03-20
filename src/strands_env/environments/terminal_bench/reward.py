@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class TerminalBenchRewardFunction(RewardFunction):
+class TerminalBenchReward(RewardFunction):
     """Execute test scripts in Docker and compute binary reward (0 or 1)."""
 
     def __init__(self, env: TerminalBenchEnv) -> None:
@@ -51,7 +51,7 @@ class TerminalBenchRewardFunction(RewardFunction):
         docker_env = self._env.docker_env
         task_paths = self._env.task_paths
         trial_paths = self._env.trial_paths
-        timeout = self._env.config.timeout_s
+        timeout = self._env.timeout
 
         # Upload and run tests
         await docker_env.upload_dir(source_dir=task_paths.tests_dir, target_dir="/tests")
