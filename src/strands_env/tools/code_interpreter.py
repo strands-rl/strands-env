@@ -25,24 +25,24 @@ from aiolimiter import AsyncLimiter
 from strands import tool
 
 if TYPE_CHECKING:
-    from botocore.client import BaseClient
+    from strands_env.utils.aws import BotoClient
 
 
 class CodeInterpreterQuotas:
     """Shared AWS quotas for Code Interpreter API operations.
 
+    Notes:
+        - Create one instance and pass it to all `CodeInterpreterToolkit` instances
+        to enforce account-wide limits across concurrent sessions.
+        - Manages three concerns:
+            - Session semaphore: caps concurrent sessions (`session_concurrency`).
+            - Rate limiters: caps API request initiation rate for start/invoke/stop
+              (AWS TPS quotas) to prevent throttling errors.
+            - Thread pool executor: sized to match `session_concurrency` so each session can
+              have one in-flight blocking boto3 call without starving others.
+
     References:
         - [AWS Bedrock AgentCore default quotas](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/bedrock-agentcore-limits.html)
-
-    Create one instance and pass it to all `CodeInterpreterToolkit` instances
-    to enforce account-wide limits across concurrent sessions.
-
-    Manages three concerns:
-        - **Session semaphore**: caps concurrent sessions (AWS concurrent session quota).
-        - **Rate limiters**: caps API request initiation rate for start/invoke/stop
-          (AWS TPS quotas) to prevent throttling errors.
-        - **Thread pool executor**: sized to match `max_sessions` so each session can
-          have one in-flight blocking boto3 call without starving others.
     """
 
     DEFAULT_SESSION_CONCURRENCY = 1000
@@ -83,7 +83,7 @@ class CodeInterpreterToolkit:
 
     def __init__(
         self,
-        client: BaseClient,
+        client: BotoClient,
         session_name: str = "strands-env",
         quotas: CodeInterpreterQuotas | None = None,
     ):

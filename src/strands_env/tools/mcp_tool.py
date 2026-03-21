@@ -34,8 +34,9 @@ from typing_extensions import override
 class MCPToolAdapter(AgentTool):
     """Adapts an MCP tool to the Strands `AgentTool` interface.
 
-    Subclasses must implement `call_tool()` to execute the tool call and
-    return parsed content and status.
+    Notes:
+        Subclasses must implement `call_tool()` to execute the tool call and
+        return parsed content and status.
     """
 
     def __init__(
