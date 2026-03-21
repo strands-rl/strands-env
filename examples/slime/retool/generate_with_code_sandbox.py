@@ -22,6 +22,7 @@ Uses:
 - Tool iteration/call limits
 """
 
+import asyncio
 import logging
 
 from slime.rollout.sglang_rollout import GenerateState  # type: ignore
@@ -52,6 +53,9 @@ Guidelines:
 MAX_TOOL_ITERS = 5
 MAX_TOOL_CALLS = None
 
+# Shared concurrency/rate limits enforce account-wide Code Interpreter quotas across all concurrent sessions.
+SESSION_SEMAPHORE = asyncio.Semaphore(1024)
+
 
 async def generate_and_rm(args, sample: Sample, sampling_params) -> Sample:
     """Generate and compute rewards using CodeSandboxEnv."""
@@ -74,6 +78,7 @@ async def generate_and_rm(args, sample: Sample, sampling_params) -> Sample:
         system_prompt=SYSTEM_PROMPT,
         max_tool_iters=MAX_TOOL_ITERS,
         max_tool_calls=MAX_TOOL_CALLS,
+        concurrency=SESSION_SEMAPHORE,
         verbose=False,
     )
 

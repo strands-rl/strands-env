@@ -16,6 +16,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
@@ -26,6 +27,8 @@ from strands_env.tools import CodeInterpreterToolkit
 from strands_env.utils.aws import get_client
 
 if TYPE_CHECKING:
+    from aiolimiter import AsyncLimiter
+
     from strands_env.core.models import ModelFactory
     from strands_env.core.types import RewardFunction
     from strands_env.utils.aws import BotoClient
@@ -53,28 +56,34 @@ class CodeSandboxEnv(Environment):
         model_factory: ModelFactory,
         reward_fn: RewardFunction | None = None,
         client: BotoClient | None = None,
+        concurrency: asyncio.Semaphore | int | None = None,
+        rate_limiter: AsyncLimiter | None = None,
         **config: Unpack[CodeSandboxConfig],
     ):
         """Initialize a `CodeSandboxEnv` instance."""
         super().__init__(model_factory=model_factory, reward_fn=reward_fn, **config)  # type: ignore[misc]
         self.mode: str = self.config.get("mode", "code")
-        self.client = client or get_client(service_name="bedrock-agentcore")
-        self.code_interpreter_toolkit = CodeInterpreterToolkit(client=self.client)
+        toolkit_kwargs: dict = {"client": client or get_client(service_name="bedrock-agentcore")}
+        if concurrency is not None:
+            toolkit_kwargs["concurrency"] = concurrency
+        if rate_limiter is not None:
+            toolkit_kwargs["rate_limiter"] = rate_limiter
+        self._toolkit = CodeInterpreterToolkit(**toolkit_kwargs)
 
     @override
     def get_tools(self) -> list:
         """Return tools based on configured mode."""
         match self.mode:
             case "code":
-                return [self.code_interpreter_toolkit.execute_code]
+                return [self._toolkit.execute_code]
             case "terminal":
-                return [self.code_interpreter_toolkit.execute_command]
+                return [self._toolkit.execute_command]
             case "code_and_terminal":
-                return [self.code_interpreter_toolkit.execute_code, self.code_interpreter_toolkit.execute_command]
+                return [self._toolkit.execute_code, self._toolkit.execute_command]
             case _:
                 raise ValueError(f"Invalid mode: {self.mode}")
 
     @override
     async def cleanup(self) -> None:
         """Clean up code interpreter session."""
-        self.code_interpreter_toolkit.cleanup()
+        await self._toolkit.cleanup()
