@@ -89,6 +89,10 @@ class MCPToolAdapter(AgentTool):
     @override
     async def stream(self, tool_use: ToolUse, invocation_state: dict[str, Any], **kwargs: Any) -> ToolGenerator:
         """Stream a tool result back to the agent."""
-        content, status = await self.call_tool(self._mcp_tool.name, tool_use["input"])
+        try:
+            content, status = await self.call_tool(self._mcp_tool.name, tool_use["input"])
+        except Exception as e:
+            content = [ToolResultContent(text=f"Tool call failed: {type(e).__name__}: {e}")]
+            status = "error"
 
         yield ToolResultEvent(ToolResult(status=status, toolUseId=tool_use["toolUseId"], content=content))
