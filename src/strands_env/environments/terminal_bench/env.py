@@ -31,9 +31,8 @@ from harbor.models.task.config import EnvironmentConfig as _HarborEnvironmentCon
 from harbor.models.task.paths import TaskPaths
 from harbor.models.trial.paths import TrialPaths
 from harbor_aws.adapter import AWSEnvironment
-from pydantic import BaseModel
 from strands import tool
-from typing_extensions import NotRequired, Unpack, override
+from typing_extensions import NotRequired, TypedDict, Unpack, override
 
 from strands_env.core import Environment, ModelFactory
 from strands_env.core.environment import EnvironmentConfig
@@ -66,13 +65,13 @@ class TerminalBenchConfig(EnvironmentConfig):
     eks_backend_config: NotRequired[EKSBackendConfig]
 
 
-class EKSBackendConfig(BaseModel):
+class EKSBackendConfig(TypedDict, total=False):
     """Configuration for the EKS backend (harbor-aws)."""
 
-    stack_name: str = "harbor-aws"
-    region: str = "us-east-1"
-    ecr_cache: bool = True
-    role_arn: str | None = None
+    stack_name: str
+    region: str
+    ecr_cache: bool
+    role_arn: str | None
 
 
 class TerminalBenchEnv(Environment):
@@ -97,7 +96,7 @@ class TerminalBenchEnv(Environment):
         self.harbor_env_config: HarborEnvironmentConfig = self.config.get(
             "harbor_env_config", HarborEnvironmentConfig()
         )
-        self.eks_backend_config: EKSBackendConfig = self.config.get("eks_backend_config", EKSBackendConfig())
+        self.eks_backend_config: EKSBackendConfig = self.config.get("eks_backend_config", {})
         self.docker_env: HarborEnvironment | AWSEnvironment | None = None
         self.reward_fn = reward_fn or TerminalBenchReward(self)
 
@@ -124,7 +123,7 @@ class TerminalBenchEnv(Environment):
                     session_id=session_id,
                     trial_paths=self.trial_paths,
                     task_env_config=self.harbor_env_config,
-                    **self.eks_backend_config.model_dump(),
+                    **self.eks_backend_config,
                 )
 
         await self.docker_env.start(force_build=True)
