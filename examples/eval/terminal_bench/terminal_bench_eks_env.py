@@ -39,10 +39,10 @@ EKS_BACKEND_KWARGS = {
     "ecr_cache": os.environ.get("HARBOR_ECR_CACHE", "true").lower() == "true",
 }
 
-# Optional: cross-account profile
-_profile = os.environ.get("HARBOR_PROFILE")
-if _profile:
-    EKS_BACKEND_KWARGS["profile_name"] = _profile
+# Optional: cross-account role ARN (set when harbor-aws infra is in a different account)
+_role_arn = os.environ.get("HARBOR_ROLE_ARN")
+if _role_arn:
+    EKS_BACKEND_KWARGS["role_arn"] = _role_arn
 
 
 def create_env_factory(model_factory: ModelFactory, env_config: EnvConfig):
