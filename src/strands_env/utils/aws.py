@@ -17,12 +17,13 @@
 from __future__ import annotations
 
 import logging
-from functools import cache
 from typing import TypeAlias
 
 import boto3
 from botocore.client import BaseClient
 from botocore.config import Config
+
+from strands_env.utils.decorators import cache_by
 
 logger = logging.getLogger(__name__)
 
@@ -52,13 +53,13 @@ def get_session(
           credentials via botocore's `RefreshableCredentials`.
     """
     if role_arn:
-        return _create_assumed_role_session(role_arn, region, session_name)
+        return create_assumed_role_session(role_arn, region, session_name)
     else:
         logger.info("Creating boto3 session: region=%s, profile=%s", region, profile_name)
         return boto3.Session(region_name=region, profile_name=profile_name)
 
 
-def _create_assumed_role_session(role_arn: str, region: str, session_name: str) -> boto3.Session:
+def create_assumed_role_session(role_arn: str, region: str, session_name: str) -> boto3.Session:
     """Create a boto3 session with assumed role credentials."""
     from botocore.credentials import RefreshableCredentials
     from botocore.session import get_session as get_botocore_session
@@ -87,7 +88,7 @@ def _create_assumed_role_session(role_arn: str, region: str, session_name: str) 
     return boto3.Session(botocore_session=botocore_session, region_name=region)
 
 
-@cache
+@cache_by("service_name", "region", "profile_name", "role_arn", "session_name")
 def get_client(
     service_name: str,
     region: str = "us-east-1",
@@ -108,13 +109,15 @@ def get_client(
             (e.g. `max_pool_connections`, `connect_timeout`, `read_timeout`, `retries`).
 
     Notes:
+        - Cached by `(service_name, region, profile_name, role_arn, session_name)`.
+          `config` is excluded from the cache key (not hashable).
         - Each client gets its own dedicated boto3 Session, avoiding the thread-safety
           issues of sharing a Session across clients. The client itself is thread-safe.
         - If `role_arn` is provided, the underlying Session uses `RefreshableCredentials`
           so the client auto-refreshes when credentials expire.
     """
     if role_arn:
-        session = _create_assumed_role_session(role_arn, region, session_name)
+        session = create_assumed_role_session(role_arn, region, session_name)
     else:
         session = boto3.Session(region_name=region, profile_name=profile_name)
     logger.info("Creating cached boto3 client: service=%s, region=%s", service_name, region)

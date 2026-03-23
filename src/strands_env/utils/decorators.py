@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import os
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
@@ -69,6 +70,45 @@ def requires_env(*env_vars: str) -> Callable[..., Any]:
             return fn(*args, **kwargs)
 
         return sync_wrapper
+
+    return decorator
+
+
+def cache_by(*key_args: str) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+    """Decorator that caches function results using only the specified arguments as the cache key.
+
+    Arguments not listed in `key_args` are still passed to the function but excluded
+    from the cache key, allowing unhashable arguments (dicts, lists, etc.) without
+    breaking the cache.
+
+    Args:
+        *key_args: Names of the function parameters to include in the cache key.
+
+    Example::
+
+        @cache_by("service_name", "region")
+        def get_client(service_name, region="us-east-1", **config_kwargs):
+            ...
+    """
+
+    def decorator(fn: Callable[..., Any]) -> Callable[..., Any]:
+        cache: dict[tuple, Any] = {}
+        sig = inspect.signature(fn)
+
+        @wraps(fn)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            # Resolve positional/keyword args to param names and fill defaults,
+            # so e.g. f("s3") and f(service_name="s3") produce the same key.
+            bound = sig.bind(*args, **kwargs)
+            bound.apply_defaults()
+            key = tuple(bound.arguments[k] for k in key_args)
+            if key not in cache:
+                cache[key] = fn(*args, **kwargs)
+            return cache[key]
+
+        wrapper.cache = cache  # type: ignore[attr-defined]
+        wrapper.cache_clear = cache.clear  # type: ignore[attr-defined]
+        return wrapper
 
     return decorator
 

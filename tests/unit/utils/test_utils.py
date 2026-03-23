@@ -19,7 +19,7 @@ from unittest.mock import MagicMock, patch
 import boto3
 
 from strands_env.utils.aws import check_credentials, get_client, get_session
-from strands_env.utils.decorators import requires_env
+from strands_env.utils.decorators import cache_by, requires_env
 
 # ===========================================================================
 # AWS — get_session
@@ -129,6 +129,18 @@ class TestGetClient:
         assert client1 is client2
         assert mock_session_cls.call_count == 1
 
+    @patch("strands_env.utils.aws.boto3.Session")
+    def test_with_boto_config(self, mock_session_cls):
+        from botocore.config import Config
+
+        mock_session = MagicMock()
+        mock_session_cls.return_value = mock_session
+
+        boto_config = Config(max_pool_connections=20, retries={"max_attempts": 3})
+        client = get_client("s3", region="us-east-1", config=boto_config)
+        assert client is mock_session.client.return_value
+        mock_session.client.assert_called_once_with("s3", region_name="us-east-1", config=boto_config)
+
 
 # ===========================================================================
 # AWS — check_credentials
@@ -182,3 +194,49 @@ class TestRequiresEnv:
         result = await my_tool(None, "test")
         assert "MISSING_VAR_ONE" in result
         assert "MISSING_VAR_TWO" in result
+
+
+# ===========================================================================
+# Decorators — @cache_by
+# ===========================================================================
+
+
+class TestCacheBy:
+    def test_caches_by_specified_args(self):
+        call_count = 0
+
+        @cache_by("a", "b")
+        def fn(a, b, c=None):
+            nonlocal call_count
+            call_count += 1
+            return (a, b, c)
+
+        r1 = fn(1, 2, c="first")
+        r2 = fn(1, 2, c="second")
+        assert r1 is r2
+        assert call_count == 1
+
+    def test_unhashable_excluded_args(self):
+        """Non-key args can be unhashable (dicts, lists) without breaking cache."""
+
+        @cache_by("name")
+        def fn(name, config=None):
+            return name
+
+        r1 = fn("x", config={"retries": {"max_attempts": 3}})
+        r2 = fn("x", config=[1, 2, 3])
+        assert r1 is r2
+
+    def test_positional_and_keyword_produce_same_key(self):
+        call_count = 0
+
+        @cache_by("a", "b")
+        def fn(a, b="default"):
+            nonlocal call_count
+            call_count += 1
+            return a
+
+        fn("x", "y")
+        fn("x", b="y")
+        fn(a="x", b="y")
+        assert call_count == 1
