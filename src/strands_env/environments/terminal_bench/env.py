@@ -23,13 +23,15 @@ from __future__ import annotations
 
 import uuid
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, TypeAlias
+from typing import TYPE_CHECKING, Literal, TypeAlias
 
 from harbor.environments.factory import EnvironmentFactory
 from harbor.models.environment_type import EnvironmentType
 from harbor.models.task.config import EnvironmentConfig as _HarborEnvironmentConfig
 from harbor.models.task.paths import TaskPaths
 from harbor.models.trial.paths import TrialPaths
+from harbor_aws.adapter import AWSEnvironment
+from pydantic import BaseModel
 from strands import tool
 from typing_extensions import NotRequired, Unpack, override
 
@@ -50,19 +52,27 @@ HarborEnvironmentConfig: TypeAlias = _HarborEnvironmentConfig
 class TerminalBenchConfig(EnvironmentConfig):
     """Serializable configuration for `TerminalBenchEnv`.
 
-    Attributes:
-        backend: ``"docker"`` for local Docker, ``"eks"`` for AWS EKS/Fargate.
-        backend_kwargs: Extra kwargs forwarded to the backend constructor
-            (e.g. ``{"stack_name": "harbor-aws", "region": "us-east-1", "ecr_cache": True}``).
+    Backends:
+        - "docker": Local Docker via `harbor`'s native `DockerEnvironment`.
+        - "eks": AWS EKS/Fargate via `harbor-aws`'s `AWSEnvironment`.
     """
 
     task_id: str
     task_dir: str
     trial_dir: str
-    harbor_env_config: NotRequired[HarborEnvironmentConfig]
     timeout: NotRequired[int]
-    backend: NotRequired[str]
-    backend_kwargs: NotRequired[dict[str, Any]]
+    backend: NotRequired[Literal["docker", "eks"]]
+    harbor_env_config: NotRequired[HarborEnvironmentConfig]
+    eks_backend_config: NotRequired[EKSBackendConfig]
+
+
+class EKSBackendConfig(BaseModel):
+    """Configuration for the EKS backend (harbor-aws)."""
+
+    stack_name: str = "harbor-aws"
+    region: str = "us-east-1"
+    ecr_cache: bool = True
+    role_arn: str | None = None
 
 
 class TerminalBenchEnv(Environment):
@@ -80,11 +90,15 @@ class TerminalBenchEnv(Environment):
         """Initialize a `TerminalBenchEnv` instance."""
         super().__init__(model_factory=model_factory, reward_fn=None, **config)  # type: ignore[misc]
         self.task_id: str = str(self.config["task_id"])
-        self.timeout: int = int(self.config.get("timeout", 1200))
-        self.harbor_env_config = self.config.get("harbor_env_config", HarborEnvironmentConfig())
         self.task_paths = TaskPaths(Path(str(self.config["task_dir"])))
         self.trial_paths = TrialPaths(Path(str(self.config["trial_dir"])))
-        self.docker_env: HarborEnvironment | None = None
+        self.timeout: int = int(self.config.get("timeout", 1200))
+        self.backend: Literal["docker", "eks"] = self.config.get("backend", "docker")
+        self.harbor_env_config: HarborEnvironmentConfig = self.config.get(
+            "harbor_env_config", HarborEnvironmentConfig()
+        )
+        self.eks_backend_config: EKSBackendConfig = self.config.get("eks_backend_config", EKSBackendConfig())
+        self.docker_env: HarborEnvironment | AWSEnvironment | None = None
         self.reward_fn = reward_fn or TerminalBenchReward(self)
 
     @override
@@ -93,28 +107,25 @@ class TerminalBenchEnv(Environment):
         self.trial_paths.mkdir()
         session_id = f"{self.task_id}-{uuid.uuid4().hex[:8]}"
 
-        backend = self.config.get("backend", "docker")
-        if backend == "eks":
-            from harbor_aws.adapter import AWSEnvironment
-
-            backend_kwargs = self.config.get("backend_kwargs", {})
-            self.docker_env = AWSEnvironment(
-                environment_dir=self.task_paths.environment_dir,
-                environment_name=session_id,
-                session_id=session_id,
-                trial_paths=self.trial_paths,
-                task_env_config=self.harbor_env_config,
-                **backend_kwargs,
-            )
-        else:
-            self.docker_env = EnvironmentFactory.create_environment(
-                type=EnvironmentType.DOCKER,
-                environment_dir=self.task_paths.environment_dir,
-                environment_name=session_id,
-                session_id=session_id,
-                trial_paths=self.trial_paths,
-                task_env_config=self.harbor_env_config,
-            )
+        match self.backend:
+            case "docker":
+                self.docker_env = EnvironmentFactory.create_environment(
+                    type=EnvironmentType.DOCKER,
+                    environment_dir=self.task_paths.environment_dir,
+                    environment_name=session_id,
+                    session_id=session_id,
+                    trial_paths=self.trial_paths,
+                    task_env_config=self.harbor_env_config,
+                )
+            case "eks":
+                self.docker_env = AWSEnvironment(
+                    environment_dir=self.task_paths.environment_dir,
+                    environment_name=session_id,
+                    session_id=session_id,
+                    trial_paths=self.trial_paths,
+                    task_env_config=self.harbor_env_config,
+                    **self.eks_backend_config.model_dump(),
+                )
 
         await self.docker_env.start(force_build=True)
 

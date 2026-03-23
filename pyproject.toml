@@ -52,9 +52,9 @@ dev = [
     # Type checking
     "mypy>=1.10.0",
 ]
-litellm = ["strands-agents[litellm]"]
+litellm = ["litellm"]
 web-search = ["trafilatura>=2.0.0", "html2text"]
-terminal-bench = ["harbor>=0.1.43; python_version>='3.12'"]
+terminal-bench = ["harbor>=0.1.43; python_version>='3.12'", "harbor-aws==0.2.0"]
 
 [tool.hatch.version]
 source = "vcs"

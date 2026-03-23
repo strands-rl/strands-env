@@ -30,18 +30,15 @@ import os
 from strands_env.core.models import ModelFactory
 from strands_env.core.types import Action
 from strands_env.environments.terminal_bench import TerminalBenchEnv
+from strands_env.environments.terminal_bench.env import EKSBackendConfig
 
 # Configure via environment variables or edit defaults here.
-EKS_BACKEND_KWARGS = {
-    "stack_name": os.environ.get("HARBOR_STACK_NAME", "harbor-aws"),
-    "region": os.environ.get("HARBOR_REGION", "us-east-1"),
-    "ecr_cache": os.environ.get("HARBOR_ECR_CACHE", "true").lower() == "true",
-}
-
-# Optional: cross-account role ARN (set when harbor-aws infra is in a different account)
-_role_arn = os.environ.get("HARBOR_ROLE_ARN")
-if _role_arn:
-    EKS_BACKEND_KWARGS["role_arn"] = _role_arn
+EKS_CONFIG = EKSBackendConfig(
+    stack_name=os.environ.get("HARBOR_STACK_NAME", "harbor-aws"),
+    region=os.environ.get("HARBOR_REGION", "us-east-1"),
+    ecr_cache=os.environ.get("HARBOR_ECR_CACHE", "true").lower() == "true",
+    role_arn=os.environ.get("HARBOR_ROLE_ARN"),
+)
 
 
 def create_env_factory(model_factory: ModelFactory, **env_config):
@@ -53,7 +50,7 @@ def create_env_factory(model_factory: ModelFactory, **env_config):
         return TerminalBenchEnv(
             model_factory=model_factory,
             backend="eks",
-            backend_kwargs=EKS_BACKEND_KWARGS,
+            eks_backend_config=EKS_CONFIG,
             **ctx.config,
             **env_config,
         )
