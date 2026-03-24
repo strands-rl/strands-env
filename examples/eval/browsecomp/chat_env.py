@@ -12,31 +12,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Example environment hook for BrowseComp evaluation with a chat-only environment (no tools).
-
-The judge model uses Bedrock by default. Set JUDGE_MODEL_ID to override.
-"""
-
-import os
+"""Example environment hook for BrowseComp evaluation with a chat-only environment (no tools)."""
 
 from strands_env.core import Environment
 from strands_env.core.models import ModelFactory, bedrock_model_factory
 from strands_env.eval.benchmarks.browsecomp import BrowseCompReward
 from strands_env.utils.aws import get_session
 
-#: Default judge model for grading answers.
-JUDGE_MODEL_ID = os.getenv("JUDGE_MODEL_ID", "us.anthropic.claude-sonnet-4-20250514-v1:0")
-
 
 def create_env_factory(model_factory: ModelFactory, **env_config):
     """Create env_factory for chat-only BrowseComp evaluation."""
-    boto_session = get_session(region="us-west-2")
-    judge_model_factory = bedrock_model_factory(
-        model_id=JUDGE_MODEL_ID,
-        boto_session=boto_session,
-        sampling_params={"max_new_tokens": 1024},
-    )
-    reward_fn = BrowseCompReward(judge_model=judge_model_factory())
+    judge_models = []
+    for profile_name in env_config.get("judge_model_profiles", [None]):
+        boto_session = get_session(region="us-west-2", profile_name=profile_name)
+        judge_models.append(
+            bedrock_model_factory(
+                model_id=env_config.get("judge_model_id", "us.anthropic.claude-sonnet-4-20250514-v1:0"),
+                boto_session=boto_session,
+                sampling_params={"max_new_tokens": 1024},
+            )()
+        )
+    reward_fn = BrowseCompReward(judge_model=judge_models, max_model_retries=env_config.get("max_judge_retries", 3))
 
     async def env_factory(_action):
         return Environment(model_factory=model_factory, reward_fn=reward_fn, **env_config)
