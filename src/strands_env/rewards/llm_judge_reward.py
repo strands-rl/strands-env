@@ -16,6 +16,7 @@
 
 from __future__ import annotations
 
+import itertools
 import logging
 from abc import abstractmethod
 from typing import Generic, TypeVar
@@ -23,6 +24,7 @@ from typing import Generic, TypeVar
 from pydantic import BaseModel
 from strands import Agent
 from strands.models import Model
+from strands.types.exceptions import ModelThrottledException
 from typing_extensions import override
 
 from strands_env.core.types import Action, RewardFunction, RewardResult, StepResult
@@ -37,9 +39,13 @@ class LLMJudgeReward(RewardFunction, Generic[JudgmentFormat]):
     r"""Abstract base for LLM-as-judge reward functions.
 
     Args:
-        judge_model: The model to use for judging.
+        judge_model: A single model or a list of models to round-robin across
+            (useful for spreading load across AWS profiles to avoid throttling).
         system_prompt: Optional system prompt for the judge.
         default_reward: Reward to return if the judge fails.
+        max_model_retries: Max retries on `ModelThrottledException`, cycling
+            through the `judge_model` list.  This is complementary to Strands'
+            built-in exponential-backoff retry, as outer, model-level retries.
 
     Notes:
         - Subclasses set `judgment_format` class attribute and implement
@@ -64,15 +70,17 @@ class LLMJudgeReward(RewardFunction, Generic[JudgmentFormat]):
 
     def __init__(
         self,
-        judge_model: Model,
+        judge_model: Model | list[Model],
         *,
         system_prompt: str | None = None,
         default_reward: float = 0.0,
+        max_model_retries: int = 1,
     ) -> None:
         """Initialize a `LLMJudgeReward` instance."""
-        self.judge_model = judge_model
+        self.judge_models = itertools.cycle(judge_model if isinstance(judge_model, list) else [judge_model])
         self.system_prompt = system_prompt
         self.default_reward = default_reward
+        self.max_model_retries = max_model_retries
 
     @abstractmethod
     async def get_judge_prompt(self, action: Action, step_result: StepResult) -> str:
@@ -95,22 +103,28 @@ class LLMJudgeReward(RewardFunction, Generic[JudgmentFormat]):
                 info={"status": "error", "error_type": "prompt_error", "error": str(e)},
             )
 
-        agent = Agent(model=self.judge_model, system_prompt=self.system_prompt, tools=[])
-
-        try:
-            if self.judgment_format is not None:
-                judgment: JudgmentFormat | str = await agent.structured_output_async(
-                    output_model=self.judgment_format, prompt=prompt
+        for attempt in range(self.max_model_retries):
+            agent = Agent(model=next(self.judge_models), system_prompt=self.system_prompt, tools=[])
+            try:
+                if self.judgment_format is not None:
+                    judgment: JudgmentFormat | str = await agent.structured_output_async(
+                        output_model=self.judgment_format, prompt=prompt
+                    )
+                else:
+                    result = await agent.invoke_async(prompt)
+                    judgment = result.message.get("content", [{}])[0].get("text", "")
+                break
+            except Exception as e:
+                if isinstance(e, ModelThrottledException) and attempt < self.max_model_retries - 1:
+                    logger.warning(
+                        "Judge model throttled (attempt %d/%d), retrying", attempt + 1, self.max_model_retries
+                    )
+                    continue
+                logger.error("Judge model invocation failed: %s", e)
+                return RewardResult(
+                    reward=self.default_reward,
+                    info={"status": "error", "error_type": "judge_error", "error": str(e)},
                 )
-            else:
-                result = await agent.invoke_async(prompt)
-                judgment = result.message.get("content", [{}])[0].get("text", "")
-        except Exception as e:
-            logger.error("Judge model invocation failed: %s", e)
-            return RewardResult(
-                reward=self.default_reward,
-                info={"status": "error", "error_type": "judge_error", "error": str(e)},
-            )
 
         try:
             reward = await self.get_reward(judgment)

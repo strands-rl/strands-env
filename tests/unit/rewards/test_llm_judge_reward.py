@@ -17,6 +17,7 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from pydantic import BaseModel
+from strands.types.exceptions import ModelThrottledException
 
 from strands_env.core.types import Action, Observation, StepResult, TaskContext
 from strands_env.rewards.llm_judge_reward import LLMJudgeReward
@@ -167,3 +168,32 @@ class TestHappyPath:
         assert result.reward == 1.0
         assert result.info["status"] == "success"
         assert result.info["judgment"] == "correct answer"
+
+    @patch("strands_env.rewards.llm_judge_reward.Agent")
+    async def test_throttle_rotates_to_next_model(self, mock_agent_cls):
+        """On throttle, cycles to the next model and succeeds."""
+        mock_result = MagicMock()
+        mock_result.message = {"content": [{"text": "correct"}]}
+        throttled = MagicMock(invoke_async=AsyncMock(side_effect=ModelThrottledException("throttled")))
+        ok = MagicMock(invoke_async=AsyncMock(return_value=mock_result))
+        mock_agent_cls.side_effect = [throttled, ok]
+
+        model_a, model_b = MagicMock(), MagicMock()
+        judge = _TextJudge(judge_model=[model_a, model_b], max_model_retries=2)
+        result = await judge.compute(*_action_and_step())
+
+        assert result.reward == 1.0
+        assert mock_agent_cls.call_args_list[0][1]["model"] is model_a
+        assert mock_agent_cls.call_args_list[1][1]["model"] is model_b
+
+    @patch("strands_env.rewards.llm_judge_reward.Agent")
+    async def test_all_retries_throttled_returns_default(self, mock_agent_cls):
+        """When all retries exhausted, returns default_reward."""
+        throttled = MagicMock(invoke_async=AsyncMock(side_effect=ModelThrottledException("throttled")))
+        mock_agent_cls.return_value = throttled
+
+        judge = _TextJudge(judge_model=MagicMock(), max_model_retries=2, default_reward=0.0)
+        result = await judge.compute(*_action_and_step())
+
+        assert result.reward == 0.0
+        assert result.info["error_type"] == "judge_error"
