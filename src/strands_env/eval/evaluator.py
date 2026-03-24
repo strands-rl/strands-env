@@ -28,7 +28,7 @@ from pydantic import BaseModel
 from tqdm import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
 
-from strands_env.core import Action, AsyncEnvFactory, StepResult
+from strands_env.core import Action, AsyncEnvFactory, Observation, StepResult
 
 from .metrics import MetricFn, compute_pass_at_k
 
@@ -170,6 +170,9 @@ class Evaluator:
             if sample.aborted:
                 logger.warning("[%s]: sample aborted by validate_sample", action.task_context.id)
             return sample
+        except Exception as e:
+            logger.error("[%s]: evaluate_sample failed, aborting: %s", action.task_context.id, e)
+            return EvalSample(action=action, step_result=StepResult(observation=Observation()), aborted=True)
         finally:
             await env.cleanup()
 

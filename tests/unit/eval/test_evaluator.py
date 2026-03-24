@@ -168,10 +168,8 @@ class TestEvaluator:
             return env
 
         evaluator = Evaluator(env_factory=factory, output_path=tmp_path / "results.jsonl")
-        # evaluate_sample should propagate the error, but cleanup must still be called
-        with pytest.raises(RuntimeError, match="step failed"):
-            await evaluator.evaluate_sample(Action(message="q", task_context=TaskContext(id="err")))
-
+        sample = await evaluator.evaluate_sample(Action(message="q", task_context=TaskContext(id="err")))
+        assert sample.aborted
         assert cleanup_called
 
 
