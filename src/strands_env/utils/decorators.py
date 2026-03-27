@@ -17,11 +17,11 @@
 from __future__ import annotations
 
 import asyncio
+import ctypes
 import inspect
 import os
+import threading
 from collections.abc import Callable
-from concurrent.futures import ThreadPoolExecutor
-from concurrent.futures import TimeoutError as FuturesTimeoutError
 from functools import wraps
 from typing import Any
 
@@ -113,8 +113,21 @@ def cache_by(*key_args: str) -> Callable[[Callable[..., Any]], Callable[..., Any
     return decorator
 
 
+class TimeoutInterrupt(BaseException):
+    """Injected into a timed-out thread to interrupt it.
+
+    Inherits from `BaseException` (not `Exception`) so it escapes most
+    library `except Exception` handlers, but unlike `KeyboardInterrupt`
+    it won't trigger training-framework shutdown hooks.
+    """
+
+
 def with_timeout(timeout: float | None) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
-    """Decorator that enforces a timeout on function execution using `ThreadPoolExecutor`.
+    """Decorator that enforces a timeout on function execution.
+
+    Runs the wrapped function in a daemon thread. On timeout, injects
+    `_TimeoutInterrupt` into the thread (CPython best-effort) so the work
+    does not continue consuming resources.
 
     This is useful when the function's own timeout mechanism relies on
     `signal.alarm()` (which only works in the main thread). This decorator
@@ -139,12 +152,29 @@ def with_timeout(timeout: float | None) -> Callable[[Callable[..., Any]], Callab
 
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
-            with ThreadPoolExecutor(max_workers=1) as executor:
-                future = executor.submit(func, *args, **kwargs)
+            result: list[Any] = []
+            exception: list[BaseException] = []
+
+            def target() -> None:
                 try:
-                    return future.result(timeout=timeout)
-                except FuturesTimeoutError as e:
-                    raise TimeoutError(f"Operation timed out after {timeout} seconds") from e
+                    result.append(func(*args, **kwargs))
+                except BaseException as e:
+                    exception.append(e)
+
+            thread = threading.Thread(target=target, daemon=True)
+            thread.start()
+            thread.join(timeout=timeout)
+
+            if thread.is_alive():
+                if thread.ident is not None:
+                    ctypes.pythonapi.PyThreadState_SetAsyncExc(
+                        ctypes.c_ulong(thread.ident), ctypes.py_object(TimeoutInterrupt)
+                    )
+                raise TimeoutError(f"Operation timed out after {timeout} seconds")
+
+            if exception:
+                raise exception[0]
+            return result[0]
 
         return wrapper
 
