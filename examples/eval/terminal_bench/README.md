@@ -42,7 +42,7 @@ Run tasks on AWS EKS/Fargate via [harbor-aws](https://github.com/JackXu0/harbor-
 ```bash
 strands-env eval run terminal-bench-2 \
     --env examples.eval.terminal_bench.terminal_bench_env \
-    --env-config '{"backend": "eks", "eks_backend_config": {"stack_name": "harbor-aws", "region": "us-east-1", "role_arn": "arn:aws:iam::123456789012:role/harbor-role"}}' \
+    --env-config '{"backend": "eks", "eks_backend_config": {"stack_name": "harbor-aws", "region": "us-east-1", "role_arn": "arn:aws:iam::123456789012:role/harbor-role", "ecr_cache": true}}' \
     --base-url http://localhost:30000 \
     --backend sglang \
     --max-tokens 16384 \
