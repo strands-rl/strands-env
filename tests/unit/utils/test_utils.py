@@ -14,12 +14,14 @@
 
 """Tests for utils/aws.py and utils/decorators.py."""
 
+import threading
+import time
 from unittest.mock import MagicMock, patch
 
 import boto3
 
 from strands_env.utils.aws import check_credentials, get_client, get_session
-from strands_env.utils.decorators import cache_by, requires_env
+from strands_env.utils.decorators import cache_by, requires_env, with_timeout
 
 # ===========================================================================
 # AWS — get_session
@@ -240,3 +242,88 @@ class TestCacheBy:
         fn("x", b="y")
         fn(a="x", b="y")
         assert call_count == 1
+
+
+# ===========================================================================
+# Decorators — @with_timeout
+# ===========================================================================
+
+
+class TestWithTimeout:
+    def test_returns_result_within_timeout(self):
+        @with_timeout(5)
+        def fast():
+            return 42
+
+        assert fast() == 42
+
+    def test_raises_timeout_error(self):
+        @with_timeout(1)
+        def slow():
+            time.sleep(10)
+
+        start = time.time()
+        try:
+            slow()
+            raise AssertionError("Should have raised TimeoutError")
+        except TimeoutError as e:
+            assert "1 seconds" in str(e)
+        elapsed = time.time() - start
+        assert elapsed < 3, f"Took {elapsed:.1f}s, should return in ~1s"
+
+    def test_propagates_exception(self):
+        @with_timeout(5)
+        def raises():
+            raise ValueError("boom")
+
+        try:
+            raises()
+            raise AssertionError("Should have raised ValueError")
+        except ValueError as e:
+            assert str(e) == "boom"
+
+    def test_none_timeout_no_wrapper(self):
+        @with_timeout(None)
+        def fn():
+            return "no timeout"
+
+        assert fn() == "no timeout"
+
+    def test_thread_is_interrupted(self):
+        """Verify the timed-out thread stops running (not leaked)."""
+        counter = {"value": 0}
+
+        @with_timeout(1)
+        def infinite():
+            while True:
+                counter["value"] += 1
+                time.sleep(0.1)
+
+        try:
+            infinite()
+        except TimeoutError:
+            pass
+
+        time.sleep(2)
+        snapshot = counter["value"]
+        time.sleep(1)
+        assert counter["value"] == snapshot, "Thread should have been interrupted"
+
+    def test_works_from_non_main_thread(self):
+        """The whole point: with_timeout must work outside the main thread."""
+        result = {}
+
+        @with_timeout(1)
+        def slow():
+            time.sleep(10)
+
+        def run():
+            try:
+                slow()
+            except TimeoutError:
+                result["ok"] = True
+
+        t = threading.Thread(target=run)
+        t.start()
+        t.join(timeout=5)
+        assert result.get("ok"), "Timeout should work from non-main thread"
