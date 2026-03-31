@@ -36,32 +36,23 @@ logger = logging.getLogger(__name__)
 class EnvironmentActor:
     """Remote worker that runs environment episodes in a dedicated process.
 
-    Loads a factory builder by dotted path, reconstructs ``args`` from a plain
-    dict, and calls ``builder(args, sampling_params)`` to get an
-    ``AsyncEnvFactory``. The factory is built once at init and reused for all
-    subsequent ``step()`` calls.
-
-    Concurrency is controlled upstream by the caller's semaphore (e.g. SLiME's
-    ``GenerateState.semaphore``), which limits how many ``generate()`` calls
-    are in flight.
-
     Args:
-        factory_builder_path: Dotted path to a callable
-            ``(args, sampling_params) -> AsyncEnvFactory``.
-        args_dict: ``vars(args)`` — serialized Namespace.
+        env_hook_path: Dotted path to a callable
+            `(args, sampling_params) -> AsyncEnvFactory`.
+        args_dict: `vars(args)` — serialized Namespace.
         sampling_params: Sampling parameters dict.
     """
 
     def __init__(
         self,
-        factory_builder_path: str,
+        env_hook_path: str,
         args_dict: dict[str, Any],
         sampling_params: dict[str, Any],
     ) -> None:
         """Initialize an ``EnvironmentActor`` instance."""
-        factory_builder = load_function(factory_builder_path)
+        env_hook = load_function(env_hook_path)
         args = Namespace(**args_dict)
-        self.env_factory = factory_builder(args, sampling_params)
+        self.env_factory = env_hook(args, sampling_params)
 
     async def step(self, action_json: str) -> str:
         """Run one environment step and return the JSON-serialized StepResult.
@@ -85,11 +76,11 @@ class EnvironmentActorPool:
 
     Each actor runs in its own process with a separate GIL and event loop,
     enabling true CPU parallelism for agent episodes. Follows the
-    `NodeAffinitySchedulingStrategy` pattern from SLiME's distributed
-    HTTP POST (``http_utils.py``).
+    `NodeAffinitySchedulingStrategy` pattern from `slime`'s distributed
+    HTTP POST (`http_utils.py`).
 
     Args:
-        factory_builder_path: Dotted path to a callable
+        env_hook_path: Dotted path to a callable
             `(args, sampling_params) -> AsyncEnvFactory`.
         args_dict: `vars(args)` — serialized Namespace.
         sampling_params: Sampling parameters dict.
@@ -98,7 +89,7 @@ class EnvironmentActorPool:
 
     def __init__(
         self,
-        factory_builder_path: str,
+        env_hook_path: str,
         args_dict: dict[str, Any],
         sampling_params: dict[str, Any],
         num_actors_per_node: int,
@@ -119,7 +110,7 @@ class EnvironmentActorPool:
                     scheduling_strategy=scheduling,
                     num_cpus=0.001,
                 ).remote(
-                    factory_builder_path=factory_builder_path,
+                    env_hook_path=env_hook_path,
                     args_dict=args_dict,
                     sampling_params=sampling_params,
                 )
