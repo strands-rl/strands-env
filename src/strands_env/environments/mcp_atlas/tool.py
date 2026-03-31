@@ -29,5 +29,8 @@ class MCPAtlasTool(MCPToolAdapter):
         )
         if response.status_code != 200:  # upstream MCP server error
             return [ToolResultContent(text=response.text)], "error"
-        content = [ToolResultContent(text=str(item)) for item in response.json()]
+        content = [
+            ToolResultContent(text=item["text"] if isinstance(item, dict) and "text" in item else str(item))
+            for item in response.json()
+        ]
         return content, "success"
