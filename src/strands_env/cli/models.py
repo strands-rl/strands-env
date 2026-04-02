@@ -34,7 +34,7 @@ from strands_env.utils.sglang import check_server_health, get_model_id
 
 
 @dataclass
-class SamplingConfig:
+class SamplingParams:
     """Sampling parameters for model generation."""
 
     temperature: float | None = None
@@ -65,12 +65,12 @@ class ModelConfig:
     role_arn: str | None = None  # For role assumption
 
     # Sampling
-    sampling: SamplingConfig = field(default_factory=SamplingConfig)
+    sampling_params: SamplingParams = field(default_factory=SamplingParams)
 
     def to_dict(self) -> dict:
         """Convert to dict for serialization."""
         d = dataclasses.asdict(self)
-        d["sampling"] = self.sampling.to_dict()
+        d["sampling"] = self.sampling_params.to_dict()
         return d
 
 
@@ -81,7 +81,7 @@ def build_model_factory(config: ModelConfig, max_concurrency: int) -> ModelFacto
         config: Model configuration.
         max_concurrency: Max concurrent connections (for SGLang client pooling).
     """
-    sampling = config.sampling.to_dict()
+    sampling_params = config.sampling_params.to_dict()
 
     match config.backend:
         case "sglang":
@@ -93,7 +93,7 @@ def build_model_factory(config: ModelConfig, max_concurrency: int) -> ModelFacto
                 client=client,
                 tokenizer=get_tokenizer(config.tokenizer_path),
                 tool_parser=get_tool_parser(config.tool_parser) if config.tool_parser else get_tool_parser("hermes"),
-                sampling_params=sampling,
+                sampling_params=sampling_params,
             )
         case "bedrock":
             config.model_id = config.model_id or "us.anthropic.claude-sonnet-4-20250514-v1:0"
@@ -102,11 +102,11 @@ def build_model_factory(config: ModelConfig, max_concurrency: int) -> ModelFacto
                 profile_name=config.profile_name,
                 role_arn=config.role_arn,
             )
-            return bedrock_model_factory(model_id=config.model_id, boto_session=boto_session, sampling_params=sampling)
+            return bedrock_model_factory(model_id=config.model_id, boto_session=boto_session, sampling_params=sampling_params)
 
         case "kimi":
             return kimi_model_factory(
                 model_id=config.model_id or "moonshot/kimi-k2.5",
-                sampling_params=sampling,
+                sampling_params=sampling_params,
             )
         # TODO: add more backends here

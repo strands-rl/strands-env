@@ -27,7 +27,7 @@ import click
 from strands_env.eval import get_benchmark, list_benchmarks, list_unavailable_benchmarks
 from strands_env.utils.loader import load_env_factory_hook, load_evaluator_hook
 
-from .models import ModelConfig, SamplingConfig, build_model_factory
+from .models import ModelConfig, SamplingParams, build_model_factory
 
 logger = logging.getLogger(__name__)
 
@@ -202,7 +202,7 @@ def run_cmd(
         region=region or ModelConfig.region,
         profile_name=profile_name,
         role_arn=role_arn,
-        sampling=SamplingConfig(temperature=temperature, max_new_tokens=max_tokens, top_p=top_p, top_k=top_k),
+        sampling_params=SamplingParams(temperature=temperature, max_new_tokens=max_tokens, top_p=top_p, top_k=top_k),
     )
     model_factory = build_model_factory(config=model_config, max_concurrency=max_concurrency)
 

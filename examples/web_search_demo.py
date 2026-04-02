@@ -38,7 +38,7 @@ from typing import Literal
 import click
 from dotenv import load_dotenv
 
-from strands_env.cli.models import ModelConfig, SamplingConfig, build_model_factory
+from strands_env.cli.models import ModelConfig, SamplingParams, build_model_factory
 from strands_env.core.types import Action
 from strands_env.environments.web_search import WebSearchEnv
 
@@ -60,7 +60,7 @@ async def run_demo(
         backend=backend,
         model_id=model_id,
         base_url=base_url,
-        sampling=SamplingConfig(),
+        sampling_params=SamplingParams(),
     )
     model_factory = build_model_factory(config, max_concurrency=1)
 
