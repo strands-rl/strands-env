@@ -73,6 +73,7 @@ def sglang_model_factory(
     tool_parser: ToolParser | None = None,
     sampling_params: dict[str, Any] = DEFAULT_SAMPLING_PARAMS,
     return_logprob: bool = True,
+    return_routed_experts: bool = False,
     enable_thinking: bool = True,
 ) -> ModelFactory:
     """Return a factory that creates `SGLangModel` instances.
@@ -83,6 +84,7 @@ def sglang_model_factory(
         tool_parser: Tool parser for extracting tool calls from model output. Defaults to `HermesToolParser`.
         sampling_params: Sampling parameters for the model (e.g. `{"max_new_tokens": 4096}`).
         return_logprob: Whether to return logprobs for each token.
+        return_routed_experts: Whether to return MoE routed expert indices for routing replay.
         enable_thinking: Enable thinking mode for models whose chat template supports it.
     """
     if tool_parser is None:
@@ -94,6 +96,7 @@ def sglang_model_factory(
         tool_parser=tool_parser,
         sampling_params=sampling_params,
         return_logprob=return_logprob,
+        return_routed_experts=return_routed_experts,
         enable_thinking=enable_thinking,
     )
 

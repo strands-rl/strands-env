@@ -42,6 +42,17 @@ class TestSGLangModelFactory:
         model2 = factory()
         assert model1 is not model2
 
+    @patch("strands_env.core.models.SGLangModel")
+    def test_forwards_return_routed_experts(self, mock_sglang_cls):
+        factory = sglang_model_factory(
+            tokenizer=MagicMock(),
+            client=MagicMock(spec=SGLangClient),
+            return_routed_experts=True,
+        )
+        factory()
+        call_kwargs = mock_sglang_cls.call_args[1]
+        assert call_kwargs["return_routed_experts"] is True
+
 
 # ---------------------------------------------------------------------------
 # bedrock_model_factory

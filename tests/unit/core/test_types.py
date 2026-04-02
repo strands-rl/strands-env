@@ -14,6 +14,7 @@
 
 """Unit tests for core types."""
 
+import numpy as np
 from strands.types.exceptions import (
     ContextWindowOverflowException,
     EventLoopException,
@@ -97,6 +98,19 @@ class TestTokenObservation:
         assert obs.token_ids == [1, 2, 3, 4, 5]
         assert obs.prompt_length == 3
         assert obs.rollout_token_ids == [4, 5]
+        assert obs.routed_experts is None
+
+    def test_from_token_manager_with_routed_experts(self):
+        """Verify routed_experts are passed through from TokenManager."""
+        tm = TokenManager()
+        tm.add_prompt([1, 2, 3])
+        tm.add_response([4, 5], logprobs=[-0.1, -0.2])
+        # (tokens - 1) * num_layers * topk = 4 * 2 * 1 = 8
+        experts = np.arange(8, dtype=np.int32)
+        tm._routed_experts = experts
+        obs = TokenObservation.from_token_manager(tm)
+        assert obs is not None
+        np.testing.assert_array_equal(obs.routed_experts, experts)
 
     def test_from_token_manager_uses_initial_prompt(self):
         """Verify prompt_length is derived from the first segment."""

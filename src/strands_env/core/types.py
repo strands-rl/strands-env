@@ -22,6 +22,7 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Any
 
+import numpy as np
 from pydantic import BaseModel, ConfigDict, Field
 from strands.types.content import Message, Messages
 from strands.types.exceptions import ContextWindowOverflowException, EventLoopException, MaxTokensReachedException
@@ -64,12 +65,17 @@ class TokenObservation(BaseModel):
 
     `prompt_length` splits the flat `token_ids` list into initial-prompt vs. rollout.
     `loss_mask` and `logprobs` cover all tokens (use rollout slices for training).
+    `routed_experts` optionally carries MoE routing decisions for routing replay.
     """
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     token_ids: list[int] = Field(default_factory=list)
     prompt_length: int = Field(default=0)
     loss_mask: list[int] = Field(default_factory=list)
     logprobs: list[float | None] = Field(default_factory=list)
+    routed_experts: np.ndarray | None = Field(default=None, exclude=True)
+    """Flat int32 MoE routed expert indices. Reshape with ``(tokens - 1, num_layers, topk)``."""
 
     @property
     def rollout_token_ids(self) -> list[int]:
@@ -101,6 +107,7 @@ class TokenObservation(BaseModel):
             prompt_length=len(token_manager.initial_prompt),
             loss_mask=token_manager.loss_mask,
             logprobs=token_manager.logprobs,
+            routed_experts=token_manager.routed_experts,
         )
 
 
