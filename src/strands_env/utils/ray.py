@@ -12,14 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Reusable Ray actor pool for distributing `Environment.step()` across processes."""
+"""Ray actor pool for distributing `Environment.step()` across processes."""
 
 from __future__ import annotations
 
 import asyncio
 import itertools
 import logging
-from argparse import Namespace
 from typing import Any
 
 import ray
@@ -36,26 +35,22 @@ logger = logging.getLogger(__name__)
 class EnvironmentActor:
     """Remote worker that runs environment episodes in a dedicated process.
 
+    The actor is fully generic — it loads a callable via dotted path and
+    calls it with the provided kwargs to produce an `AsyncEnvFactory`.
+    All domain logic (model construction, reward setup, etc.) lives in the hook.
+
     Args:
-        env_hook_path: Dotted path to a callable
-            `(args, sampling_params) -> AsyncEnvFactory`.
-        args_dict: `vars(args)` — serialized Namespace.
-        sampling_params: Sampling parameters dict.
+        env_hook_path: Dotted path to a callable that returns an `AsyncEnvFactory`.
+        env_hook_config: Configuration passed to the hook callable.
     """
 
-    def __init__(
-        self,
-        env_hook_path: str,
-        args_dict: dict[str, Any],
-        sampling_params: dict[str, Any],
-    ) -> None:
+    def __init__(self, env_hook_path: str, env_hook_config: dict[str, Any]) -> None:
         """Initialize an `EnvironmentActor` instance."""
         env_hook = load_function(env_hook_path)
-        args = Namespace(**args_dict)
-        self.env_factory = env_hook(args, sampling_params)
+        self.env_factory = env_hook(**env_hook_config)
 
     async def step(self, action_json: str) -> str:
-        """Run one environment step and return the JSON-serialized StepResult.
+        """Run one environment step and return the JSON-serialized `StepResult`.
 
         Args:
             action_json: JSON string from `Action.model_dump_json()`.
@@ -75,32 +70,24 @@ class EnvironmentActorPool:
     """Pool of `EnvironmentActor` instances distributed across Ray nodes.
 
     Each actor runs in its own process with a separate GIL and event loop,
-    enabling true CPU parallelism for agent episodes. Follows the
-    `NodeAffinitySchedulingStrategy` pattern from `slime`'s distributed
-    HTTP POST (`http_utils.py`).
+    enabling true CPU parallelism for agent episodes.
 
     Args:
-        env_hook_path: Dotted path to a callable
-            `(args, sampling_params) -> AsyncEnvFactory`.
-        args_dict: `vars(args)` — serialized Namespace.
-        sampling_params: Sampling parameters dict.
+        env_hook_path: Dotted path to a callable that returns an `AsyncEnvFactory`.
+        env_hook_config: Configuration passed to the hook callable in each actor.
         num_actors_per_node: Number of actors per alive Ray node.
     """
 
     def __init__(
         self,
         env_hook_path: str,
-        args_dict: dict[str, Any],
-        sampling_params: dict[str, Any],
+        env_hook_config: dict[str, Any],
         num_actors_per_node: int,
     ) -> None:
         """Initialize an `EnvironmentActorPool` instance."""
         nodes = [n for n in ray.nodes() if n.get("Alive")]
         if not nodes:
             raise RuntimeError("No alive Ray nodes for EnvironmentActor placement.")
-
-        # Inject actor count so the factory builder can split concurrency budgets
-        args_dict = {**args_dict, "num_actors": len(nodes) * num_actors_per_node}
 
         self.actors: list[ActorHandle] = []
         for node in nodes:
@@ -111,8 +98,7 @@ class EnvironmentActorPool:
                     num_cpus=0.001,
                 ).remote(
                     env_hook_path=env_hook_path,
-                    args_dict=args_dict,
-                    sampling_params=sampling_params,
+                    env_hook_config=env_hook_config,
                 )
                 self.actors.append(actor)
 
