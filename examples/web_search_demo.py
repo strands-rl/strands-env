@@ -62,7 +62,7 @@ async def run_demo(
         base_url=base_url,
         sampling_params=SamplingParams(),
     )
-    model_factory = build_model_factory(config, max_concurrency=1)
+    model_factory = build_model_factory(config)
 
     # Create environment with search + scrape tools
     env = WebSearchEnv(

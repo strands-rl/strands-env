@@ -57,6 +57,7 @@ class ModelConfig:
     base_url: str = "http://localhost:30000"
     tokenizer_path: str | None = None  # Auto-detected if None
     tool_parser: str | None = None  # Parser name or path to hook file
+    max_connections: int = 1000  # Max concurrent connections (for SGLang client pooling)
 
     # Bedrock / model identifier (auto-detected for SGLang; defaults to Claude Sonnet for Bedrock)
     model_id: str | None = None
@@ -74,19 +75,18 @@ class ModelConfig:
         return d
 
 
-def build_model_factory(config: ModelConfig, max_concurrency: int) -> ModelFactory:
+def build_model_factory(config: ModelConfig) -> ModelFactory:
     """Build a `ModelFactory` from `ModelConfig`.
 
     Args:
         config: Model configuration.
-        max_concurrency: Max concurrent connections (for SGLang client pooling).
     """
     sampling_params = config.sampling_params.to_dict()
 
     match config.backend:
         case "sglang":
             check_server_health(config.base_url)
-            client = get_client(config.base_url, max_connections=max_concurrency)
+            client = get_client(config.base_url, max_connections=config.max_connections)
             config.model_id = config.model_id or get_model_id(config.base_url)
             config.tokenizer_path = config.tokenizer_path or config.model_id
             return sglang_model_factory(

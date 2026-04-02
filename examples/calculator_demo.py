@@ -61,7 +61,7 @@ async def run_demo(
         tool_parser="qwen_xml",  # for Qwen/Qwen3.5 models
         sampling_params=SamplingParams(),
     )
-    model_factory = build_model_factory(config, max_concurrency=1)
+    model_factory = build_model_factory(config)
 
     # Create environment with calculator tool and math reward function
     env = CalculatorEnv(

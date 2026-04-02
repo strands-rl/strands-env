@@ -199,12 +199,13 @@ def run_cmd(
         model_id=model_id,
         tokenizer_path=tokenizer_path,
         tool_parser=tool_parser,
+        max_connections=max_concurrency,
         region=region or ModelConfig.region,
         profile_name=profile_name,
         role_arn=role_arn,
         sampling_params=SamplingParams(temperature=temperature, max_new_tokens=max_tokens, top_p=top_p, top_k=top_k),
     )
-    model_factory = build_model_factory(config=model_config, max_concurrency=max_concurrency)
+    model_factory = build_model_factory(model_config)
 
     # Create env_factory
     env_factory = env_factory_creator(model_factory, **(env_config or {}))
