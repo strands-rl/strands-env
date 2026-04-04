@@ -71,7 +71,7 @@ class ModelConfig:
     def to_dict(self) -> dict:
         """Convert to dict for serialization."""
         d = dataclasses.asdict(self)
-        d["sampling"] = self.sampling_params.to_dict()
+        d["sampling_params"] = self.sampling_params.to_dict()
         return d
 
 

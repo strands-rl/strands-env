@@ -46,6 +46,9 @@ def create_distributed_env_factory(
         model_config: Serialized `ModelConfig` dict (from `ModelConfig.to_dict()`).
         **env_config: Forwarded to the eval hook.
     """
+    model_config = dict(model_config)
+    if isinstance(model_config.get("sampling_params"), dict):
+        model_config["sampling_params"] = SamplingParams(**model_config["sampling_params"])
     config = ModelConfig(**model_config)
     model_factory = build_model_factory(config)
     env_factory_creator = load_env_factory_hook(env_hook_path)
