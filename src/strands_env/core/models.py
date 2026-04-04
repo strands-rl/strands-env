@@ -279,7 +279,7 @@ def kimi_model_factory(
 
 
 # ---------------------------------------------------------------------------
-# Model Configuration (serializable, for CLI / Ray actors)
+# Model Configuration and Factory (mainly for CLI)
 # ---------------------------------------------------------------------------
 
 
