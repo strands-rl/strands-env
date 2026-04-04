@@ -75,6 +75,8 @@ class CodeSandboxEnv(Environment):
                 return [self._toolkit.execute_code, self._toolkit.execute_command]
             case _:
                 raise ValueError(f"Invalid mode: {self.mode}")
+        # Defensive fallback to satisfy static analysis: should be unreachable.
+        raise ValueError(f"Invalid mode: {self.mode}")
 
     @override
     async def cleanup(self) -> None:
