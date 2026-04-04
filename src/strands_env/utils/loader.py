@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from strands_env.eval import Evaluator
 
 #: Type for the create_env_factory function exported by hook modules.
-EnvFactoryCreator: TypeAlias = Callable[..., "AsyncEnvFactory"]
+EnvFactoryCreator: TypeAlias = Callable[..., AsyncEnvFactory]
 
 
 # ---------------------------------------------------------------------------
