@@ -144,7 +144,7 @@ class RewardFunction(ABC):
     @abstractmethod
     async def compute(self, action: Action, step_result: StepResult) -> RewardResult:
         """Return a `RewardResult` given the action and the environment's step result."""
-        ...
+        raise NotImplementedError("Subclasses must implement RewardFunction.compute()")
 
 
 # ---------------------------------------------------------------------------
