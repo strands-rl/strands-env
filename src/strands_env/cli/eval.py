@@ -50,7 +50,10 @@ class JsonType(click.ParamType):
         try:
             return json.loads(value)
         except json.JSONDecodeError as e:
+            # click.ParamType.fail always raises click.BadParameter, but add an
+            # explicit raise to make control flow clear to static analysis tools.
             self.fail(f"Invalid JSON: {e}", param, ctx)
+            raise AssertionError("JsonType.convert: unreachable after self.fail()")
 
 
 JSON = JsonType()
