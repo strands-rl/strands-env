@@ -18,8 +18,7 @@ from __future__ import annotations
 
 import httpx
 
-from strands_env.cli.models import build_model_factory
-from strands_env.core.models import bedrock_model_factory
+from strands_env.core.models import bedrock_model_factory, build_model_factory
 from strands_env.environments.mcp_atlas import MCPAtlasEnvironment, MCPAtlasRewardFunction
 from strands_env.utils.aws import get_session
 

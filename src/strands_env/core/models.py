@@ -39,8 +39,10 @@ Example:
 
 from __future__ import annotations
 
+import dataclasses
 from collections.abc import Callable
-from typing import Any
+from dataclasses import dataclass, field
+from typing import Any, Literal
 
 import boto3
 import botocore.config
@@ -49,11 +51,13 @@ from strands.models import Model
 from strands.models.bedrock import BedrockModel
 from strands.models.openai import OpenAIModel
 from strands.types.content import Messages
-from strands_sglang import SGLangClient, SGLangModel
-from strands_sglang.tool_parsers import HermesToolParser, ToolParser
+from strands_sglang import SGLangClient, SGLangModel, get_client, get_tokenizer
+from strands_sglang.tool_parsers import HermesToolParser, ToolParser, get_tool_parser
 from transformers import PreTrainedTokenizerBase
 
+from strands_env.utils.aws import get_session
 from strands_env.utils.decorators import requires_env
+from strands_env.utils.sglang import check_server_health, get_model_id
 
 #: Factory that produces a fresh `Model` per step (for concurrent step isolation).
 ModelFactory = Callable[[], Model]
@@ -272,3 +276,77 @@ def kimi_model_factory(
         params=sampling_params,
         client_args=client_args,
     )
+
+
+# ---------------------------------------------------------------------------
+# Model Configuration (serializable, for CLI / Ray actors)
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class ModelConfig:
+    """Serializable model configuration."""
+
+    backend: Literal["sglang", "bedrock", "kimi"] = "sglang"
+
+    # SGLang
+    base_url: str = "http://localhost:30000"
+    tokenizer_path: str | None = None
+    tool_parser: str | None = None
+    max_connections: int = 1000
+
+    # Bedrock / model identifier
+    model_id: str | None = None
+    region: str = "us-west-2"
+    profile_name: str | None = None
+    role_arn: str | None = None
+
+    # Sampling
+    sampling_params: dict[str, Any] = field(default_factory=lambda: {"max_new_tokens": 16384})
+
+    def to_dict(self) -> dict:
+        """Convert to dict for serialization."""
+        return dataclasses.asdict(self)
+
+
+def build_model_factory(config: ModelConfig | dict[str, Any]) -> ModelFactory:
+    """Build a `ModelFactory` from a `ModelConfig` or a serialized config dict.
+
+    This is the config-driven path for creating model factories, used by
+    eval hooks and Ray actors. For programmatic use with pre-built objects
+    (clients, tokenizers), use the individual factory functions directly.
+
+    Args:
+        config: Model configuration (dataclass or dict from `ModelConfig.to_dict()`).
+    """
+    if isinstance(config, dict):
+        config = ModelConfig(**config)
+
+    match config.backend:
+        case "sglang":
+            check_server_health(config.base_url)
+            client = get_client(config.base_url, max_connections=config.max_connections)
+            config.model_id = config.model_id or get_model_id(config.base_url)
+            config.tokenizer_path = config.tokenizer_path or config.model_id
+            tool_parser = config.tool_parser or "hermes"
+            return sglang_model_factory(
+                client=client,
+                tokenizer=get_tokenizer(config.tokenizer_path),
+                tool_parser=get_tool_parser(tool_parser),
+                sampling_params=config.sampling_params,
+            )
+        case "bedrock":
+            config.model_id = config.model_id or "us.anthropic.claude-sonnet-4-20250514-v1:0"
+            boto_session = get_session(
+                region=config.region,
+                profile_name=config.profile_name,
+                role_arn=config.role_arn,
+            )
+            return bedrock_model_factory(
+                model_id=config.model_id, boto_session=boto_session, sampling_params=config.sampling_params
+            )
+        case "kimi":
+            return kimi_model_factory(
+                model_id=config.model_id or "moonshot/kimi-k2.5",
+                sampling_params=config.sampling_params,
+            )

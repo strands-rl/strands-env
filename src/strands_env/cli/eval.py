@@ -24,10 +24,9 @@ from typing import Literal
 
 import click
 
+from strands_env.core.models import ModelConfig
 from strands_env.eval import get_benchmark, list_benchmarks, list_unavailable_benchmarks
 from strands_env.utils.loader import load_env_factory_hook, load_evaluator_hook
-
-from .models import ModelConfig
 
 logger = logging.getLogger(__name__)
 

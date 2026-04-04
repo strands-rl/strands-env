@@ -14,7 +14,7 @@
 
 """Example environment hook for math reasoning evaluation with `CodeSandboxEnv`."""
 
-from strands_env.cli.models import build_model_factory
+from strands_env.core.models import build_model_factory
 from strands_env.environments.code_sandbox import CodeSandboxEnv
 from strands_env.rewards import MathVerifyReward
 
