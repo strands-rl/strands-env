@@ -19,6 +19,7 @@ import time
 from unittest.mock import MagicMock, patch
 
 import boto3
+import pytest
 
 from strands_env.utils.aws import check_credentials, get_client, get_session
 from strands_env.utils.decorators import cache_by, requires_env, with_timeout
@@ -299,10 +300,8 @@ class TestWithTimeout:
                 counter["value"] += 1
                 time.sleep(0.1)
 
-        try:
+        with pytest.raises(TimeoutError):
             infinite()
-        except TimeoutError:
-            pass
 
         time.sleep(2)
         snapshot = counter["value"]
