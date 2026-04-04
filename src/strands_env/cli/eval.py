@@ -27,7 +27,7 @@ import click
 from strands_env.eval import get_benchmark, list_benchmarks, list_unavailable_benchmarks
 from strands_env.utils.loader import load_env_factory_hook, load_evaluator_hook
 
-from .models import ModelConfig, build_model_factory
+from .models import ModelConfig
 
 logger = logging.getLogger(__name__)
 
@@ -235,9 +235,8 @@ def run_cmd(
             n_actors_per_node=n_actors_per_node,
         )
     else:
-        model_factory = build_model_factory(model_config)
         env_factory_creator = load_env_factory_hook(env_hook)
-        env_factory = env_factory_creator(model_factory, **(env_config or {}))
+        env_factory = env_factory_creator(model_config.to_dict(), **(env_config or {}))
 
     # Output paths
     output_dir = output or Path(f"{benchmark_name}_eval")
