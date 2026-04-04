@@ -21,8 +21,9 @@ from collections.abc import Callable
 from types import ModuleType
 from typing import TYPE_CHECKING, Any, TypeAlias, cast
 
+from strands_env.core.environment import AsyncEnvFactory
+
 if TYPE_CHECKING:
-    from strands_env.core import AsyncEnvFactory
     from strands_env.eval import Evaluator
 
 #: Type for the create_env_factory function exported by hook modules.
