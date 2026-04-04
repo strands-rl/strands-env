@@ -20,39 +20,16 @@ import asyncio
 import json
 import logging
 from pathlib import Path
-from typing import Any, Literal
+from typing import Literal
 
 import click
 
-from strands_env.core.environment import AsyncEnvFactory
 from strands_env.eval import get_benchmark, list_benchmarks, list_unavailable_benchmarks
 from strands_env.utils.loader import load_env_factory_hook, load_evaluator_hook
 
-from .models import ModelConfig, SamplingParams, build_model_factory
+from .models import ModelConfig, build_model_factory
 
 logger = logging.getLogger(__name__)
-
-
-def create_distributed_env_factory(
-    env_hook_path: str, model_config: dict[str, Any], **env_config: Any
-) -> AsyncEnvFactory:
-    """Build an `AsyncEnvFactory` from serializable config inside a Ray actor.
-
-    This bridges CLI's `ModelConfig` to the eval hook contract
-    ``create_env_factory(model_factory, **env_config)``.
-
-    Args:
-        env_hook_path: Dotted path to the eval hook module.
-        model_config: Serialized `ModelConfig` dict (from `ModelConfig.to_dict()`).
-        **env_config: Forwarded to the eval hook.
-    """
-    model_config = dict(model_config)
-    if isinstance(model_config.get("sampling_params"), dict):
-        model_config["sampling_params"] = SamplingParams(**model_config["sampling_params"])
-    config = ModelConfig(**model_config)
-    model_factory = build_model_factory(config)
-    env_factory_creator = load_env_factory_hook(env_hook_path)
-    return env_factory_creator(model_factory, **env_config)
 
 
 # ---------------------------------------------------------------------------
@@ -217,10 +194,18 @@ def run_cmd(
         evaluator_cls = load_evaluator_hook(evaluator_path)
         benchmark_name = evaluator_cls.benchmark_name
 
-    # Load env factory hook (validate before building model factory)
-    env_factory_creator = load_env_factory_hook(env_hook)
+    # Load env factory hook (validate before building model)
+    load_env_factory_hook(env_hook)
 
     # Build model config
+    sampling_params: dict = {"max_new_tokens": max_tokens}
+    if temperature is not None:
+        sampling_params["temperature"] = temperature
+    if top_p is not None:
+        sampling_params["top_p"] = top_p
+    if top_k is not None:
+        sampling_params["top_k"] = top_k
+
     model_config = ModelConfig(
         backend=backend,
         base_url=base_url,
@@ -228,10 +213,10 @@ def run_cmd(
         tokenizer_path=tokenizer_path,
         tool_parser=tool_parser,
         max_connections=max_concurrency,
-        region=region or ModelConfig.region,
+        region=region or "us-west-2",
         profile_name=profile_name,
         role_arn=role_arn,
-        sampling_params=SamplingParams(temperature=temperature, max_new_tokens=max_tokens, top_p=top_p, top_k=top_k),
+        sampling_params=sampling_params,
     )
 
     # Build env_factory (local) or env_actor_pool (distributed)
@@ -245,16 +230,13 @@ def run_cmd(
         if not ray.is_initialized():
             ray.init()
         env_actor_pool = EnvironmentActorPool(
-            env_hook_path="strands_env.cli.eval.create_distributed_env_factory",
-            env_hook_config={
-                "env_hook_path": env_hook,
-                "model_config": model_config.to_dict(),
-                **(env_config or {}),
-            },
+            env_hook_path=env_hook,
+            env_hook_config={"model_config": model_config.to_dict(), **(env_config or {})},
             n_actors_per_node=n_actors_per_node,
         )
     else:
         model_factory = build_model_factory(model_config)
+        env_factory_creator = load_env_factory_hook(env_hook)
         env_factory = env_factory_creator(model_factory, **(env_config or {}))
 
     # Output paths

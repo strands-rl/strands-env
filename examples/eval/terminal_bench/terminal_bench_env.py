@@ -16,13 +16,14 @@
 
 from __future__ import annotations
 
-from strands_env.core.models import ModelFactory
+from strands_env.cli.models import build_model_factory
 from strands_env.core.types import Action
 from strands_env.environments.terminal_bench import TerminalBenchEnv
 
 
-def create_env_factory(model_factory: ModelFactory, **env_config):
+def create_env_factory(model_config: dict, **env_config):
     """Create env_factory for `TerminalBenchEnv`."""
+    model_factory = build_model_factory(model_config)
 
     async def env_factory(action: Action) -> TerminalBenchEnv:
         """Create a new TerminalBenchEnv with its own Docker container."""

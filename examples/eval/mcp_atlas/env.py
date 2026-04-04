@@ -18,13 +18,15 @@ from __future__ import annotations
 
 import httpx
 
-from strands_env.core.models import ModelFactory, bedrock_model_factory
+from strands_env.cli.models import build_model_factory
+from strands_env.core.models import bedrock_model_factory
 from strands_env.environments.mcp_atlas import MCPAtlasEnvironment, MCPAtlasRewardFunction
 from strands_env.utils.aws import get_session
 
 
-def create_env_factory(model_factory: ModelFactory, **env_config):
+def create_env_factory(model_config: dict, **env_config):
     """Create env_factory for MCP-Atlas benchmark tasks."""
+    model_factory = build_model_factory(model_config)
     judge_models = []
     for profile_name in env_config.get("judge_model_profiles", [None]):
         boto_session = get_session(region="us-west-2", profile_name=profile_name)

@@ -14,13 +14,14 @@
 
 """Example environment hook for HMMT evaluation with `CodeSandboxEnv`."""
 
-from strands_env.core.models import ModelFactory
+from strands_env.cli.models import build_model_factory
 from strands_env.environments.code_sandbox import CodeSandboxEnv
 from strands_env.rewards import MathVerifyReward
 
 
-def create_env_factory(model_factory: ModelFactory, **env_config):
+def create_env_factory(model_config: dict, **env_config):
     """Create env_factory for `CodeSandboxEnv`."""
+    model_factory = build_model_factory(model_config)
     reward_fn = MathVerifyReward()
 
     async def env_factory(_action):
