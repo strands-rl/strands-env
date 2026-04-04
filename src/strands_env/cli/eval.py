@@ -230,7 +230,7 @@ def run_cmd(
         if not ray.is_initialized():
             ray.init()
         env_actor_pool = EnvironmentActorPool(
-            env_hook_path=env_hook,
+            env_hook_path=env_hook + ".create_env_factory",
             env_hook_config={"model_config": model_config.to_dict(), **(env_config or {})},
             n_actors_per_node=n_actors_per_node,
         )
