@@ -352,3 +352,7 @@ def build_model_factory(config: ModelConfig | dict[str, Any]) -> ModelFactory:
             )
         case _:
             raise ValueError(f"Unsupported backend for ModelConfig: {config.backend!r}")
+
+    # This should be unreachable, but is kept to satisfy static analysis tools
+    # that require an explicit non-None termination on all code paths.
+    raise RuntimeError("build_model_factory reached an unreachable state")
