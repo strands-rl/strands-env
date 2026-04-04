@@ -350,3 +350,5 @@ def build_model_factory(config: ModelConfig | dict[str, Any]) -> ModelFactory:
                 model_id=config.model_id or "moonshot/kimi-k2.5",
                 sampling_params=config.sampling_params,
             )
+        case _:
+            raise ValueError(f"Unsupported backend for ModelConfig: {config.backend!r}")
