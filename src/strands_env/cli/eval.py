@@ -235,8 +235,12 @@ def run_cmd(
     env_factory = None
     env_actor_pool = None
     if n_actors_per_node is not None:
+        import ray
+
         from strands_env.utils.ray import EnvironmentActorPool
 
+        if not ray.is_initialized():
+            ray.init()
         env_actor_pool = EnvironmentActorPool(
             env_hook_path="strands_env.cli.eval.create_distributed_env_factory",
             env_hook_config={
