@@ -60,10 +60,12 @@ class EnvironmentActor:
         """
         action = Action.model_validate_json(action_json)
         env = await self.env_factory(action)
-        await env.reset()
-        step_result = await env.step(action)
-        await env.cleanup()
-        return step_result.model_dump_json()
+        try:
+            await env.reset()
+            step_result = await env.step(action)
+            return step_result.model_dump_json()
+        finally:
+            await env.cleanup()
 
 
 class EnvironmentActorPool:
