@@ -77,14 +77,14 @@ class EnvironmentActorPool:
     Args:
         env_hook_path: Dotted path to a callable that returns an `AsyncEnvFactory`.
         env_hook_config: Configuration passed to the hook callable in each actor.
-        num_actors_per_node: Number of actors per alive Ray node.
+        n_actors_per_node: Number of actors per alive Ray node.
     """
 
     def __init__(
         self,
         env_hook_path: str,
         env_hook_config: dict[str, Any],
-        num_actors_per_node: int,
+        n_actors_per_node: int,
     ) -> None:
         """Initialize an `EnvironmentActorPool` instance."""
         nodes = [n for n in ray.nodes() if n.get("Alive")]
@@ -94,7 +94,7 @@ class EnvironmentActorPool:
         self.actors: list[ActorHandle] = []
         for node in nodes:
             scheduling = NodeAffinitySchedulingStrategy(node_id=node["NodeID"], soft=False)
-            for _ in range(num_actors_per_node):
+            for _ in range(n_actors_per_node):
                 actor = EnvironmentActor.options(  # type: ignore[attr-defined]
                     scheduling_strategy=scheduling,
                     num_cpus=0.001,
@@ -109,7 +109,7 @@ class EnvironmentActorPool:
             "Created %d EnvironmentActor(s) across %d node(s) (%d/node).",
             len(self.actors),
             len(nodes),
-            num_actors_per_node,
+            n_actors_per_node,
         )
 
     async def step(self, action: Action) -> StepResult:

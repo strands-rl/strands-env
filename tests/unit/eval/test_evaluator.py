@@ -425,3 +425,64 @@ class TestPassAtK:
         result = compute_pass_at_k(results, k_values=[1, 5])
         assert result["pass@1"] == pytest.approx(0.1)
         assert result["pass@5"] == pytest.approx(0.5)
+
+
+# ---------------------------------------------------------------------------
+# Distributed evaluation (env_actor_pool)
+# ---------------------------------------------------------------------------
+
+
+class TestDistributedEvaluation:
+    async def test_pool_step_called(self, tmp_path):
+        """When env_actor_pool is provided, pool.step is used instead of env_factory."""
+        mock_pool = MagicMock()
+        mock_pool.step = AsyncMock(return_value=StepResult(observation=Observation()))
+
+        evaluator = Evaluator(env_actor_pool=mock_pool, output_path=tmp_path / "results.jsonl")
+        results = await evaluator.run([Action(message="q", task_context=TaskContext(id="p1"))])
+
+        mock_pool.step.assert_awaited_once()
+        assert len(results) == 1
+
+    async def test_env_factory_not_called_when_pool_set(self, tmp_path):
+        """env_factory is not called when env_actor_pool is provided."""
+        mock_pool = MagicMock()
+        mock_pool.step = AsyncMock(return_value=StepResult(observation=Observation()))
+        factory_called = False
+
+        async def factory(action):
+            nonlocal factory_called
+            factory_called = True
+
+        evaluator = Evaluator(env_factory=factory, env_actor_pool=mock_pool, output_path=tmp_path / "results.jsonl")
+        await evaluator.run([Action(message="q", task_context=TaskContext(id="p1"))])
+
+        assert not factory_called
+
+    async def test_pool_error_aborts_sample(self, tmp_path):
+        """Exceptions from pool.step produce aborted samples."""
+        mock_pool = MagicMock()
+        mock_pool.step = AsyncMock(side_effect=RuntimeError("remote error"))
+
+        evaluator = Evaluator(env_actor_pool=mock_pool, output_path=tmp_path / "results.jsonl")
+        sample = await evaluator.evaluate_sample(Action(message="q", task_context=TaskContext(id="err")))
+
+        assert sample.aborted
+
+    async def test_pool_tokens_stripped(self, tmp_path):
+        """Token observation is stripped from pool results when keep_tokens=False."""
+        token_obs = TokenObservation(
+            token_ids=[1, 2, 3], prompt_length=1, loss_mask=[0, 1, 1], logprobs=[None, -0.5, -0.3]
+        )
+        mock_pool = MagicMock()
+        mock_pool.step = AsyncMock(return_value=StepResult(observation=Observation(tokens=token_obs)))
+
+        evaluator = Evaluator(env_actor_pool=mock_pool, output_path=tmp_path / "results.jsonl")
+        results = await evaluator.run([Action(message="q", task_context=TaskContext(id="p1"))])
+
+        assert results["p1"][0].step_result.observation.tokens is None
+
+    async def test_init_requires_factory_or_pool(self, tmp_path):
+        """ValueError raised when neither env_factory nor env_actor_pool is provided."""
+        with pytest.raises(ValueError, match="Must provide either"):
+            Evaluator(output_path=tmp_path / "results.jsonl")

@@ -102,7 +102,9 @@ def build_model_factory(config: ModelConfig) -> ModelFactory:
                 profile_name=config.profile_name,
                 role_arn=config.role_arn,
             )
-            return bedrock_model_factory(model_id=config.model_id, boto_session=boto_session, sampling_params=sampling_params)
+            return bedrock_model_factory(
+                model_id=config.model_id, boto_session=boto_session, sampling_params=sampling_params
+            )
 
         case "kimi":
             return kimi_model_factory(

@@ -20,16 +20,36 @@ import asyncio
 import json
 import logging
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 import click
 
+from strands_env.core.environment import AsyncEnvFactory
 from strands_env.eval import get_benchmark, list_benchmarks, list_unavailable_benchmarks
 from strands_env.utils.loader import load_env_factory_hook, load_evaluator_hook
 
 from .models import ModelConfig, SamplingParams, build_model_factory
 
 logger = logging.getLogger(__name__)
+
+
+def create_distributed_env_factory(
+    env_hook_path: str, model_config: dict[str, Any], **env_config: Any
+) -> AsyncEnvFactory:
+    """Build an `AsyncEnvFactory` from serializable config inside a Ray actor.
+
+    This bridges CLI's `ModelConfig` to the eval hook contract
+    ``create_env_factory(model_factory, **env_config)``.
+
+    Args:
+        env_hook_path: Dotted path to the eval hook module.
+        model_config: Serialized `ModelConfig` dict (from `ModelConfig.to_dict()`).
+        **env_config: Forwarded to the eval hook.
+    """
+    config = ModelConfig(**model_config)
+    model_factory = build_model_factory(config)
+    env_factory_creator = load_env_factory_hook(env_hook_path)
+    return env_factory_creator(model_factory, **env_config)
 
 
 # ---------------------------------------------------------------------------
@@ -134,6 +154,8 @@ def list_cmd() -> None:
 @click.option("--max-samples", type=int, default=None, help="Maximum dataset samples to evaluate.")
 @click.option("--save-interval", type=int, default=10, help="Save results every N samples.")
 @click.option("--keep-tokens", is_flag=True, default=False, help="Keep token-level observations in results.")
+# Distributed
+@click.option("--n-actors-per-node", type=int, default=None, help="Ray actors per node for distributed eval.")
 # Debug
 @click.option("--debug", is_flag=True, default=False, help="Enable debug logging.")
 def run_cmd(
@@ -162,6 +184,9 @@ def run_cmd(
     output: Path,
     save_interval: int,
     keep_tokens: bool,
+    # Distributed
+    n_actors_per_node: int | None,
+    # Misc
     debug: bool,
 ) -> None:
     """Run benchmark evaluation.
@@ -192,7 +217,7 @@ def run_cmd(
     # Load env factory hook (validate before building model factory)
     env_factory_creator = load_env_factory_hook(env_hook)
 
-    # Build model factory
+    # Build model config
     model_config = ModelConfig(
         backend=backend,
         base_url=base_url,
@@ -205,10 +230,25 @@ def run_cmd(
         role_arn=role_arn,
         sampling_params=SamplingParams(temperature=temperature, max_new_tokens=max_tokens, top_p=top_p, top_k=top_k),
     )
-    model_factory = build_model_factory(model_config)
 
-    # Create env_factory
-    env_factory = env_factory_creator(model_factory, **(env_config or {}))
+    # Build env_factory (local) or env_actor_pool (distributed)
+    env_factory = None
+    env_actor_pool = None
+    if n_actors_per_node is not None:
+        from strands_env.utils.ray import EnvironmentActorPool
+
+        env_actor_pool = EnvironmentActorPool(
+            env_hook_path="strands_env.cli.eval.create_distributed_env_factory",
+            env_hook_config={
+                "env_hook_path": env_hook,
+                "model_config": model_config.to_dict(),
+                **(env_config or {}),
+            },
+            n_actors_per_node=n_actors_per_node,
+        )
+    else:
+        model_factory = build_model_factory(model_config)
+        env_factory = env_factory_creator(model_factory, **(env_config or {}))
 
     # Output paths
     output_dir = output or Path(f"{benchmark_name}_eval")
@@ -222,6 +262,7 @@ def run_cmd(
         output_path=output_dir / "results.jsonl",
         save_interval=save_interval,
         keep_tokens=keep_tokens,
+        env_actor_pool=env_actor_pool,
     )
     actions = list(evaluator.load_dataset())[:max_samples]
 
@@ -232,13 +273,15 @@ def run_cmd(
         "env_hook": env_hook,
         "env_config": env_config or {},
         "model_config": model_config.to_dict(),
+        "n_actors_per_node": n_actors_per_node,
     }
     with open(output_dir / "config.json", "w", encoding="utf-8") as f:
         json.dump(config_data, f, indent=2)
 
+    mode = f"distributed ({n_actors_per_node} actors/node)" if env_actor_pool else "local"
     click.echo(
         f"Running {benchmark_name} | {backend} | {model_id or '(auto)'} | "
-        f"{len(actions)} samples | n={n_samples_per_prompt} | concurrency={max_concurrency} | {output_dir}"
+        f"{len(actions)} samples | n={n_samples_per_prompt} | concurrency={max_concurrency} | {mode} | {output_dir}"
     )
 
     # Run and save metrics
@@ -246,4 +289,8 @@ def run_cmd(
     metrics = evaluator.compute_metrics(results)
     with open(output_dir / "metrics.json", "w", encoding="utf-8") as f:
         json.dump(metrics, f, indent=2)
+
+    if env_actor_pool is not None:
+        env_actor_pool.shutdown()
+
     click.echo(f"Done. Metrics saved to {output_dir / 'metrics.json'}")

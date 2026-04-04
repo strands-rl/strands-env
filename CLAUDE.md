@@ -64,13 +64,13 @@ The package lives in `src/strands_env/` with these modules:
 
 **__init__.py** — CLI entry point with `strands-env` command group. Registers subcommand groups.
 
-**eval.py** — Evaluation CLI commands: `strands-env eval list` shows registered/unavailable benchmarks, `strands-env eval run` executes benchmark evaluation. Env hooks are specified as dotted paths (`--env examples.eval.simple_math.calculator_env`). Environment config is passed as `--env-config` (inline JSON or path to JSON file) via custom `JsonType` click parameter.
+**eval.py** — Evaluation CLI commands: `strands-env eval list` shows registered/unavailable benchmarks, `strands-env eval run` executes benchmark evaluation. Env hooks are specified as dotted paths (`--env examples.eval.simple_math.calculator_env`). Environment config is passed as `--env-config` (inline JSON or path to JSON file) via custom `JsonType` click parameter. Supports distributed evaluation via `--n-actors-per-node` which creates an `EnvironmentActorPool` backed by Ray. `create_distributed_env_factory()` bridges CLI's `ModelConfig` to the eval hook contract for use inside Ray actors.
 
-**models.py** — `SamplingConfig` and `ModelConfig` dataclasses. `build_model_factory(config, max_concurrency)` creates SGLang, Bedrock, or Kimi model factories with `match/case` dispatch.
+**models.py** — `SamplingParams` and `ModelConfig` dataclasses. `ModelConfig` includes `max_connections` for SGLang client pooling. `build_model_factory(config)` creates SGLang, Bedrock, or Kimi model factories with `match/case` dispatch.
 
 ### `eval/`
 
-**evaluator.py** — `EvalSample` bundles step result with an `aborted` flag for checkpoint resume. `Evaluator` class orchestrates concurrent rollouts with JSONL checkpointing and pass@k metrics. Takes an async `env_factory` (`AsyncEnvFactory`, defined in `core/environment.py`) for flexible environment creation. Uses tqdm with `logging_redirect_tqdm` for clean progress output. Subclasses implement `load_dataset()` for different benchmarks and optionally override `validate_sample()` to mark failed samples as aborted (excluded from metrics, retried on resume).
+**evaluator.py** — `EvalSample` bundles step result with an `aborted` flag for checkpoint resume. `Evaluator` class orchestrates concurrent rollouts with JSONL checkpointing and pass@k metrics. Takes an `env_factory` (`AsyncEnvFactory`) for local evaluation or an `env_actor_pool` (`EnvironmentActorPool`) for distributed evaluation via Ray. Uses tqdm with `logging_redirect_tqdm` for clean progress output. Subclasses implement `load_dataset()` for different benchmarks and optionally override `validate_sample()` to mark failed samples as aborted (excluded from metrics, retried on resume).
 
 **registry.py** — Benchmark registry with `@register_eval(name)` decorator. Auto-discovers benchmark modules from `benchmarks/` subdirectory on first access. `get_benchmark(name)`, `list_benchmarks()`, and `list_unavailable_benchmarks()` for discovery. Modules with missing dependencies are tracked as unavailable.
 
@@ -89,6 +89,8 @@ The package lives in `src/strands_env/` with these modules:
 ### `utils/`
 
 **loader.py** — Generic module/function/hook loading utilities (no CLI dependency). `load_module(name)` imports by dotted path. `load_class(name)` and `load_function(name)` import a class or callable by dotted path. `load_env_factory_hook(hook_path)` and `load_evaluator_hook(hook_path)` are convenience wrappers that append the expected attribute name (`.create_env_factory`, `.EvaluatorClass`) and delegate to the generic loaders. Used by both CLI and Ray actors.
+
+**ray.py** — Generic Ray actor pool for distributing `Environment.step()` across processes. `EnvironmentActor` takes `(env_hook_path, env_hook_config)` — loads a callable via dotted path and calls it with the config dict to produce an `AsyncEnvFactory`. `EnvironmentActorPool` distributes actors across Ray nodes with `NodeAffinitySchedulingStrategy`. The actor interface is fully generic; domain-specific adapters (CLI eval, SLiME training) provide the appropriate hook path and config.
 
 **sglang.py** — Sync SGLang server utilities. `check_server_health(base_url)` for early validation. `get_model_id(base_url)` to query the served model. Client/tokenizer caching has moved to `strands_sglang.utils`.
 

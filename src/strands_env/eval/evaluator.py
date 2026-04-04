@@ -23,6 +23,7 @@ from collections import defaultdict
 from collections.abc import Iterable
 from functools import partial
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
 from tqdm import tqdm
@@ -31,6 +32,9 @@ from tqdm.contrib.logging import logging_redirect_tqdm
 from strands_env.core import Action, AsyncEnvFactory, Observation, StepResult
 
 from .metrics import MetricFn, compute_pass_at_k
+
+if TYPE_CHECKING:
+    from strands_env.utils.ray import EnvironmentActorPool
 
 logger = logging.getLogger(__name__)
 
@@ -56,27 +60,33 @@ class Evaluator:
 
     def __init__(
         self,
-        env_factory: AsyncEnvFactory,
+        env_factory: AsyncEnvFactory | None = None,
         *,
         max_concurrency: int = 10,
         n_samples_per_prompt: int = 1,
         output_path: Path | str | None = None,
         save_interval: int = 10,
         keep_tokens: bool = False,
+        env_actor_pool: EnvironmentActorPool | None = None,
     ):
         """Initialize an `Evaluator` instance.
 
         Args:
             env_factory: Async factory function that creates a fresh Environment per sample.
+                Required for local evaluation; unused when `env_actor_pool` is provided.
             max_concurrency: Maximum concurrent evaluate_sample() calls.
             n_samples_per_prompt: Number of samples per prompt (for pass@k, set to max(k_values)).
             output_path: Path to JSONL file for saving results. Enables resume.
             save_interval: Flush results to disk every N completed samples.
             keep_tokens: Keep token-level observation in results (only valid for `SGLangModel` backends).
+            env_actor_pool: Optional Ray actor pool for distributed evaluation.
         """
+        if env_factory is None and env_actor_pool is None:
+            raise ValueError("Must provide either env_factory or env_actor_pool")
         if output_path is None:
             output_path = Path.cwd() / "results.jsonl"
-        self.env_factory: AsyncEnvFactory = env_factory
+        self.env_factory = env_factory
+        self.env_actor_pool = env_actor_pool
         self.max_concurrency = max_concurrency
         self.n_samples_per_prompt = n_samples_per_prompt
         self.output_path = Path(output_path)
@@ -148,10 +158,19 @@ class Evaluator:
 
     async def evaluate_sample(self, action: Action) -> EvalSample:
         """Evaluate a single sample."""
-        env = await self.env_factory(action)
         try:
-            await env.reset()
-            step_result = await env.step(action)
+            # Run evaluation in distributed or local mode
+            if self.env_actor_pool is not None:
+                step_result = await self.env_actor_pool.step(action)
+            else:
+                assert self.env_factory is not None
+                env = await self.env_factory(action)
+                try:
+                    await env.reset()
+                    step_result = await env.step(action)
+                finally:
+                    await env.cleanup()
+            # Clean up token-level observation if not needed to reduce verbosity
             if not self.keep_tokens:
                 step_result.observation.tokens = None
             # Runtime logging for debugging
@@ -165,6 +184,7 @@ class Evaluator:
                 reward_info,
                 step_result.observation.metrics,
             )
+            # Return the evaluation sample with aborted flag set
             sample = EvalSample(action=action, step_result=step_result)
             sample.aborted = not self.validate_sample(sample)
             if sample.aborted:
@@ -173,8 +193,6 @@ class Evaluator:
         except Exception as e:
             logger.error("[%s]: evaluate_sample failed, aborting: %s", action.task_context.id, e)
             return EvalSample(action=action, step_result=StepResult(observation=Observation()), aborted=True)
-        finally:
-            await env.cleanup()
 
     async def run(self, actions: Iterable[Action]) -> dict[str, list[EvalSample]]:
         """Run evaluation on actions with `n_samples_per_prompt` each."""
