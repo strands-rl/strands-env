@@ -65,7 +65,7 @@ See [`examples/calculator_demo.py`](examples/calculator_demo.py) for a complete 
 
 ```bash
 strands-env eval aime-2024 \
-    --env examples/envs/calculator_env.py \
+    --env examples.eval.simple_math.calculator_env \
     --backend sglang \
     --base-url http://localhost:30000 \
     --n-samples-per-prompt 8 \
