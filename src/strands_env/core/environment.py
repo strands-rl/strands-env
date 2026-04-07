@@ -130,7 +130,10 @@ class Environment:
             "cancelled_tool_calls": tool_limiter.cancelled_tool_call_count,
             **self.compute_metrics(agent.event_loop_metrics, tool_parse_errors=tool_parse_errors),
         }
-        observation = Observation(messages=step_messages, tokens=token_obs, metrics=metrics)
+        routed_experts = getattr(agent.model, "routed_experts", None)
+        observation = Observation(
+            messages=step_messages, tokens=token_obs, metrics=metrics, routed_experts=routed_experts
+        )
         step_result = StepResult(observation=observation, termination_reason=termination_reason)
         step_result.reward = (
             (await self.reward_fn.compute(action=action, step_result=step_result)) if self.reward_fn else None

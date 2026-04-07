@@ -110,6 +110,7 @@ class Observation(BaseModel):
     messages: Messages = Field(default_factory=list)
     tokens: TokenObservation | None = None
     metrics: dict[str, Any] = Field(default_factory=dict)
+    routed_experts: str | None = None
 
     @property
     def final_response(self) -> str | None:
