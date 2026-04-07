@@ -52,6 +52,7 @@ def mock_agent(messages: list | None = None, event_loop_metrics: MagicMock | Non
     agent_instance.invoke_async = AsyncMock()
     agent_instance.messages = messages if messages is not None else []
     agent_instance.model.token_manager = TokenManager()
+    agent_instance.model.routed_experts = None
     agent_instance.event_loop_metrics = event_loop_metrics or mock_event_loop_metrics()
     return agent_instance
 
