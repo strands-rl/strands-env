@@ -131,7 +131,7 @@ class Observation(BaseModel):
         if text is None:
             return None
         # Strip think block if any
-        think_end = text.rfind("</think>") # find the last </think> tag
+        think_end = text.rfind("</think>")  # find the last </think> tag
         if think_end != -1:
             text = text[think_end + len("</think>") :].lstrip()
         return text or None
