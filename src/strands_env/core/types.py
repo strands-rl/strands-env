@@ -123,8 +123,18 @@ class Observation(BaseModel):
         if not messages or messages[-1].get("role") != "assistant":
             return None
         content = messages[-1].get("content", [])
-        texts = [block["text"] for block in content if isinstance(block, dict) and "text" in block]
-        return "\n".join(texts) if texts else None
+        # Take the last text block — the final textual output.
+        text = next(
+            (block["text"] for block in reversed(content) if isinstance(block, dict) and "text" in block),
+            None,
+        )
+        if text is None:
+            return None
+        # Strip chain-of-thought traces (e.g. DeepSeek <think>...</think>).
+        think_end = text.rfind("</think>")
+        if think_end != -1:
+            text = text[think_end + len("</think>") :].lstrip()
+        return text or None
 
 
 # ---------------------------------------------------------------------------

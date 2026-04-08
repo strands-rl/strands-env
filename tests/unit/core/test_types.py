@@ -122,7 +122,27 @@ class TestObservation:
             {"role": "assistant", "content": [{"text": "hello"}, {"text": "world"}]},
         ]
         obs = Observation(messages=messages)
-        assert obs.final_response == "hello\nworld"
+        assert obs.final_response == "world"
+
+    def test_final_response_strips_think_tags(self):
+        messages = [
+            {
+                "role": "assistant",
+                "content": [{"text": "<think>reasoning here</think>The actual answer"}],
+            },
+        ]
+        obs = Observation(messages=messages)
+        assert obs.final_response == "The actual answer"
+
+    def test_final_response_strips_nested_think_tags(self):
+        messages = [
+            {
+                "role": "assistant",
+                "content": [{"text": "<think>first</think>middle<think>second</think>final answer"}],
+            },
+        ]
+        obs = Observation(messages=messages)
+        assert obs.final_response == "final answer"
 
     def test_final_response_no_assistant(self):
         messages = [{"role": "user", "content": [{"text": "hi"}]}]
