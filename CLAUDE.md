@@ -86,6 +86,8 @@ The package lives in `src/strands_env/` with these modules:
 
 **benchmarks/browsecomp.py** — `BrowseCompEvaluator` for [BrowseComp](https://openai.com/index/browsecomp/) browsing agent benchmark. Dataset loaded from OpenAI's public CSV with XOR decryption of encrypted problems/answers. `BrowseCompJudgment` with yes/no grading. `BrowseCompReward(LLMJudgeReward[BrowseCompJudgment])` uses OpenAI's grader template.
 
+**benchmarks/hle_verified.py** — `HLEVerifiedEvaluator` for the [skylenage-ai/HLE-Verified](https://huggingface.co/datasets/skylenage-ai/HLE-Verified) dataset, filtered to the Gold subset (668 fully validated items). The full original record lives under the row's `json` column; the loader parses it for `image`/`answer_type`. `HLEJudgment` with `extracted_final_answer`/`reasoning`/`correct` fields using the official HLE grader template. Registered as `hle-verified-gold` (all Gold, 668) and `hle-verified-gold-text` (Gold with empty `json.image`, 575).
+
 ### `utils/`
 
 **loader.py** — Generic module/function/hook loading utilities (no CLI dependency). `load_module(name)` imports by dotted path. `load_class(name)` and `load_function(name)` import a class or callable by dotted path. `load_env_factory_hook(hook_path)` and `load_evaluator_hook(hook_path)` are convenience wrappers that append the expected attribute name (`.create_env_factory`, `.EvaluatorClass`) and delegate to the generic loaders. Used by both CLI and Ray actors.
