@@ -25,7 +25,9 @@ def create_env_factory(model_config: dict, **env_config):
     model_factory = build_model_factory(model_config)
     judge_models = []
     for profile_name in env_config.get("judge_model_profiles", [None]):
-        boto_session = get_session(region="us-west-2", profile_name=profile_name)
+        boto_session = get_session(
+            region="us-west-2", profile_name=profile_name, role_arn=env_config.get("judge_model_role_arn", None)
+        )
         judge_models.append(
             bedrock_model_factory(
                 model_id=env_config.get("judge_model_id", "us.anthropic.claude-sonnet-4-20250514-v1:0"),
