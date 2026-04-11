@@ -58,6 +58,7 @@ terminal-bench = [
     "harbor>=0.1.43; python_version>='3.12'", 
     "harbor-aws==0.2.1; python_version>='3.12'"
 ]
+ifeval = ["lm_eval[ifeval]>=0.4.11"]
 
 [tool.hatch.version]
 source = "vcs"
