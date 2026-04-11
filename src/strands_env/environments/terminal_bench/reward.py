@@ -53,9 +53,12 @@ class TerminalBenchReward(RewardFunction):
         trial_paths = self._env.trial_paths
         timeout = self._env.timeout
 
-        # Upload and run tests
+        # Upload and run tests.
         await docker_env.upload_dir(source_dir=task_paths.tests_dir, target_dir="/tests")
-        test_cmd = f"bash /tests/test.sh | tee {EnvironmentPaths.verifier_dir}/test-stdout.txt 2>&1"
+        test_cmd = (
+            'export PATH="$HOME/.local/bin:$PATH" && '
+            f"bash /tests/test.sh 2>&1 | tee {EnvironmentPaths.verifier_dir}/test-stdout.txt"
+        )
         await docker_env.exec(test_cmd, timeout_sec=timeout)
 
         # Download results if not using mounted volumes
