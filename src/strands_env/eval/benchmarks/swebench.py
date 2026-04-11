@@ -63,13 +63,21 @@ class SWEBenchVerifiedEvaluator(TerminalBenchEvaluator):
         repo_dir = self.data_dir.parent / ".harbor-datasets-checkout"
         if repo_dir.exists():
             import shutil
+
             shutil.rmtree(repo_dir)
 
         subprocess.run(
             [
-                "git", "clone", "--filter=blob:none", "--no-checkout",
-                "--depth", "1", "--branch", "main",
-                self.GIT_URL, str(repo_dir),
+                "git",
+                "clone",
+                "--filter=blob:none",
+                "--no-checkout",
+                "--depth",
+                "1",
+                "--branch",
+                "main",
+                self.GIT_URL,
+                str(repo_dir),
             ],
             check=True,
         )
@@ -93,6 +101,7 @@ class SWEBenchVerifiedEvaluator(TerminalBenchEvaluator):
         # Best-effort cleanup of the now-empty checkout dir.
         try:
             import shutil
+
             shutil.rmtree(repo_dir)
         except OSError:
             pass
