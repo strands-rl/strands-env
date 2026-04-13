@@ -25,7 +25,7 @@ import ray
 from ray.actor import ActorHandle
 from ray.util.scheduling_strategies import NodeAffinitySchedulingStrategy
 
-from strands_env.core.types import Action, StepResult
+from strands_env.core.types import Action, RewardResult, StepResult
 from strands_env.utils.loader import load_function
 
 logger = logging.getLogger(__name__)
@@ -64,6 +64,27 @@ class EnvironmentActor:
             await env.reset()
             step_result = await env.step(action)
             return step_result.model_dump_json()
+        finally:
+            await env.cleanup()
+
+    async def compute_reward(self, action_json: str, step_result_json: str) -> str:
+        """Recompute reward for an existing rollout without re-running the agent.
+
+        Args:
+            action_json: JSON string from `Action.model_dump_json()`.
+            step_result_json: JSON string from `StepResult.model_dump_json()`.
+
+        Returns:
+            JSON string, reconstruct via `RewardResult.model_validate_json()`.
+        """
+        action = Action.model_validate_json(action_json)
+        step_result = StepResult.model_validate_json(step_result_json)
+        env = await self.env_factory(action)
+        try:
+            if env.reward_fn is None:
+                raise ValueError("Environment has no reward function configured")
+            reward_result = await env.reward_fn.compute(action=action, step_result=step_result)
+            return reward_result.model_dump_json()
         finally:
             await env.cleanup()
 
@@ -122,6 +143,13 @@ class EnvironmentActorPool:
         obj_ref = actor.step.remote(action.model_dump_json())
         result_json: str = await asyncio.to_thread(ray.get, obj_ref)
         return StepResult.model_validate_json(result_json)
+
+    async def compute_reward(self, action: Action, step_result: StepResult) -> RewardResult:
+        """Recompute reward for an existing rollout on the next available actor."""
+        actor = next(self.cycle)
+        obj_ref = actor.compute_reward.remote(action.model_dump_json(), step_result.model_dump_json())
+        result_json: str = await asyncio.to_thread(ray.get, obj_ref)
+        return RewardResult.model_validate_json(result_json)
 
     def shutdown(self) -> None:
         """Kill all managed actors."""
