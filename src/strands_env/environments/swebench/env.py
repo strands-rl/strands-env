@@ -15,15 +15,15 @@
 """SWE-bench environment using Harbor for container management and test execution.
 
 A SWE-bench task is structurally identical to a Terminal-Bench task: a
-Harbor task directory with ``task.toml``, ``instruction.md``,
-``environment/Dockerfile``, ``tests/test.sh``. The agent gets a single
-``execute_command`` tool and is expected to fix the repository at
-``/testbed``. The reward script (``tests/test.sh``) runs the SWE-bench
-test suite and writes ``reward.txt``.
+Harbor task directory with `task.toml`, `instruction.md`,
+`environment/Dockerfile`, `tests/test.sh`. The agent gets a single
+`execute_command` tool and is expected to fix the repository at
+`/testbed`. The reward script (`tests/test.sh`) runs the SWE-bench
+test suite and writes `reward.txt`.
 
-We thinly subclass :class:`TerminalBenchEnv` to swap in a SWE-bench-tuned
+We thinly subclass `TerminalBenchEnv` to swap in a SWE-bench-tuned
 system prompt; everything else (Docker/EKS backend selection, the
-``execute_command`` tool, the test-execution reward) is shared.
+`execute_command` tool, the test-execution reward) is shared.
 """
 
 from __future__ import annotations
@@ -54,7 +54,7 @@ class SWEBenchEnv(TerminalBenchEnv):
     ):
         """Initialize a `SWEBenchEnv` instance.
 
-        Reuses :class:`TerminalBenchReward` for verification — both benchmarks
-        upload ``tests/`` to ``/tests`` and execute ``test.sh``.
+        Reuses `TerminalBenchReward` for verification — both benchmarks
+        upload `tests/` to `/tests` and execute `test.sh`.
         """
         super().__init__(model_factory=model_factory, reward_fn=reward_fn, **config)
