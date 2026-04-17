@@ -16,7 +16,6 @@
 
 import asyncio
 from pathlib import Path
-from typing import Literal
 
 from typing_extensions import Unpack, override
 
@@ -24,14 +23,14 @@ from strands_env.core.environment import Environment, EnvironmentConfig
 from strands_env.core.models import ModelFactory
 from strands_env.core.types import RewardFunction
 from strands_env.tools.web_scraper import WebScraperToolkit
-from strands_env.tools.web_search import WebSearchToolkit
+from strands_env.tools.web_search import WebSearchAPIProvider, WebSearchToolkit
 
 
 class WebSearchConfig(EnvironmentConfig, total=False):
     """Serializable configuration for `WebSearchEnv`."""
 
     # Search
-    search_provider: Literal["serper", "google"]
+    search_provider: WebSearchAPIProvider
     search_timeout: int
     blocked_domains: list[str]
 
@@ -59,13 +58,13 @@ class WebSearchEnv(Environment):
         """Initialize a `WebSearchEnv` instance."""
         super().__init__(model_factory=model_factory, reward_fn=reward_fn, **config)  # type: ignore[misc]
 
-        provider: str = self.config.get("search_provider", "serper")
         self.search_toolkit = WebSearchToolkit(
             timeout=int(self.config.get("search_timeout", 10)),
             concurrency=search_concurrency,
             blocked_domains=self.config.get("blocked_domains"),  # type: ignore[arg-type]
+            api_provider=self.config.get("search_provider", "serper"),
         )
-        self.search_tool = getattr(self.search_toolkit, f"{provider}_search")
+        self.search_tool = self.search_toolkit.search
 
         self.scrape_tool = None
         self.scraper_toolkit: WebScraperToolkit | None = None
