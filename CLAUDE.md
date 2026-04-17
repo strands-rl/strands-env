@@ -78,18 +78,6 @@ The package lives in `src/strands_env/` with these modules:
 
 **benchmarks/** — Benchmark evaluator modules. Each module uses `@register_eval` decorator. Auto-discovered on first registry access; missing dependencies cause module to be skipped with warning.
 
-**benchmarks/aime.py** — `AIMEEvaluator` base class for AIME benchmarks. `AIME2024Evaluator`, `AIME2025Evaluator`, and `AIME2026Evaluator` registered as separate benchmarks with different dataset paths.
-
-**benchmarks/simpleqa_verified.py** — `SimpleQAVerifiedEvaluator` for the [google/simpleqa-verified](https://huggingface.co/datasets/google/simpleqa-verified) factuality benchmark. `SimpleQAJudgment` Pydantic model for structured grading (CORRECT/INCORRECT/NOT_ATTEMPTED). `SimpleQAReward(LLMJudgeReward[SimpleQAJudgment])` uses OpenAI's grading prompt template.
-
-**benchmarks/frames.py** — `FramesEvaluator` for the [google/frames-benchmark](https://huggingface.co/datasets/google/frames-benchmark) multi-hop reasoning benchmark (824 samples). `FramesJudgment` with TRUE/FALSE grading. `FramesReward(LLMJudgeReward[FramesJudgment])`. Wiki links and reasoning types stored in `TaskContext` extras.
-
-**benchmarks/browsecomp.py** — `BrowseCompEvaluator` for [BrowseComp](https://openai.com/index/browsecomp/) browsing agent benchmark. Dataset loaded from OpenAI's public CSV with XOR decryption of encrypted problems/answers. `BrowseCompJudgment` with yes/no grading. `BrowseCompReward(LLMJudgeReward[BrowseCompJudgment])` uses OpenAI's grader template.
-
-**benchmarks/hle_verified.py** — `HLEVerifiedEvaluator` for the [skylenage-ai/HLE-Verified](https://huggingface.co/datasets/skylenage-ai/HLE-Verified) dataset, filtered to the Gold subset (668 fully validated items). The full original record lives under the row's `json` column; the loader parses it for `image`/`answer_type`. `HLEJudgment` with `extracted_final_answer`/`reasoning`/`correct` fields using the official HLE grader template. Registered as `hle-verified-gold` (all Gold, 668) and `hle-verified-gold-text` (Gold with empty `json.image`, 575).
-
-**benchmarks/ifeval.py** — `IFEvalEvaluator` for [google/IFEval](https://huggingface.co/datasets/google/IFEval) (541 prompts). Rule-based grading only — no LLM judge. `IFEvalReward` is a `RewardFunction` (not `LLMJudgeReward`) that delegates to `lm_eval.tasks.ifeval.utils.process_results` from `lm-evaluation-harness`, available via the `[ifeval]` optional extra. Emits the four canonical metrics (`prompt_level_strict/loose`, `inst_level_strict/loose`) in `info`; scalar reward defaults to `prompt_level_strict_acc` and can be switched via the `metric` arg. `TaskContext` extras: `key`, `instruction_id_list`, `ifeval_kwargs` (renamed from the dataset's `kwargs` to avoid pydantic field clashes).
-
 ### `utils/`
 
 **loader.py** — Generic module/function/hook loading utilities (no CLI dependency). `load_module(name)` imports by dotted path. `load_class(name)` and `load_function(name)` import a class or callable by dotted path. `load_env_factory_hook(hook_path)` and `load_evaluator_hook(hook_path)` are convenience wrappers that append the expected attribute name (`.create_env_factory`, `.EvaluatorClass`) and delegate to the generic loaders. Used by both CLI and Ray actors.
