@@ -19,6 +19,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+from typing import Literal
 
 import aiohttp
 from strands import tool
@@ -50,6 +51,7 @@ class WebSearchToolkit:
         timeout: int = DEFAULT_TIMEOUT,
         concurrency: asyncio.Semaphore | int = DEFAULT_MAX_CONCURRENCY,
         blocked_domains: list[str] | None = None,
+        api_provider: Literal["serper", "google"] = "serper",
     ):
         """Initialize a `WebSearchToolkit` instance.
 
@@ -57,10 +59,12 @@ class WebSearchToolkit:
             timeout: HTTP request timeout in seconds.
             concurrency: Semaphore or max concurrent requests for API rate limiting.
             blocked_domains: Domains to exclude from results (e.g. `["huggingface.co"]`).
+            api_provider: The API provider to use.
         """
         self.timeout = timeout
         self.semaphore = concurrency if isinstance(concurrency, asyncio.Semaphore) else asyncio.Semaphore(concurrency)
         self.blocked_domains = blocked_domains or []
+        self.api_provider = api_provider
         self._session: aiohttp.ClientSession | None = None
 
     def _get_session(self) -> aiohttp.ClientSession:
@@ -149,7 +153,7 @@ class WebSearchToolkit:
 
         Args:
             query: The search query.
-            top_k: Number of results to return (max 10).
+            top_k: Number of results to return.
 
         Returns:
             Search results with title, URL, and snippet for each result.
@@ -176,3 +180,26 @@ class WebSearchToolkit:
         except Exception as e:
             logger.error("[google_search] error: %s", e)
             return f"Search failed: {e}."
+
+    # ------------------------------------------------------------------
+    # Unified entry point
+    # ------------------------------------------------------------------
+
+    @tool
+    async def search(self, query: str, top_k: int = 5) -> str:
+        """Search the web.
+
+        Args:
+            query: The search query.
+            top_k: Number of results to return.
+
+        Returns:
+            Search results with title, URL, and snippet for each result.
+        """
+        match self.api_provider:
+            case "serper":
+                return await self.serper_search(query, top_k)
+            case "google":
+                return await self.google_search(query, top_k)
+            case _:
+                raise ValueError(f"Invalid API provider: {self.api_provider}")
