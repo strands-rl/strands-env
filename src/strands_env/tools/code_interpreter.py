@@ -30,6 +30,49 @@ from strands import tool
 logger = logging.getLogger(__name__)
 
 
+async def create_aio_client(
+    region_name: str = "us-east-1",
+    role_arn: str | None = None,
+    max_pool_connections: int = 1024,
+    connect_timeout: int = 120,
+    read_timeout: int = 120,
+) -> Any:
+    """Create a shared aiobotocore client for bedrock-agentcore.
+
+    Call this ONCE and pass the result to all `CodeInterpreterToolkit` instances.
+    """
+    import aiobotocore.session
+    from botocore.config import Config
+
+    session = aiobotocore.session.get_session()
+    config = Config(
+        max_pool_connections=max_pool_connections,
+        connect_timeout=connect_timeout,
+        read_timeout=read_timeout,
+        retries={"max_attempts": 3, "mode": "adaptive"},
+    )
+
+    kwargs: dict[str, Any] = {
+        "service_name": "bedrock-agentcore",
+        "region_name": region_name,
+        "config": config,
+    }
+
+    if role_arn:
+        sts_session = aiobotocore.session.get_session()
+        async with sts_session.create_client("sts", region_name=region_name) as sts:
+            creds = await sts.assume_role(
+                RoleArn=role_arn,
+                RoleSessionName="strands-env-code-interpreter",
+            )
+        credentials = creds["Credentials"]
+        kwargs["aws_access_key_id"] = credentials["AccessKeyId"]
+        kwargs["aws_secret_access_key"] = credentials["SecretAccessKey"]
+        kwargs["aws_session_token"] = credentials["SessionToken"]
+
+    return await session.create_client(**kwargs).__aenter__()
+
+
 class CodeInterpreterQuotas:
     """Shared AWS quotas for Code Interpreter API operations.
 
@@ -92,6 +135,8 @@ class CodeInterpreterToolkit:
         - Provides `execute_code` and `execute_command` tools for running Python code
           and shell commands in a sandboxed environment.
         - Uses aiobotocore for fully async I/O — no threads, no GIL contention.
+        - Pass a shared `aio_client` (from `create_aio_client()`) to avoid creating
+          duplicate clients and STS assume-role calls.
         - Uses a single shared agentcore session through session ID. Call
           `cleanup` when done to close the session.
     """
@@ -100,79 +145,22 @@ class CodeInterpreterToolkit:
 
     def __init__(
         self,
-        client: Any = None,
+        aio_client: Any,
         session_name: str = "strands-env",
         quotas: CodeInterpreterQuotas | None = None,
-        *,
-        region_name: str = "us-east-1",
-        role_arn: str | None = None,
-        max_pool_connections: int = 1024,
-        connect_timeout: int = 120,
-        read_timeout: int = 120,
     ):
         """Initialize a `CodeInterpreterToolkit` instance.
 
         Args:
-            client: Ignored (kept for backward compatibility). aiobotocore client is managed internally.
+            aio_client: Shared aiobotocore client from `create_aio_client()`.
             session_name: Name for the code interpreter session.
             quotas: Shared quotas for rate limiting and session concurrency.
-            region_name: AWS region for the bedrock-agentcore service.
-            role_arn: AWS IAM role ARN for cross-account access.
-            max_pool_connections: Maximum number of connections in the aiohttp pool.
-            connect_timeout: Connection timeout in seconds.
-            read_timeout: Read timeout in seconds.
         """
         self.session_name = session_name
         self.session_id: str | None = None
         self.quotas = quotas or CodeInterpreterQuotas()
         self._session_lock = asyncio.Lock()
-
-        self._region_name = region_name
-        self._role_arn = role_arn
-        self._max_pool_connections = max_pool_connections
-        self._connect_timeout = connect_timeout
-        self._read_timeout = read_timeout
-        self._aio_client: Any = None
-        self._aio_session: Any = None
-
-    async def _get_aio_client(self) -> Any:
-        """Get or create the aiobotocore client (lazy init)."""
-        if self._aio_client is None:
-            import aiobotocore.session
-            from botocore.config import Config
-
-            self._aio_session = aiobotocore.session.get_session()
-
-            config = Config(
-                max_pool_connections=self._max_pool_connections,
-                connect_timeout=self._connect_timeout,
-                read_timeout=self._read_timeout,
-                retries={"max_attempts": 3, "mode": "adaptive"},
-            )
-
-            kwargs: dict[str, Any] = {
-                "service_name": "bedrock-agentcore",
-                "region_name": self._region_name,
-                "config": config,
-            }
-
-            if self._role_arn:
-                import aiobotocore.session as aio_session
-
-                sts_session = aio_session.get_session()
-                async with sts_session.create_client("sts", region_name=self._region_name) as sts:
-                    creds = await sts.assume_role(
-                        RoleArn=self._role_arn,
-                        RoleSessionName="strands-env-code-interpreter",
-                    )
-                credentials = creds["Credentials"]
-                kwargs["aws_access_key_id"] = credentials["AccessKeyId"]
-                kwargs["aws_secret_access_key"] = credentials["SecretAccessKey"]
-                kwargs["aws_session_token"] = credentials["SessionToken"]
-
-            self._aio_client = await self._aio_session.create_client(**kwargs).__aenter__()
-
-        return self._aio_client
+        self._client = aio_client
 
     async def start_session(self) -> None:
         """Start a code interpreter session if not already started (async, coroutine-safe)."""
@@ -184,8 +172,7 @@ class CodeInterpreterToolkit:
                 await self.quotas._acquire_semaphore_with_warning("Session")
                 await self.quotas._acquire_limiter_with_warning(self.quotas.start_limiter, "StartSession")
                 try:
-                    client = await self._get_aio_client()
-                    response = await client.start_code_interpreter_session(
+                    response = await self._client.start_code_interpreter_session(
                         codeInterpreterIdentifier=self.CODE_INTERPRETER_ID,
                         name=self.session_name,
                         sessionTimeoutSeconds=3600,
@@ -204,15 +191,7 @@ class CodeInterpreterToolkit:
 
     @classmethod
     def _wrap_code_with_stdin(cls, code: str, stdin: str) -> str:
-        """Wrap user code so `input()` and `sys.stdin` read from `stdin`.
-
-        Args:
-            code: User Python code.
-            stdin: Newline-separated stdin payload.
-
-        Returns:
-            Wrapped code ready for `executeCode`.
-        """
+        """Wrap user code so `input()` and `sys.stdin` read from `stdin`."""
         escaped_stdin = stdin.replace("\\", "\\\\").replace("'''", "\\'\\'\\'")
         return f"""import sys
 from io import StringIO
@@ -242,14 +221,12 @@ finally:
         """Invoke the code interpreter and return parsed response."""
         await self.start_session()
         await self.quotas._acquire_limiter_with_warning(self.quotas.invoke_limiter, "InvokeCodeInterpreter")
-        client = await self._get_aio_client()
-        response = await client.invoke_code_interpreter(
+        response = await self._client.invoke_code_interpreter(
             codeInterpreterIdentifier=self.CODE_INTERPRETER_ID,
             sessionId=self.session_id,
             name=name,
             arguments=arguments,
         )
-        # Parse the `EventStream` response from `invoke_code_interpreter`.
         stream = response.get("stream")
         if stream is not None:
             async for event in stream:
@@ -276,61 +253,31 @@ finally:
 
     @tool
     async def execute_code(self, code: str) -> str:
-        """Execute Python code and return the result.
-
-        Args:
-            code: The Python code to execute.
-
-        Returns:
-            Execution output text or error message.
-        """
+        """Execute Python code and return the result."""
         return await self.invoke("executeCode", {"code": code, "language": "python"})
 
     @tool
     async def execute_code_with_stdin(self, code: str, stdin: str) -> str:
-        """Execute Python code with stdin input and return the result.
-
-        Args:
-            code: The Python code to execute.
-            stdin: Input to provide via stdin (newline-separated for multiple `input()` calls).
-
-        Returns:
-            Execution output text or error message.
-        """
+        """Execute Python code with stdin input and return the result."""
         wrapped_code = self._wrap_code_with_stdin(code, stdin)
         return await self.invoke("executeCode", {"code": wrapped_code, "language": "python"})
 
     @tool
     async def execute_command(self, command: str) -> str:
-        """Execute a shell command and return the result.
-
-        Args:
-            command: The shell command to execute.
-
-        Returns:
-            Execution output text or error message.
-        """
+        """Execute a shell command and return the result."""
         return await self.invoke("executeCommand", {"command": command})
 
     async def cleanup(self) -> None:
-        """Clean up code interpreter session and aiobotocore client."""
+        """Clean up code interpreter session (does NOT close the shared client)."""
         if self.session_id:
             await self.quotas._acquire_limiter_with_warning(self.quotas.stop_limiter, "StopSession")
             try:
-                client = await self._get_aio_client()
-                await client.stop_code_interpreter_session(
+                await self._client.stop_code_interpreter_session(
                     codeInterpreterIdentifier=self.CODE_INTERPRETER_ID,
                     sessionId=self.session_id,
                 )
             except Exception:
-                pass  # Ignore cleanup errors
+                pass
             finally:
                 self.quotas.session_semaphore.release()
             self.session_id = None
-
-        if self._aio_client is not None:
-            try:
-                await self._aio_client.__aexit__(None, None, None)
-            except Exception:
-                pass
-            self._aio_client = None

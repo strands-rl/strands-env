@@ -12,11 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Reward function for algorithmic coding problems with test case validation.
-
-Extracts Python code from agent response, executes it against hidden test cases,
-and returns reward as the proportion of test cases passed.
-"""
+"""Reward function for algorithmic coding problems with test case validation."""
 
 from __future__ import annotations
 
@@ -29,6 +25,7 @@ from typing_extensions import override
 
 from strands_env.core.types import Action, RewardFunction, RewardResult, StepResult
 from strands_env.tools import CodeInterpreterToolkit
+from strands_env.tools.code_interpreter import CodeInterpreterQuotas, create_aio_client
 
 logger = logging.getLogger(__name__)
 
@@ -39,34 +36,9 @@ DEFAULT_TEST_TIMEOUT = 180
 class CodeTestCaseReward(RewardFunction):
     r"""Reward based on proportion of hidden test cases passed.
 
-    Args:
-        extract_last_code_block: If `True`, use the last ```python block; else the first.
-        test_concurrency: Number of test cases to run in parallel per sample.
-        test_timeout: Per-test timeout in seconds. Tests exceeding this are counted as failed.
-        region_name: AWS region for bedrock-agentcore.
-        role_arn: AWS IAM role ARN for cross-account access.
-
-    Test Case Format:
-        `action.task_context.ground_truth` should be:
-        ```python
-        {
-            "inputs": ["test_input_1", "test_input_2", ...],
-            "outputs": ["expected_output_1", "expected_output_2", ...],
-        }
-        ```
-
-    Reward Calculation:
-        - `reward = passed / total`, in `[0.0, 1.0]`.
-        - Returns `0.0` if code cannot be extracted, ground truth is malformed,
-          or the batch of test cases fails with an unexpected exception.
-        - Individual execution errors or timeouts count as test failures.
-
-    Notes:
-        - Runs test cases in parallel across independent sandbox sessions
-          (no cross-test state leakage).
-        - Compares outputs with exact string match after stripping whitespace and
-          normalizing `\\r\\n` to `\\n`.
-        - Call `cleanup()` when done to close sandbox sessions.
+    Creates ONE shared aiobotocore client and passes it to all parallel
+    `CodeInterpreterToolkit` instances — avoids duplicate STS assume-role
+    calls and connection pool exhaustion.
     """
 
     def __init__(
@@ -80,34 +52,39 @@ class CodeTestCaseReward(RewardFunction):
         max_pool_connections: int = 1024,
         connect_timeout: int = 120,
         read_timeout: int = 120,
-        # Backward compat: ignored, aiobotocore manages its own client
         client: Any = None,
     ) -> None:
         """Initialize a `CodeTestCaseReward` instance."""
         self.extract_last_code_block = extract_last_code_block
         self._test_concurrency = test_concurrency
         self._test_timeout = test_timeout
-        self._toolkit_kwargs = {
+        self._client_kwargs = {
             "region_name": region_name,
             "role_arn": role_arn,
             "max_pool_connections": max_pool_connections,
             "connect_timeout": connect_timeout,
             "read_timeout": read_timeout,
         }
-        self._toolkits: list[CodeInterpreterToolkit] = [
-            CodeInterpreterToolkit(session_name=f"code-reward-{i}", **self._toolkit_kwargs)
-            for i in range(test_concurrency)
-        ]
+        self._shared_client: Any = None
+        self._toolkits: list[CodeInterpreterToolkit] | None = None
+
+    async def _ensure_toolkits(self) -> list[CodeInterpreterToolkit]:
+        """Lazy-init: create ONE shared client + N toolkits on first use."""
+        if self._toolkits is None:
+            self._shared_client = await create_aio_client(**self._client_kwargs)
+            shared_quotas = CodeInterpreterQuotas()
+            self._toolkits = [
+                CodeInterpreterToolkit(
+                    aio_client=self._shared_client,
+                    session_name=f"code-reward-{i}",
+                    quotas=shared_quotas,
+                )
+                for i in range(self._test_concurrency)
+            ]
+        return self._toolkits
 
     def extract_code(self, text: str) -> str | None:
-        """Extract Python code from a markdown code block.
-
-        Args:
-            text: Text that may contain ```python ... ``` blocks.
-
-        Returns:
-            Extracted code string, or `None` if no code block is found.
-        """
+        """Extract Python code from a markdown code block."""
         pattern = r"```python\s*\n(.*?)\n```"
         matches = re.findall(pattern, text, re.DOTALL | re.IGNORECASE)
         if not matches:
@@ -124,10 +101,11 @@ class CodeTestCaseReward(RewardFunction):
         expected_output: str,
         idx: int,
         sem: asyncio.Semaphore,
+        toolkits: list[CodeInterpreterToolkit],
     ) -> dict[str, Any]:
         """Execute a single test case with timeout, using a pooled toolkit."""
         async with sem:
-            toolkit = self._toolkits[idx % self._test_concurrency]
+            toolkit = toolkits[idx % self._test_concurrency]
             try:
                 wrapped = toolkit._wrap_code_with_stdin(code, test_input)
                 actual_output = await asyncio.wait_for(
@@ -149,9 +127,7 @@ class CodeTestCaseReward(RewardFunction):
 
     def compare_outputs(self, expected: str, actual: str) -> bool:
         """Return `True` if `actual` matches `expected` after whitespace normalization."""
-        expected_normalized = expected.strip().replace("\r\n", "\n")
-        actual_normalized = actual.strip().replace("\r\n", "\n")
-        return expected_normalized == actual_normalized
+        return expected.strip().replace("\r\n", "\n") == actual.strip().replace("\r\n", "\n")
 
     async def run_test_cases(
         self,
@@ -159,21 +135,15 @@ class CodeTestCaseReward(RewardFunction):
         test_inputs: list[str],
         test_outputs: list[str],
     ) -> tuple[int, int, list[dict[str, Any]]]:
-        """Run `code` against test cases in parallel with per-test timeout.
-
-        Uses `test_concurrency` independent sandbox sessions. Each test runs in
-        its own session — no cross-test state leakage.
-
-        Returns:
-            `(passed_count, total_count, per_test_results)`.
-        """
+        """Run `code` against test cases in parallel with per-test timeout."""
         if len(test_inputs) != len(test_outputs):
             logger.error("Mismatched test inputs/outputs lengths: %d vs %d", len(test_inputs), len(test_outputs))
             return 0, len(test_inputs), []
 
+        toolkits = await self._ensure_toolkits()
         sem = asyncio.Semaphore(self._test_concurrency)
         tasks = [
-            self._execute_one_test(code, inp, out, idx, sem)
+            self._execute_one_test(code, inp, out, idx, sem, toolkits)
             for idx, (inp, out) in enumerate(zip(test_inputs, test_outputs, strict=True))
         ]
         results = await asyncio.gather(*tasks)
@@ -199,10 +169,7 @@ class CodeTestCaseReward(RewardFunction):
         if not isinstance(ground_truth, dict):
             return RewardResult(
                 reward=0.0,
-                info={
-                    "reason": "invalid_ground_truth_format",
-                    "ground_truth_type": type(ground_truth).__name__,
-                },
+                info={"reason": "invalid_ground_truth_format", "ground_truth_type": type(ground_truth).__name__},
             )
 
         test_inputs = ground_truth.get("inputs", [])
@@ -210,11 +177,7 @@ class CodeTestCaseReward(RewardFunction):
         if not test_inputs or not test_outputs:
             return RewardResult(
                 reward=0.0,
-                info={
-                    "reason": "no_test_cases",
-                    "inputs_count": len(test_inputs),
-                    "outputs_count": len(test_outputs),
-                },
+                info={"reason": "no_test_cases", "inputs_count": len(test_inputs), "outputs_count": len(test_outputs)},
             )
 
         try:
@@ -239,9 +202,17 @@ class CodeTestCaseReward(RewardFunction):
         )
 
     async def cleanup(self) -> None:
-        """Release all sandbox sessions."""
-        for toolkit in self._toolkits:
+        """Release all sandbox sessions and the shared client."""
+        if self._toolkits:
+            for toolkit in self._toolkits:
+                try:
+                    await toolkit.cleanup()
+                except Exception:  # noqa: BLE001
+                    pass
+        if self._shared_client is not None:
             try:
-                await toolkit.cleanup()
+                await self._shared_client.__aexit__(None, None, None)
             except Exception:  # noqa: BLE001
                 pass
+            self._shared_client = None
+        self._toolkits = None
