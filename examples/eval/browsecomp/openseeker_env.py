@@ -31,6 +31,8 @@ Usage::
         --max-concurrency 10
 """
 
+from __future__ import annotations
+
 from typing import Any
 
 from strands_env.core import Environment
