@@ -15,12 +15,14 @@
 """Tools for `strands_env`."""
 
 from .code_interpreter import CodeInterpreterQuotas, CodeInterpreterToolkit
+from .openseeker_visit import OpenSeekerVisitToolkit
 from .web_scraper import WebScraperToolkit
 from .web_search import WebSearchToolkit
 
 __all__ = [
     "CodeInterpreterQuotas",
     "CodeInterpreterToolkit",
+    "OpenSeekerVisitToolkit",
     "WebScraperToolkit",
     "WebSearchToolkit",
 ]

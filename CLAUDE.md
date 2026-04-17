@@ -108,6 +108,8 @@ The package lives in `src/strands_env/` with these modules:
 
 **web_scraper.py** — `WebScraperToolkit` using trafilatura (primary) or html2text (fallback) for content extraction. Optional LLM-based summarization via a `summarizer_model_factory`. `concurrency: Semaphore | int` for rate limiting. Token budget (default 5000) limits extracted content length via tiktoken encoding.
 
+**openseeker_visit.py** — `OpenSeekerVisitToolkit` using Jina Reader API (``https://r.jina.ai/{url}``) for page content extraction and LLM summarization via a nested `Environment` call. Ported from `OpenSeeker <https://github.com/rui-ye/OpenSeeker>`_. Returns structured JSON with `rational`, `evidence`, and `summary` fields. Progressive truncation retries on short summaries, plus JSON parse recovery retries.
+
 ### `rewards/`
 
 **llm_judge_reward.py** — `LLMJudgeReward` abstract base for LLM-as-judge rewards, generic over `JudgmentFormat` (a `TypeVar` bound to `BaseModel`). Subclasses parameterize via `LLMJudgeReward[MyJudgment]` to get typed `get_reward()` signatures. Set class attribute `judgment_format` to a Pydantic model for structured output or leave `None` for raw text. Subclasses implement `get_judge_prompt()` and `get_reward()`. Includes error handling with `default_reward` fallback.
