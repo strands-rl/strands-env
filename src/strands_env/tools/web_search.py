@@ -19,7 +19,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-from typing import Literal
+from typing import Literal, TypeAlias
 
 import aiohttp
 from strands import tool
@@ -34,6 +34,8 @@ MAX_RESULTS = 10
 
 GOOGLE_SERPER_DEV_URL = "https://google.serper.dev/search"
 GOOGLE_CUSTOM_SEARCH_URL = "https://www.googleapis.com/customsearch/v1"
+
+WebSearchAPIProvider: TypeAlias = Literal["serper", "google"]
 
 
 class WebSearchToolkit:
@@ -51,7 +53,7 @@ class WebSearchToolkit:
         timeout: int = DEFAULT_TIMEOUT,
         concurrency: asyncio.Semaphore | int = DEFAULT_MAX_CONCURRENCY,
         blocked_domains: list[str] | None = None,
-        api_provider: Literal["serper", "google"] = "serper",
+        api_provider: WebSearchAPIProvider = "serper",
     ):
         """Initialize a `WebSearchToolkit` instance.
 
@@ -59,7 +61,7 @@ class WebSearchToolkit:
             timeout: HTTP request timeout in seconds.
             concurrency: Semaphore or max concurrent requests for API rate limiting.
             blocked_domains: Domains to exclude from results (e.g. `["huggingface.co"]`).
-            api_provider: The API provider to use.
+            api_provider: The API provider to use. Defaults to `"serper"`.
         """
         self.timeout = timeout
         self.semaphore = concurrency if isinstance(concurrency, asyncio.Semaphore) else asyncio.Semaphore(concurrency)
