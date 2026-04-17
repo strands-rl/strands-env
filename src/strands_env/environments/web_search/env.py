@@ -82,10 +82,9 @@ class WebSearchEnv(Environment):
     @override
     def get_tools(self) -> list:
         """Return search and optionally scrape tools."""
-        tools = [self.search_tool]
         if self.scrape_tool is not None:
-            tools.append(self.scrape_tool)
-        return tools
+            return [self.search_tool, self.scrape_tool]
+        return [self.search_tool]
 
     async def cleanup(self) -> None:
         """Close shared HTTP sessions for all toolkits."""
