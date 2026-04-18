@@ -94,7 +94,7 @@ The package lives in `src/strands_env/` with these modules:
 
 **web_search.py** — `WebSearchToolkit` with Serper and Google Custom Search providers, shared aiohttp session, and `concurrency: Semaphore | int` for API rate limiting. Domain blocking via `apply_blocked_domains` static method. Credentials validated lazily via `@requires_env` decorator at call time.
 
-**web_scraper.py** — `WebScraperToolkit` using trafilatura (primary) or html2text (fallback) for content extraction. Optional LLM-based summarization via a `summarizer_model_factory`. `concurrency: Semaphore | int` for rate limiting. Token budget (default 5000) limits extracted content length via tiktoken encoding.
+**web_scraper.py** — `WebScraperToolkit` fetches pages via the Jina Reader API (`https://r.jina.ai/{url}`) and optionally extracts structured `rationale`/`evidence`/`summary` via an LLM summarizer (OpenSeeker-style prompt + Pydantic structured output through `Agent.structured_output_async`). The `scrape(url, goal)` `@tool` is gated by `@requires_env("JINA_API_KEY")` and supports single URL or `list[str]` (parallel via `asyncio.gather`, joined by `\n---\n`). `fetch_html` retries up to 8× with 0.5s delay on exceptions or empty bodies. `concurrency: Semaphore | int` for rate limiting; `token_budget` (default 20000, bump to ~95000 for OpenSeeker parity) truncates via tiktoken cl100k encoding. Ported from `OpenSeeker <https://github.com/rui-ye/OpenSeeker>`_, with structured output replacing manual JSON parsing and fixed `Rationale`/field spelling.
 
 ### `rewards/`
 
