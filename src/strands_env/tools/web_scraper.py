@@ -126,8 +126,8 @@ class WebScraperToolkit:
             - A fresh `html2text` instance is created per call for thread safety
               (runs in a thread pool via `asyncio.to_thread`).
         """
-        import html2text
-        import trafilatura
+        import html2text  # type: ignore[import-untyped]
+        import trafilatura  # type: ignore[import-untyped]
 
         def _truncate(text: str) -> str:
             tokens = self._encoding.encode(text)
