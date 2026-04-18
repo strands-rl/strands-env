@@ -61,6 +61,8 @@ EXTRACT_PROMPT_TEMPLATE = """Please process the following webpage content and us
 3. **Summary Output for Summary**: Organize into a concise paragraph with logical flow, prioritizing clarity and judge the contribution of the information to the goal.
 """
 
+TOKEN_ENCODING = tiktoken.encoding_for_model("gpt-4")
+
 
 class WebPageSummary(BaseModel):
     """Structured page extraction — rationale, supporting evidence, and concise summary."""
@@ -103,7 +105,6 @@ class WebScraperToolkit:
         self.token_budget = token_budget
         self.summarizer_model_factory = summarizer_model_factory
         self._session: aiohttp.ClientSession | None = None
-        self._encoding = tiktoken.encoding_for_model("gpt-4")
 
     def _get_session(self) -> aiohttp.ClientSession:
         """Get or create the shared HTTP session."""
@@ -116,6 +117,14 @@ class WebScraperToolkit:
         if self._session and not self._session.closed:
             await self._session.close()
             self._session = None
+
+    @staticmethod
+    def truncate_text(text: str, token_budget: int) -> str:
+        """Truncate text to fit within a token budget."""
+        tokens = TOKEN_ENCODING.encode(text)
+        if len(tokens) > token_budget:
+            return TOKEN_ENCODING.decode(tokens[:token_budget]) + "...(content truncated)"
+        return text
 
     async def fetch_html(self, url: str) -> str:
         """Fetch a web page and return the HTML."""
@@ -141,12 +150,6 @@ class WebScraperToolkit:
         import html2text  # type: ignore[import-untyped]
         import trafilatura  # type: ignore[import-untyped]
 
-        def _truncate(text: str) -> str:
-            tokens = self._encoding.encode(text)
-            if len(tokens) > self.token_budget:
-                return self._encoding.decode(tokens[: self.token_budget]) + "...(content truncated)"
-            return text
-
         content = await asyncio.to_thread(
             trafilatura.extract,
             html,
@@ -156,7 +159,7 @@ class WebScraperToolkit:
             output_format="txt",
         )
         if content and len(content.strip()) > 100:
-            return _truncate(content)
+            return self.truncate_text(content, self.token_budget)
 
         h2t = html2text.HTML2Text()
         h2t.ignore_links = False
@@ -164,7 +167,7 @@ class WebScraperToolkit:
         h2t.ignore_emphasis = False
         h2t.body_width = 0
         content = await asyncio.to_thread(h2t.handle, html)
-        return _truncate(content)
+        return self.truncate_text(content, self.token_budget)
 
     async def summarize(self, content: str, goal: str) -> WebPageSummary | None:
         """Extract structured evidence + summary for a goal using a LLM."""
