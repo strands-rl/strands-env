@@ -35,10 +35,8 @@ from typing import TYPE_CHECKING
 
 import aiohttp
 import tiktoken
-from strands import tool
-
-from strands_env.core import Environment
-from strands_env.core.types import Action
+from pydantic import BaseModel, Field
+from strands import Agent, tool
 
 if TYPE_CHECKING:
     from strands_env.core.models import ModelFactory
@@ -49,20 +47,29 @@ DEFAULT_TIMEOUT = 30
 DEFAULT_MAX_CONCURRENCY = 10
 DEFAULT_TOKEN_BUDGET = 5000
 
-EXTRACTION_PROMPT_TEMPLATE = """Extract information relevant to the following instruction from the web page content below.
-Be concise and focus on facts, data, and key details. Omit navigation, ads, and irrelevant content.
+EXTRACT_PROMPT_TEMPLATE = """Please process the following webpage content and user goal to extract relevant information:
 
-## Instruction
-{instruction}
+## **Webpage Content**
+{content}
 
-## Web Page Content
-{content}"""
+## **User Goal**
+{goal}
 
-_REQUEST_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (compatible; ResearchBot/1.0)",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.5",
-}
+## **Task Guidelines**
+1. **Content Scanning for Rationale**: Locate the **specific sections/data** directly related to the user's goal within the webpage content.
+2. **Key Extraction for Evidence**: Identify and extract the **most relevant information** from the content, you never miss any important information, output the **full original context** of the content as far as possible, it can be more than three paragraphs.
+3. **Summary Output for Summary**: Organize into a concise paragraph with logical flow, prioritizing clarity and judge the contribution of the information to the goal.
+"""
+
+
+class WebPageSummary(BaseModel):
+    """Structured page extraction — rationale, supporting evidence, and concise summary."""
+
+    rationale: str = Field(description="Specific sections/data directly related to the user's goal.")
+    evidence: str = Field(
+        description="Most relevant information from the page, preserving full original context where possible."
+    )
+    summary: str = Field(description="Concise paragraph with logical flow, judging the contribution to the goal.")
 
 
 class WebScraperToolkit:
@@ -112,8 +119,13 @@ class WebScraperToolkit:
 
     async def fetch_html(self, url: str) -> str:
         """Fetch a web page and return the HTML."""
+        headers = {
+            "User-Agent": "Mozilla/5.0 (compatible; ResearchBot/1.0)",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.5",
+        }
         async with self.semaphore:
-            async with self._get_session().get(url, headers=_REQUEST_HEADERS) as response:
+            async with self._get_session().get(url, headers=headers) as response:
                 response.raise_for_status()
                 return await response.text()
 
@@ -154,20 +166,18 @@ class WebScraperToolkit:
         content = await asyncio.to_thread(h2t.handle, html)
         return _truncate(content)
 
-    async def summarize(self, content: str, instruction: str) -> str:
-        """Use a base `Environment` to summarize the content based on the instruction.
-
-        Notes:
-            Uses `Environment` for client sharing (e.g. Bedrock) and exception handling.
-        """
+    async def summarize(self, content: str, goal: str) -> WebPageSummary | None:
+        """Extract structured evidence + summary for a goal using a LLM."""
         if self.summarizer_model_factory is None:
-            logger.warning("`summarizer_model_factory` is not set. Returning raw content.")
-            return content
+            raise RuntimeError("`summarizer_model_factory` is required for summarization.")
 
-        prompt = EXTRACTION_PROMPT_TEMPLATE.format(instruction=instruction, content=content)
-        environment = Environment(model_factory=self.summarizer_model_factory)
-        result = await environment.step(action=Action(message=prompt))
-        return result.observation.final_response or "No summary available."
+        prompt = EXTRACT_PROMPT_TEMPLATE.format(content=content, goal=goal)
+        summarizer = Agent(model=self.summarizer_model_factory(), tools=[])
+        try:
+            return await summarizer.structured_output_async(output_model=WebPageSummary, prompt=prompt)
+        except Exception as e:
+            logger.error("[web_page_summary] error: content=%s..., goal=%s..., error=%s", content[:100], goal[:100], e)
+            return None
 
     # ------------------------------------------------------------------
     # Tools
