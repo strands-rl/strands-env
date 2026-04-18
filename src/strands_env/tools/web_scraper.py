@@ -12,25 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Web scraper toolkit with optional LLM-based content extraction.
-
-Fetches a web page, extracts main content (stripping nav/sidebar/ads),
-and optionally uses a strands Agent to extract task-relevant information.
-
-Content extraction pipeline:
-  1. trafilatura: extracts main content, strips boilerplate (primary)
-  2. html2text: full HTML-to-Markdown conversion (fallback)
-
-Example:
-    >>> from strands_env.tools import WebScraperToolkit
-    >>> toolkit = WebScraperToolkit()
-    >>> result = toolkit.scrape("https://example.com")
-"""
+"""Web scraper toolkit with LLM structured summarization."""
 
 from __future__ import annotations
 
 import asyncio
 import logging
+import os
 from typing import TYPE_CHECKING
 
 import aiohttp
@@ -38,16 +26,30 @@ import tiktoken
 from pydantic import BaseModel, Field
 from strands import Agent, tool
 
+from strands_env.utils.decorators import requires_env
+
 if TYPE_CHECKING:
     from strands_env.core.models import ModelFactory
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_TIMEOUT = 30
+DEFAULT_TIMEOUT = 50
 DEFAULT_MAX_CONCURRENCY = 10
-DEFAULT_TOKEN_BUDGET = 5000
+DEFAULT_TOKEN_BUDGET = 20000
+JINA_READER_URL = "https://r.jina.ai/{url}"
 
-EXTRACT_PROMPT_TEMPLATE = """Please process the following webpage content and user goal to extract relevant information:
+# Template for the result of the scrape tool
+RESULT_TEMPLATE = """The useful information in {url} for user goal {goal} as follows:
+
+Evidence in page:
+{evidence}
+
+Summary:
+{summary}
+"""
+
+# Template for the prompt of the summarizer model
+SUMMARY_PROMPT_TEMPLATE = """Please process the following webpage content and user goal to extract relevant information:
 
 ## **Webpage Content**
 {content}
@@ -65,7 +67,7 @@ TOKEN_ENCODING = tiktoken.encoding_for_model("gpt-4")
 
 
 class WebPageSummary(BaseModel):
-    """Structured page extraction — rationale, supporting evidence, and concise summary."""
+    """Structured webpage summary — rationale, supporting evidence, and concise summary."""
 
     rationale: str = Field(description="Specific sections/data directly related to the user's goal.")
     evidence: str = Field(
@@ -75,12 +77,11 @@ class WebPageSummary(BaseModel):
 
 
 class WebScraperToolkit:
-    """Web scraper with optional LLM extraction for strands agents.
+    """Web scraper with LLM-based structured summarization.
 
     Notes:
-        - Two `@tool` methods are provided — the environment picks which to expose:
-          `scrape` (fetch + extract) and `scrape_and_summarize` (fetch + extract + LLM,
-          requires `summarizer_model_factory`).
+        - When a `summarizer_model_factory` is set, runs an LLM to produce structured
+          output for the supplied goal based on fetched webpage content.
         - A single shared `aiohttp.ClientSession` (created lazily) and an
           `asyncio.Semaphore` cap concurrent requests. Call `cleanup` when done.
     """
@@ -118,63 +119,54 @@ class WebScraperToolkit:
             await self._session.close()
             self._session = None
 
-    @staticmethod
-    def truncate_text(text: str, token_budget: int) -> str:
+    def truncate_text(self, text: str) -> str:
         """Truncate text to fit within a token budget."""
-        tokens = TOKEN_ENCODING.encode(text)
-        if len(tokens) > token_budget:
-            return TOKEN_ENCODING.decode(tokens[:token_budget]) + "...(content truncated)"
+        tokens = TOKEN_ENCODING.encode(text, allowed_special="all")
+        if len(tokens) > self.token_budget:
+            return TOKEN_ENCODING.decode(tokens[: self.token_budget]) + "..."
         return text
 
-    async def fetch_html(self, url: str) -> str:
-        """Fetch a web page and return the HTML."""
-        headers = {
-            "User-Agent": "Mozilla/5.0 (compatible; ResearchBot/1.0)",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.5",
-        }
-        async with self.semaphore:
-            async with self._get_session().get(url, headers=headers) as response:
-                response.raise_for_status()
-                return await response.text()
+    async def fetch_html(
+        self,
+        url: str,
+        headers: dict[str, str] | None = None,
+        max_retries: int = 8,
+        retry_delay: float = 0.5,
+    ) -> str:
+        """Fetch a URL and return the response text, retrying on transient errors.
 
-    async def extract_content(self, html: str, url: str) -> str:
-        """Extract main content from HTML, stripping boilerplate and truncating to token budget.
+        Retries on exceptions and empty response bodies.
 
-        Notes:
-            - Uses `trafilatura` as primary extractor; falls back to `html2text`
-              for pages where `trafilatura` returns insufficient content.
-            - A fresh `html2text` instance is created per call for thread safety
-              (runs in a thread pool via `asyncio.to_thread`).
+        Args:
+            url: The URL to fetch. Callers may pass a provider-wrapped URL (e.g. `https://r.jina.ai/{target}`) directly.
+            headers: Request headers. If `None`, only aiohttp defaults are sent.
+            max_retries: Total attempts before giving up.
+            retry_delay: Seconds to sleep between failed attempts.
         """
-        import html2text  # type: ignore[import-untyped]
-        import trafilatura  # type: ignore[import-untyped]
-
-        content = await asyncio.to_thread(
-            trafilatura.extract,
-            html,
-            url=url,
-            include_links=True,
-            include_tables=True,
-            output_format="txt",
-        )
-        if content and len(content.strip()) > 100:
-            return self.truncate_text(content, self.token_budget)
-
-        h2t = html2text.HTML2Text()
-        h2t.ignore_links = False
-        h2t.ignore_images = True
-        h2t.ignore_emphasis = False
-        h2t.body_width = 0
-        content = await asyncio.to_thread(h2t.handle, html)
-        return self.truncate_text(content, self.token_budget)
+        last_exc: Exception | None = None
+        for attempt in range(max_retries):
+            try:
+                async with self.semaphore:
+                    async with self._get_session().get(url, headers=headers) as response:
+                        response.raise_for_status()
+                        text = await response.text()
+                if not text.strip():
+                    raise ValueError("empty response body")
+                return text
+            except Exception as e:
+                last_exc = e
+                logger.warning("[fetch_html] attempt %d/%d for %s: %s", attempt + 1, max_retries, url, e)
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(retry_delay)
+        assert last_exc is not None
+        raise last_exc
 
     async def summarize(self, content: str, goal: str) -> WebPageSummary | None:
         """Extract structured evidence + summary for a goal using a LLM."""
         if self.summarizer_model_factory is None:
             raise RuntimeError("`summarizer_model_factory` is required for summarization.")
 
-        prompt = EXTRACT_PROMPT_TEMPLATE.format(content=content, goal=goal)
+        prompt = SUMMARY_PROMPT_TEMPLATE.format(content=content, goal=goal)
         summarizer = Agent(model=self.summarizer_model_factory(), tools=[])
         try:
             return await summarizer.structured_output_async(output_model=WebPageSummary, prompt=prompt)
@@ -187,49 +179,42 @@ class WebScraperToolkit:
     # ------------------------------------------------------------------
 
     @tool
-    async def scrape(self, url: str) -> str:
-        """Fetch a web page and extract its main content.
-
-        Retrieves the full HTML, strips boilerplate and returns
-        the extracted content.
+    @requires_env("JINA_API_KEY")
+    async def scrape(self, url: str | list[str], goal: str) -> str:
+        """Fetch webpage(s) and return the summary of the content.
 
         Args:
-            url: The URL of the web page to scrape.
-
-        Returns:
-            Extracted page content or an error message.
+            url: The URL(s) of the webpage(s) to visit. Single URL or list.
+            goal: What to learn from the page(s).
         """
-        logger.info("[scrape] url=%s", url)
+        null_evidence = "The provided webpage content could not be accessed. Please check the URL or file format."
+        null_summary = "The webpage content could not be processed, and therefore, no information is available."
+        headers = {"Authorization": f"Bearer {os.environ['JINA_API_KEY']}"}
 
-        try:
-            html = await self.fetch_html(url)
-            content = await self.extract_content(html, url)
-            return content
-        except Exception as e:
-            logger.error("[scrape] error: url=%s, error=%s", url, e)
-            return f"Scrape failed for {url}: {e}"
+        async def _scrape_one(u: str) -> str:
+            logger.info("[scrape] url=%s, goal=%s", u, goal[:100] if goal else "")
 
-    @tool
-    async def scrape_and_summarize(self, url: str, instruction: str) -> str:
-        """Fetch a web page, extract content, and summarize with an LLM.
+            # Step 1: Fetch the HTML content
+            try:
+                raw = await self.fetch_html(JINA_READER_URL.format(url=u), headers=headers)
+            except Exception as e:
+                logger.error("[scrape] fetch error: url=%s, error=%s", u, e)
+                return RESULT_TEMPLATE.format(url=u, goal=goal, evidence=null_evidence, summary=null_summary)
 
-        Retrieves the full HTML, strips boilerplate, then uses an LLM agent
-        to extract only the information relevant to the instruction.
+            # Step 2: Truncate the content to fit within the token budget
+            content = self.truncate_text(raw)
 
-        Args:
-            url: The URL of the web page to scrape.
-            instruction: What information to extract from the page.
+            # Step 3: Summarize the content using the LLM
+            if self.summarizer_model_factory is None:
+                logger.warning("`summarizer_model_factory` is not set; returning raw content.")
+                return content
 
-        Returns:
-            LLM-summarized content or an error message.
-        """
-        logger.info("[scrape_and_summarize] url=%s, instruction=%s", url, instruction[:100])
+            summary = await self.summarize(content, goal)
+            if summary is None:
+                return RESULT_TEMPLATE.format(url=u, goal=goal, evidence=null_evidence, summary=null_summary)
+            return RESULT_TEMPLATE.format(url=u, goal=goal, evidence=summary.evidence, summary=summary.summary)
 
-        try:
-            html = await self.fetch_html(url)
-            main_content = await self.extract_content(html, url)
-            content = await self.summarize(main_content, instruction)
-            return content
-        except Exception as e:
-            logger.error("[scrape_and_summarize] error: url=%s, error=%s", url, e)
-            return f"Scrape failed for {url}: {e}"
+        if isinstance(url, list):
+            results = await asyncio.gather(*(_scrape_one(u) for u in url))
+            return "\n---\n".join(results)
+        return await _scrape_one(url)
