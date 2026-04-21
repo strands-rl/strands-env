@@ -70,14 +70,12 @@ class WebSearchEnv(Environment):
         self.scraper_toolkit: WebScraperToolkit | None = None
         if self.config.get("scrape_enabled", False):
             self.scraper_toolkit = WebScraperToolkit(
-                timeout=int(self.config.get("scrape_timeout", 30)),
+                timeout=int(self.config.get("scrape_timeout", 50)),
                 concurrency=scrape_concurrency,
-                token_budget=int(self.config.get("scrape_token_budget", 5000)),
+                token_budget=int(self.config.get("scrape_token_budget", 20000)),
                 summarizer_model_factory=summarizer_model_factory,
             )
-            self.scrape_tool = (
-                self.scraper_toolkit.scrape_and_summarize if summarizer_model_factory else self.scraper_toolkit.scrape
-            )
+            self.scrape_tool = self.scraper_toolkit.scrape
 
     @override
     def get_tools(self) -> list:

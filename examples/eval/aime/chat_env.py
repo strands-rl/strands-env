@@ -20,7 +20,7 @@ from strands_env.rewards import MathVerifyReward
 
 
 def create_env_factory(model_config: dict, **env_config):
-    """Create env_factory for `CodeSandboxEnv`."""
+    """Create env_factory for chat-only AIME evaluation."""
     model_factory = build_model_factory(model_config)
     reward_fn = MathVerifyReward()
 
