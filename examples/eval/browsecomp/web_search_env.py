@@ -24,6 +24,7 @@ from strands_env.utils.aws import get_session
 SEARCH_SEMAPHORE = asyncio.Semaphore(30)
 SCRAPE_SEMAPHORE = asyncio.Semaphore(30)
 
+
 def create_env_factory(model_config: dict, **env_config):
     """Create env_factory for `WebSearchEnv`."""
     model_factory = build_model_factory(model_config)
