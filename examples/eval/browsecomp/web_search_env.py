@@ -14,11 +14,15 @@
 
 """Example environment hook for BrowseComp evaluation with Serper search + Jina-based web scraping."""
 
+import asyncio
+
 from strands_env.core.models import bedrock_model_factory, build_model_factory
 from strands_env.environments.web_search.env import WebSearchEnv
 from strands_env.eval.benchmarks.browsecomp import BrowseCompReward
 from strands_env.utils.aws import get_session
 
+SEARCH_SEMAPHORE = asyncio.Semaphore(30)
+SCRAPE_SEMAPHORE = asyncio.Semaphore(30)
 
 def create_env_factory(model_config: dict, **env_config):
     """Create env_factory for `WebSearchEnv`."""
@@ -30,7 +34,7 @@ def create_env_factory(model_config: dict, **env_config):
         )
         judge_models.append(
             bedrock_model_factory(
-                model_id=env_config.get("judge_model_id", "us.anthropic.claude-sonnet-4-20250514-v1:0"),
+                model_id=env_config.get("judge_model_id", "us.anthropic.claude-sonnet-4-5-20250929-v1:0"),
                 boto_session=boto_session,
                 sampling_params={"max_new_tokens": 1024},
             )()
@@ -46,6 +50,8 @@ def create_env_factory(model_config: dict, **env_config):
             scrape_enabled=env_config.get("scrape_enabled", True),
             scrape_token_budget=env_config.get("scrape_token_budget", 20000),
             scrape_timeout=env_config.get("scrape_timeout", 50),
+            search_concurrency=SEARCH_SEMAPHORE,
+            scrape_concurrency=SCRAPE_SEMAPHORE,
         )
 
     return env_factory
