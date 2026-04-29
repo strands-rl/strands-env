@@ -157,7 +157,7 @@ class EnvironmentActorPool:
         self.actors.clear()
         self.cycle = itertools.cycle([])
 
-        @ray.remote(num_cpus=0)
+        @ray.remote(num_cpus=0)  # type: ignore[misc]
         def ray_stop() -> None:
             subprocess.Popen(
                 "(setsid ray stop --force </dev/null >/dev/null 2>&1 &)",
