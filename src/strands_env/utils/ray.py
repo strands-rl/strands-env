@@ -19,6 +19,7 @@ from __future__ import annotations
 import asyncio
 import itertools
 import logging
+import subprocess
 from typing import Any
 
 import ray
@@ -152,9 +153,22 @@ class EnvironmentActorPool:
         return RewardResult.model_validate_json(result_json)
 
     def shutdown(self) -> None:
-        """Kill all managed actors."""
-        for actor in self.actors:
-            ray.kill(actor)
+        """Tear down the Ray cluster on every node."""
         self.actors.clear()
         self.cycle = itertools.cycle([])
-        logger.info("Shut down all EnvironmentActors.")
+
+        @ray.remote(num_cpus=0)  # type: ignore[untyped-decorator]
+        def ray_stop() -> None:
+            subprocess.Popen(
+                "(setsid ray stop --force </dev/null >/dev/null 2>&1 &)",
+                shell=True,
+            )
+
+        for node in ray.nodes():
+            if not node.get("Alive"):
+                continue
+            strategy = NodeAffinitySchedulingStrategy(node_id=node["NodeID"], soft=False)
+            ray_stop.options(scheduling_strategy=strategy).remote()
+
+        ray.shutdown()
+        logger.info("Shut down Ray cluster across all nodes.")
