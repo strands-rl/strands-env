@@ -96,6 +96,14 @@ class TerminalBenchEvaluator(Evaluator):
         )
         return sample
 
+    @override
+    def validate_sample(self, sample: EvalSample) -> bool:
+        """Abort samples where reward is missing or verification failed, so they are retried on resume."""
+        reward = sample.step_result.reward
+        if reward is None:
+            return False
+        return reward.info.get("status") != "error"
+
 
 @register_eval("terminal-bench-2")
 class TerminalBench2Evaluator(TerminalBenchEvaluator):

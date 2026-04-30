@@ -40,10 +40,10 @@ class TerminalBenchReward(RewardFunction):
         """Run verification tests in Docker and return a binary reward."""
         try:
             reward = await self._run_verification()
-            return RewardResult(reward=reward)
+            return RewardResult(reward=reward, info={"status": "success"})
         except Exception as e:
             logger.exception("Verification failed due to %s: %s", type(e).__name__, str(e))
-            return RewardResult(reward=0.0, info={"error": str(e)})
+            return RewardResult(reward=0.0, info={"status": "error", "message": str(e)})
 
     async def _run_verification(self) -> float:
         """Upload tests, execute `test.sh`, download results, and parse reward."""
@@ -72,5 +72,4 @@ class TerminalBenchReward(RewardFunction):
         reward_path = trial_paths.reward_text_path
         if reward_path.exists() and reward_path.stat().st_size > 0:
             return 1.0 if float(reward_path.read_text().strip()) >= 1.0 else 0.0
-        logger.warning("No reward file at %s", reward_path)
-        return 0.0
+        raise RuntimeError(f"verification produced no reward file at {reward_path}")
