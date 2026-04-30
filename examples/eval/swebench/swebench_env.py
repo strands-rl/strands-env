@@ -16,13 +16,14 @@
 
 from __future__ import annotations
 
-from strands_env.core.models import ModelFactory
+from strands_env.core.models import build_model_factory
 from strands_env.core.types import Action
 from strands_env.environments.swebench import SWEBenchEnv
 
 
-def create_env_factory(model_factory: ModelFactory, **env_config):
+def create_env_factory(model_config: dict, **env_config):
     """Create env_factory for `SWEBenchEnv`."""
+    model_factory = build_model_factory(model_config)
 
     async def env_factory(action: Action) -> SWEBenchEnv:
         """Create a new SWEBenchEnv with its own container/pod."""
