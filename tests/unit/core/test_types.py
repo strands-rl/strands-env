@@ -213,6 +213,11 @@ class TestTerminationReason:
         outer.__cause__ = inner
         assert TerminationReason.from_error(outer) == TerminationReason.TIMEOUT
 
+    def test_recursion_depth_exceeded(self):
+        error = EventLoopException(Exception())
+        error.__cause__ = RecursionError("maximum recursion depth exceeded")
+        assert TerminationReason.from_error(error) == TerminationReason.RECURSION_DEPTH_EXCEEDED
+
     def test_generic_error(self):
         error = EventLoopException(Exception())
         error.__cause__ = ValueError("something broke")

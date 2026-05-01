@@ -173,6 +173,7 @@ class TerminationReason(str, Enum):
     MAX_TOOL_ITERATIONS_REACHED = "max_tool_iterations_reached"
     MAX_TOOL_CALLS_REACHED = "max_tool_calls_reached"
     TIMEOUT = "timeout"
+    RECURSION_DEPTH_EXCEEDED = "recursion_depth_exceeded"
     UNCLASSIFIED_ERROR = "unclassified_error"
 
     @classmethod
@@ -205,6 +206,8 @@ class TerminationReason(str, Enum):
                 reason = cls.MAX_TOOL_ITERATIONS_REACHED
             case MaxToolCallsReachedError():
                 reason = cls.MAX_TOOL_CALLS_REACHED
+            case RecursionError():
+                reason = cls.RECURSION_DEPTH_EXCEEDED
             case e if cls._is_timeout(e):
                 reason = cls.TIMEOUT
             case _:
