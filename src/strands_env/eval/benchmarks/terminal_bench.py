@@ -66,6 +66,7 @@ class TerminalBenchEvaluator(Evaluator):
     def _load_single_task(self, task_dir: Path) -> Action:
         """Load a single task from a directory."""
         task = Task(task_dir)
+        task.config.environment.memory_mb *= 2
         config: TerminalBenchConfig = {
             "task_id": task.name,
             "task_dir": str(task_dir.resolve()),
