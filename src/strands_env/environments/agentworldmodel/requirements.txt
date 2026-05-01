@@ -1,1 +1,1 @@
-agent_world_model
+agent-world-model==0.1.0
