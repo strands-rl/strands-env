@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
 import httpx
 from mcp.types import Tool as MCPToolDef
@@ -50,6 +51,8 @@ class MCPAtlasEnvironment(Environment):
     """
 
     DEFAULT_DOCKER_URL = "http://localhost:1984"
+
+    default_system_prompt_path = Path(__file__).parent / "system_prompt.md"
 
     def __init__(
         self,
