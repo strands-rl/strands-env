@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from strands_env.core.models import build_model_factory
 from strands_env.core.types import Action
-from strands_env.environments.swebench import SWEBenchEnv
+from strands_env.environments.swe_bench import SWEBenchEnv
 
 
 def create_env_factory(model_config: dict, **env_config):
