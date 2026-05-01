@@ -76,6 +76,19 @@ strands-env eval aime-2024 \
 
 > **Tip:** For a non-agentic benchmark (no tool use), simply don't override `get_tools()` in your environment — the base class returns `[]` by default.
 
+## Built-in Environments
+
+Ready-to-use environments under `src/strands_env/environments/`. Each ships with its own README, system prompt, and `requirements.txt`.
+
+| Environment | Description |
+| --- | --- |
+| [`calculator`](src/strands_env/environments/calculator/README.md) | Simple environment with for math reasoning. |
+| [`code_sandbox`](src/strands_env/environments/code_sandbox/README.md) | Sandboxed Python / shell execution via AWS Bedrock AgentCore Code Interpreter. |
+| [`web_search`](src/strands_env/environments/web_search/README.md) | Pluggable search (Serper / Google CSE) + Jina-based page scraping with optional LLM summarization, enlightened by [OpenSeeker](https://github.com/rui-ye/OpenSeeker). |
+| [`terminal_bench`](src/strands_env/environments/terminal_bench/README.md) | Run [Terminal-Bench](https://www.tbench.ai/) tasks against a [Harbor](https://github.com/harbor-framework/harbor)-managed Docker/EKS container. |
+| [`swe_bench`](src/strands_env/environments/swe_bench/) | [SWE-bench](https://www.swebench.com/) task runner — thin subclass of `terminal_bench` with a SWE-bench-tuned system prompt. |
+| [`mcp_atlas`](src/strands_env/environments/mcp_atlas/README.md) | [MCP-Atlas](https://github.com/scaleapi/mcp-atlas) benchmark runner across 36 MCP servers. |
+
 ## Documentation
 
 - [Evaluation Guide](docs/evaluation.md) — CLI reference, hook files, custom evaluators

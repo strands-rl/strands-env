@@ -12,24 +12,31 @@ This guide covers integrating `strands-env` with RL training frameworks, specifi
 
 ## slime Integration
 
-Customize the `generate` and `reward_func` methods to replace single generation with agentic rollout:
+Customize the `generate` (and optionally `reward_func`) entry points to replace single-shot generation with an agentic rollout:
 
 ```python
-from strands_env.core import Action, TaskContext
-from strands_env.core.models import sglang_model_factory
+from slime.rollout.sglang_rollout import GenerateState
+from slime.utils.types import Sample
 from strands_sglang import get_client_from_slime_args
 
-async def generate(args, sample, sampling_params):
-    # Build model factory with cached client
-    factory = sglang_model_factory(
-        tokenizer=tokenizer,
-        client=get_client_from_slime_args(args),
+from strands_env.core import Action, TaskContext
+from strands_env.core.models import sglang_model_factory
+
+async def generate_and_rm(args, sample: Sample, sampling_params) -> Sample:
+    state = GenerateState(args)  # provides cached tokenizer + slime state
+
+    model_factory = sglang_model_factory(
+        tokenizer=state.tokenizer,
+        client=get_client_from_slime_args(args, timeout=300.0),
         sampling_params=sampling_params,
     )
 
-    # Create environment and run step
-    env = YourEnv(model_factory=factory, reward_fn=None)
-    action = Action(message=sample.prompt, task_context=TaskContext(ground_truth=sample.label))
+    env = YourEnv(model_factory=model_factory, reward_fn=YourRewardFunction())
+    prompt = sample.prompt if isinstance(sample.prompt, str) else sample.prompt[0]["content"]
+    action = Action(
+        message=prompt,
+        task_context=TaskContext(ground_truth=sample.label, conversation_history=[]),
+    )
     step_result = await env.step(action)
 
     # Extract TITO data for training
@@ -38,21 +45,36 @@ async def generate(args, sample, sampling_params):
     sample.loss_mask = token_obs.rollout_loss_mask
     sample.rollout_log_probs = token_obs.rollout_logprobs
     sample.response_length = len(token_obs.rollout_token_ids)
+    sample.response = state.tokenizer.decode(token_obs.rollout_token_ids, skip_special_tokens=False)
 
-    # Attach for reward computation
-    sample.action = action
-    sample.step_result = step_result
+    # Status + reward
+    sample.status = (
+        Sample.Status.COMPLETED
+        if step_result.termination_reason.value == "task_complete"
+        else Sample.Status.TRUNCATED
+    )
+    sample.reward = step_result.reward.reward
+    sample.step_result = step_result  # for custom rollout logging
+
+    await env.cleanup()
     return sample
+```
 
+If you want to compute the reward asynchronously (separate from the rollout), split the work into `generate` + `reward_func`:
+
+```python
 async def reward_func(args, sample, **kwargs):
     reward_fn = YourRewardFunction()
     reward_result = await reward_fn.compute(action=sample.action, step_result=sample.step_result)
     return reward_result.reward
 ```
 
+A complete worked example lives at `examples/slime/retool/generate_with_code_sandbox.py`.
+
 ## Key Points
 
 - **Connection pooling**: `get_client_from_slime_args(args)` provides `lru_cache`-backed connection pooling across rollouts for efficient GPU utilization
 - **Token observations**: `TokenObservation` contains token IDs and logprobs for on-policy training (SGLang backend only)
-- **Async rewards**: Reward is computed separately to allow async/batched reward computation
 - **Model factory pattern**: Each `step()` creates a fresh model instance for clean token tracking state
+- **Cleanup**: Call `await env.cleanup()` at the end of each rollout for envs that hold external resources (e.g. `CodeSandboxEnv`, `MCPEnvironment`, `TerminalBenchEnv`)
+- **Custom rollout logging**: Attach `step_result` to the sample and use `strands_env.utils.slime.RolloutLogger` (see the retool example) to log per-step metrics via slime's `--custom-rollout-log-function-path`
