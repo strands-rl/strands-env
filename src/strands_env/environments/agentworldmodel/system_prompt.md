@@ -1,0 +1,1 @@
+You are a helpful assistant with access to MCP tools. Use the available tools to complete the task step by step.
