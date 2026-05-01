@@ -37,7 +37,7 @@ class SWEBenchVerifiedEvaluator(TerminalBenchEvaluator):
     """Evaluator for SWE-bench Verified.
 
     Inherits the Terminal-Bench loader (which expects a directory of
-    Harbor task subdirectories), and overrides ``_download_dataset`` to do
+    Harbor task subdirectories), and overrides `_download_dataset` to do
     a sparse checkout of the swebench-verified subdir from harbor-datasets.
     """
 
@@ -49,9 +49,9 @@ class SWEBenchVerifiedEvaluator(TerminalBenchEvaluator):
 
     @override
     def _download_dataset(self) -> None:
-        """Sparse-checkout the swebench-verified subdir into ``self.data_dir``.
+        """Sparse-checkout the swebench-verified subdir into `self.data_dir`.
 
-        Cloning the full ``harbor-datasets`` repo is hundreds of MB and most
+        Cloning the full `harbor-datasets` repo is hundreds of MB and most
         of it is unrelated benchmarks. Sparse checkout fetches only the
         directory we care about.
         """
