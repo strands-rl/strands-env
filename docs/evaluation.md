@@ -55,6 +55,9 @@ strands-env eval run --evaluator <dotted.module.path> --env <dotted.module.path>
 - `--keep-tokens` - Keep token-level observations in results
 - `--debug` - Enable debug logging
 
+**Distributed options:**
+- `--n-actors-per-node` - Ray actors per node for distributed eval. When set, an `EnvironmentActorPool` is created and rollouts are distributed across Ray actors. Omit for local single-process eval.
+
 ### Examples
 
 ```bash
@@ -80,19 +83,28 @@ strands-env eval run aime-2024 \
 strands-env eval run aime-2024 \
     --env examples.eval.simple_math.calculator_env \
     --env-config '{"max_tool_iters": 5}'
+
+# Distributed eval across Ray actors (e.g. 8 actors per node)
+strands-env eval run aime-2024 \
+    --env examples.eval.simple_math.calculator_env \
+    --base-url http://localhost:30000 \
+    --n-actors-per-node 8 \
+    --max-concurrency 30
 ```
 
 ## Hook Files
 
-Environment hook files define how environments are created for each evaluation sample. They must export a `create_env_factory` function.
+Environment hook files define how environments are created for each evaluation sample. They must export a `create_env_factory` function that takes a serializable `model_config` dict (plus environment-specific keyword args) and returns an async env factory. The `model_config` dict is passed to `build_model_factory` to construct the backend `ModelFactory`. This indirection keeps the hook serializable so it can be loaded inside Ray actors for distributed eval.
 
 ### Structure
 
 ```python
-from strands_env.core.models import ModelFactory
+from strands_env.core.models import build_model_factory
 
-def create_env_factory(model_factory: ModelFactory, **env_config):
+def create_env_factory(model_config: dict, **env_config):
     """Create an async environment factory."""
+    model_factory = build_model_factory(model_config)
+
     async def env_factory(action):
         return YourEnvironment(model_factory=model_factory, **env_config)
 
@@ -103,11 +115,12 @@ def create_env_factory(model_factory: ModelFactory, **env_config):
 
 ```python
 # examples/eval/simple_math/calculator_env.py
-from strands_env.core.models import ModelFactory
+from strands_env.core.models import build_model_factory
 from strands_env.environments.calculator import CalculatorEnv
 from strands_env.rewards import MathVerifyReward
 
-def create_env_factory(model_factory: ModelFactory, **env_config):
+def create_env_factory(model_config: dict, **env_config):
+    model_factory = build_model_factory(model_config)
     reward_fn = MathVerifyReward()
 
     async def env_factory(_action):
@@ -119,12 +132,13 @@ def create_env_factory(model_factory: ModelFactory, **env_config):
 ### Example: Code Sandbox Environment
 
 ```python
-# examples/eval/aime_code/code_sandbox_env.py
-from strands_env.core.models import ModelFactory
+# examples/eval/hmmt/code_sandbox_env.py
+from strands_env.core.models import build_model_factory
 from strands_env.environments.code_sandbox import CodeSandboxEnv
 from strands_env.rewards import MathVerifyReward
 
-def create_env_factory(model_factory: ModelFactory, **env_config):
+def create_env_factory(model_config: dict, **env_config):
+    model_factory = build_model_factory(model_config)
     reward_fn = MathVerifyReward()
 
     async def env_factory(_action):
@@ -205,7 +219,8 @@ Benchmarks are auto-discovered from the `benchmarks/` subdirectory. If a benchma
 ```python
 async def run_evaluation():
     evaluator = MyEvaluator(
-        env_factory=env_factory,
+        env_factory=env_factory,            # local: AsyncEnvFactory
+        # env_actor_pool=env_actor_pool,    # distributed: EnvironmentActorPool (mutually exclusive with env_factory)
         n_samples_per_prompt=8,
         max_concurrency=30,
         output_path="results.jsonl",
@@ -216,6 +231,18 @@ async def run_evaluation():
     results = await evaluator.run(actions)
     metrics = evaluator.compute_metrics(results)
     # {"pass@1": 0.75, "pass@8": 0.95, ...}
+```
+
+For distributed eval, build an `EnvironmentActorPool` with the dotted hook path and a serializable config dict, then pass it as `env_actor_pool` instead of `env_factory`:
+
+```python
+from strands_env.utils.ray import EnvironmentActorPool
+
+env_actor_pool = EnvironmentActorPool(
+    env_hook_path="examples.eval.simple_math.calculator_env.create_env_factory",
+    env_hook_config={"model_config": model_config.to_dict(), "max_tool_iters": 5},
+    n_actors_per_node=8,
+)
 ```
 
 ### Custom Metrics
