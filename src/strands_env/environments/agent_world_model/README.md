@@ -13,7 +13,7 @@ This installs [AgentWorldModel](https://pypi.org/project/agent-world-model/) (`a
 ## Usage
 
 ```python
-from strands_env.environments.agentworldmodel import AgentWorldModelEnvironment
+from strands_env.environments.agent_world_model import AgentWorldModelEnvironment
 
 env = AgentWorldModelEnvironment(
     model_factory=model_factory,
