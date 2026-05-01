@@ -59,6 +59,7 @@ terminal-bench = [
     "awscli; python_version>='3.12'"
 ]
 ifeval = ["lm_eval[ifeval]>=0.4.11"]
+agent-world-model = ["agent-world-model==0.1.0"]
 
 [tool.hatch.version]
 source = "vcs"
