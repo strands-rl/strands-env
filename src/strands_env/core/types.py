@@ -190,12 +190,16 @@ class TerminationReason(str, Enum):
     def from_error(cls, error: Exception | None) -> TerminationReason:
         """Map an agent exception to a `TerminationReason`.
 
-        Unwraps `EventLoopException` to inspect the underlying cause.
+        Walks the `__cause__` chain past nested `EventLoopException`s — Strands
+        re-raises a fresh `EventLoopException` at every recursive `event_loop_cycle`,
+        so deep tool-call paths produce multi-level wrappings.
         """
         if error is None:
             return cls.TASK_COMPLETE
 
-        cause = error.__cause__ if isinstance(error, EventLoopException) else error
+        cause: BaseException | None = error
+        while isinstance(cause, EventLoopException) and cause.__cause__ is not None:
+            cause = cause.__cause__
 
         match cause:
             case MaxTokensReachedException():
