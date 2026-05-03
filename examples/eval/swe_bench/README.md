@@ -1,13 +1,12 @@
-# Terminal-Bench
+# SWE-bench
 
-[Terminal-Bench](https://github.com/laude-institute/terminal-bench) benchmark using `TerminalBenchEnv` with Docker-based task execution. Each task runs in an isolated Docker container with the agent interacting via `execute_command` tool calls.
+[SWE-bench Verified](https://www.swebench.com/) benchmark using `SWEBenchEnv`, a thin subclass of `TerminalBenchEnv` with a SWE-bench-tuned system prompt. Each task runs in an isolated container with the agent fixing the repository at `/testbed` via `execute_command` tool calls.
 
 ## Variants
 
 | Name | Description |
 |---|---|
-| `terminal-bench-1` | [Terminal-Bench 1.0](https://github.com/laude-institute/terminal-bench) |
-| `terminal-bench-2` | [Terminal-Bench 2.0](https://github.com/laude-institute/terminal-bench-2) |
+| `swebench-verified` | SWE-bench Verified (Harbor format, sparse-checked out from [harbor-datasets](https://github.com/laude-institute/harbor-datasets)) |
 
 ## Setup
 
@@ -19,15 +18,15 @@
 
 ## Files
 
-- `terminal_bench_env.py` - Environment hook that creates `TerminalBenchEnv` instances
+- `swe_bench_env.py` - Environment hook that creates `SWEBenchEnv` instances
 
 ## Usage
 
 ### Docker (default)
 
 ```bash
-strands-env eval run terminal-bench-2 \
-    --env examples.eval.terminal_bench.terminal_bench_env \
+strands-env eval run swebench-verified \
+    --env examples.eval.swe_bench.swe_bench_env \
     --base-url http://localhost:30000 \
     --backend sglang \
     --max-tokens 16384 \
@@ -40,10 +39,10 @@ strands-env eval run terminal-bench-2 \
 Run tasks on AWS EKS/Fargate via [harbor-aws](https://github.com/JackXu0/harbor-aws) by passing `backend` and `eks_backend_config` through `--env-config`:
 
 ```bash
-export HARBOR_CONTROL_URL=...                   
+export HARBOR_CONTROL_URL=...
 export HARBOR_ADMIN_TOKEN=...
-strands-env eval run terminal-bench-2 \
-    --env examples.eval.terminal_bench.terminal_bench_env \
+strands-env eval run swebench-verified \
+    --env examples.eval.swe_bench.swe_bench_env \
     --env-config '{"backend": "eks", "eks_backend_config": {"stack_name": "harbor-aws", "region": "us-east-1", "role_arn": "arn:aws:iam::123456789012:role/harbor-role", "ecr_cache": true}}' \
     --base-url http://localhost:30000 \
     --backend sglang \
