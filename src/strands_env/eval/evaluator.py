@@ -182,8 +182,9 @@ class Evaluator:
             reward_str = f"{step_result.reward.reward:.2f}" if step_result.reward else "N/A"
             reward_info = step_result.reward.info if step_result.reward else {}
             logger.info(
-                "[%s]: reward=%s | label=%s | reward_info=%s | metrics=%s",
+                "[%s]: terminated=%s | reward=%s | label=%s | reward_info=%s | metrics=%s",
                 action.task_context.id,
+                step_result.termination_reason.value,
                 reward_str,
                 action.task_context.ground_truth,
                 reward_info,
