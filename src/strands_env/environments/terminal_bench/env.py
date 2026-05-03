@@ -12,12 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Terminal-Bench environment using Harbor for container management and test execution.
-
-Supports two backends:
-- ``"docker"`` (default): Local Docker via Harbor's DockerEnvironment.
-- ``"eks"``: AWS EKS/Fargate via harbor-aws (``pip install harbor-aws``).
-"""
+"""Terminal-Bench environment using Harbor for container management and test execution."""
 
 from __future__ import annotations
 
@@ -117,6 +112,9 @@ class TerminalBenchEnv(Environment):
                     task_env_config=self.harbor_env_config,
                 )
             case "eks":
+                from ._harbor_aws import ensure_harbor_aws_session
+
+                await ensure_harbor_aws_session()
                 self.docker_env = AWSEnvironment(
                     environment_dir=self.task_paths.environment_dir,
                     environment_name=session_id,
