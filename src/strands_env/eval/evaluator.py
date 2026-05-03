@@ -19,6 +19,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import sys
 from collections import defaultdict
 from collections.abc import Iterable
 from functools import partial
@@ -96,6 +97,10 @@ class Evaluator:
         # Runtime state
         self.results: dict[str, list[EvalSample]] = defaultdict(list)
         self.completed_ids: set[str] = set()
+
+        # Strands' `recurse_event_loop` adds ~3 frames per tool iteration; the default
+        # 1000-frame limit busts at ~iter 321 deep inside the OTel tracer's `json.dumps`.
+        sys.setrecursionlimit(max(sys.getrecursionlimit(), 10_000))
 
     def load_dataset(self) -> Iterable[Action]:
         """Load dataset. Override in subclasses."""
