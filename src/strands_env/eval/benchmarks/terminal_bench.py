@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+from collections.abc import Iterable
 from pathlib import Path
 
 from harbor.models.task.task import Task
@@ -80,6 +81,14 @@ class TerminalBenchEvaluator(Evaluator):
         )
 
     @override
+    def validate_sample(self, sample: EvalSample) -> bool:
+        """Abort samples where reward is missing or verification failed, so they are retried on resume."""
+        reward = sample.step_result.reward
+        if reward is None:
+            return False
+        return reward.info.get("status") != "error"
+
+    @override
     async def evaluate_sample(self, action: Action) -> EvalSample:
         """Override to create sample-specific output directories for pass@k."""
         assert isinstance(action.task_context, TerminalBenchTaskContext)
@@ -98,12 +107,17 @@ class TerminalBenchEvaluator(Evaluator):
         return sample
 
     @override
-    def validate_sample(self, sample: EvalSample) -> bool:
-        """Abort samples where reward is missing or verification failed, so they are retried on resume."""
-        reward = sample.step_result.reward
-        if reward is None:
-            return False
-        return reward.info.get("status") != "error"
+    async def run(self, actions: Iterable[Action]) -> dict[str, list[EvalSample]]:
+        """Run evaluation on actions with `n_samples_per_prompt` each.
+
+        Closes the shared `harbor-aws` aiohttp session at exit if using the EKS backend.
+        """
+        try:
+            return await super().run(actions)
+        finally:
+            from strands_env.environments.terminal_bench._harbor_aws import cleanup_harbor_aws_session
+
+            await cleanup_harbor_aws_session()
 
 
 @register_eval("terminal-bench-2")

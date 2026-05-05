@@ -79,3 +79,20 @@ async def ensure_harbor_aws_session() -> None:
                 sock_connect=30,
             ),
         )
+
+
+async def cleanup_harbor_aws_session() -> None:
+    """Close the shared aiohttp session installed by `ensure_harbor_aws_session`.
+
+    Call from a process-shutdown hook (e.g. an `Evaluator.run` `finally` clause) to
+    release the connector cleanly and avoid aiohttp's `Unclosed client session`
+    warning at GC. Idempotent; safe to call when no session was ever installed.
+    """
+    sess = AWSEnvironment._shared_aiohttp_session
+    if sess is None:
+        return
+    # harbor-aws annotates this attr as `object | None` since aiohttp is a soft dep there.
+    assert isinstance(sess, aiohttp.ClientSession)
+    AWSEnvironment._shared_aiohttp_session = None  # detach first so a re-entrant call is a no-op
+    if not sess.closed:
+        await sess.close()
