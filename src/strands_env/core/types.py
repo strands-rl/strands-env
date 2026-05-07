@@ -189,14 +189,7 @@ class TerminationReason(str, Enum):
 
     @classmethod
     def _is_connection_error(cls, error: BaseException | None) -> bool:
-        """Check if any exception in the cause chain is a connection-level failure.
-
-        Backend-agnostic name-match (mirrors `_is_timeout`'s pattern). Catches
-        builtin `ConnectionError` family plus aiohttp's `ClientConnectionError`,
-        `ServerDisconnectedError`, `ClientOSError`, and the typed
-        `SGLangConnectionError` wrapper — anything whose type name contains
-        `connection` or `disconnected` (case-insensitive).
-        """
+        """Check if any exception in the cause chain is a connection-level failure."""
         exc = error
         while exc is not None:
             name = type(exc).__name__.lower()

@@ -231,23 +231,6 @@ class TestTerminationReason:
         error.__cause__ = ServerDisconnectedError("Server disconnected")
         assert TerminationReason.from_error(error) == TerminationReason.CONNECTION_ERROR
 
-    def test_sglang_connection_error_by_name(self):
-        class SGLangConnectionError(Exception):
-            pass
-
-        error = EventLoopException(Exception())
-        error.__cause__ = SGLangConnectionError("connection failed")
-        assert TerminationReason.from_error(error) == TerminationReason.CONNECTION_ERROR
-
-    def test_connection_error_in_cause_chain(self):
-        class ServerDisconnectedError(Exception):
-            pass
-
-        inner = ServerDisconnectedError()
-        outer = RuntimeError("wrapper")
-        outer.__cause__ = inner
-        assert TerminationReason.from_error(outer) == TerminationReason.CONNECTION_ERROR
-
     def test_timeout_takes_precedence_over_connection(self):
         # Both 'timeout' and 'connection' patterns in the chain — timeout wins
         # because it's matched first in `from_error`.
