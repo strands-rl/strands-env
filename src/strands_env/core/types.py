@@ -172,8 +172,8 @@ class TerminationReason(str, Enum):
     CONTEXT_WINDOW_OVERFLOW = "context_window_overflow"
     MAX_TOOL_ITERATIONS_REACHED = "max_tool_iterations_reached"
     MAX_TOOL_CALLS_REACHED = "max_tool_calls_reached"
-    TIMEOUT = "timeout"
     RECURSION_DEPTH_EXCEEDED = "recursion_depth_exceeded"
+    TIMEOUT = "timeout"
     CONNECTION_ERROR = "connection_error"
     UNCLASSIFIED_ERROR = "unclassified_error"
 
