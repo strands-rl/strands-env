@@ -86,27 +86,25 @@ class CodeInterpreterToolkit:
         self,
         client: BotoClient,
         session_name: str = "strands-env",
-        quotas: CodeInterpreterQuotas | None = None,
         session_timeout_seconds: int = DEFAULT_SESSION_TIMEOUT_SECONDS,
+        quotas: CodeInterpreterQuotas | None = None,
     ):
         """Initialize a `CodeInterpreterToolkit` instance.
 
         Args:
             client: boto3 client for bedrock-agentcore service.
             session_name: Name for the code interpreter session.
+            session_timeout_seconds: Max session lifetime in seconds.
             quotas: Shared quotas for rate limiting, session concurrency, and thread pool.
                 Create one `CodeInterpreterQuotas` instance and pass it to all toolkit
                 instances to enforce account-wide limits.
-            session_timeout_seconds: Max session lifetime in seconds.
-                AgentCore tears the session down at the cap. Default matches the
-                AWS upper bound (3600). Lower values are useful for RL rollouts.
         """
-        self.session_name = session_name
         self.client = client
         self.session_id: str | None = None
+        self.session_name = session_name
+        self.session_timeout_seconds = session_timeout_seconds
         self.quotas = quotas or CodeInterpreterQuotas()
         self._session_lock = asyncio.Lock()
-        self.session_timeout_seconds = session_timeout_seconds
 
     async def start_session(self) -> None:
         """Start a code interpreter session if not already started (async, thread-safe)."""
