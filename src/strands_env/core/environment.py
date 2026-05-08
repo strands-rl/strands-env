@@ -139,12 +139,7 @@ class Environment:
         if self.reward_fn:
             reward_t0 = time.perf_counter()
             step_result.reward = await self.reward_fn.compute(action=action, step_result=step_result)
-            # Write to observation.metrics (the live dict on the model), not
-            # the local `metrics` — Pydantic v2 deep-copies dicts at model
-            # construction, so the local var is decoupled from the model after
-            # `Observation(...)` returns and downstream consumers only see
-            # observation.metrics.
-            observation.metrics["reward_compute_s"] = round(time.perf_counter() - reward_t0, 4)
+            observation.metrics["reward_latency_s"] = round(time.perf_counter() - reward_t0, 4)
         return step_result
 
     async def cleanup(self) -> None:

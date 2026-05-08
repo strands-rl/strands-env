@@ -107,13 +107,11 @@ class TestStep:
 
         reward_fn.compute.assert_awaited_once()
         assert result.reward.reward == 1.0
-        # Regression: `reward_compute_s` must be observable via the StepResult's
-        # observation. Pydantic v2 deep-copies dicts at model construction, so
-        # writing to the local `metrics` var after `Observation(...)` returns
-        # is invisible to consumers — the timing must go through
-        # `observation.metrics` directly.
-        assert "reward_compute_s" in result.observation.metrics
-        assert result.observation.metrics["reward_compute_s"] >= 0.0
+        # Regression: timing must be written via `observation.metrics`, not the
+        # local `metrics` dict — Pydantic v2 rebuilds the dict at validation, so
+        # the local var is decoupled from the model after `Observation(...)`.
+        assert "reward_latency_s" in result.observation.metrics
+        assert result.observation.metrics["reward_latency_s"] >= 0.0
 
     @patch("strands_env.core.environment.Agent")
     async def test_step_with_dict_message(self, mock_agent_cls, env):
