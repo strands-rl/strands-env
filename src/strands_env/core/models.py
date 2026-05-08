@@ -300,7 +300,7 @@ class ModelConfig:
 
     # Bedrock / model identifier
     model_id: str | None = None
-    region: str = "us-west-2"
+    region_name: str | None = None
     profile_name: str | None = None
     role_arn: str | None = None
 
@@ -341,7 +341,7 @@ def build_model_factory(config: ModelConfig | dict[str, Any]) -> ModelFactory:
         case "bedrock":
             config.model_id = config.model_id or "us.anthropic.claude-sonnet-4-20250514-v1:0"
             boto_session = get_session(
-                region=config.region,
+                region_name=config.region_name,
                 profile_name=config.profile_name,
                 role_arn=config.role_arn,
             )

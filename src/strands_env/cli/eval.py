@@ -212,7 +212,7 @@ def run_cmd(
         tokenizer_path=tokenizer_path,
         tool_parser=tool_parser,
         max_connections=max_concurrency,
-        region=region or "us-west-2",
+        region_name=region or "us-west-2",
         profile_name=profile_name,
         role_arn=role_arn,
         sampling_params=sampling_params,
