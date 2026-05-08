@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from typing import TypeAlias
 
 import boto3
@@ -31,6 +32,26 @@ BotoClient: TypeAlias = BaseClient
 BotoClientConfig: TypeAlias = Config
 
 
+def resolve_region_name(region_name: str | None = None, profile_name: str | None = None) -> str:
+    """Resolve the AWS region name depending on the provided arguments.
+
+    Args:
+        region_name: AWS region name. If `None`, resolved in order of precedence:
+            - `AWS_REGION` env var
+            - `AWS_DEFAULT_REGION` env var
+            - profile region from `~/.aws/config`
+            - `us-east-1` fallback
+        profile_name: Optional AWS profile name from `~/.aws/config`.
+    """
+    return (
+        region_name
+        or os.environ.get("AWS_REGION")
+        or os.environ.get("AWS_DEFAULT_REGION")
+        or boto3.Session(profile_name=profile_name).region_name
+        or "us-east-1"
+    )
+
+
 def get_session(
     region_name: str | None = None,
     profile_name: str | None = None,
@@ -40,7 +61,7 @@ def get_session(
     """Create a new boto3 session.
 
     Args:
-        region_name: AWS region name. If `None`, resolved by `boto3`.
+        region_name: AWS region name. If `None`, resolved via `resolve_region_name`.
         profile_name: Optional AWS profile name from `~/.aws/config`.
         role_arn: Optional ARN of the IAM role to assume.
         role_session_name: Session name for assumed role (only used if role_arn provided).
@@ -52,6 +73,7 @@ def get_session(
         - If `role_arn` is provided, assumes the role using STS with auto-refreshing
           credentials via botocore's `RefreshableCredentials`.
     """
+    region_name = resolve_region_name(region_name=region_name, profile_name=profile_name)
     if role_arn:
         return create_assumed_role_session(
             role_arn=role_arn, role_session_name=role_session_name, region_name=region_name
@@ -61,7 +83,7 @@ def get_session(
     return session
 
 
-def create_assumed_role_session(role_arn: str, role_session_name: str, region_name: str | None) -> boto3.Session:
+def create_assumed_role_session(role_arn: str, role_session_name: str, region_name: str) -> boto3.Session:
     """Create a boto3 session with assumed role credentials."""
     from botocore.credentials import RefreshableCredentials
     from botocore.session import get_session as get_botocore_session
@@ -103,7 +125,7 @@ def get_client(
 
     Args:
         service_name: AWS service name (e.g. `"bedrock-agentcore"`, `"lambda"`, `"dynamodb"`).
-        region_name: AWS region name. If `None`, resolved by `boto3`.
+        region_name: AWS region name. If `None`, resolved via `resolve_region_name`.
         profile_name: Optional AWS profile name from `~/.aws/config`.
         role_arn: Optional ARN of the IAM role to assume.
         role_session_name: Session name for assumed role (only used if role_arn provided).
@@ -118,6 +140,7 @@ def get_client(
         - If `role_arn` is provided, the underlying Session uses `RefreshableCredentials`
           so the client auto-refreshes when credentials expire.
     """
+    region_name = resolve_region_name(region_name=region_name, profile_name=profile_name)
     if role_arn:
         session = create_assumed_role_session(
             role_arn=role_arn, role_session_name=role_session_name, region_name=region_name
