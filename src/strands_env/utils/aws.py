@@ -56,17 +56,15 @@ def get_session(
         return create_assumed_role_session(
             role_arn=role_arn, role_session_name=role_session_name, region_name=region_name
         )
-    else:
-        logger.info("Creating boto3 session: region=%s, profile=%s", region_name, profile_name)
-        return boto3.Session(region_name=region_name, profile_name=profile_name)
+    session = boto3.Session(region_name=region_name, profile_name=profile_name)
+    logger.info("Created boto3 session: region_name=%s, profile_name=%s", session.region_name, session.profile_name)
+    return session
 
 
 def create_assumed_role_session(role_arn: str, role_session_name: str, region_name: str | None) -> boto3.Session:
     """Create a boto3 session with assumed role credentials."""
     from botocore.credentials import RefreshableCredentials
     from botocore.session import get_session as get_botocore_session
-
-    logger.info("Creating boto3 session with assumed role: role=%s, region=%s", role_arn, region_name)
 
     def refresh() -> dict:
         logger.info("Refreshing STS credentials for assumed role: %s", role_arn)
@@ -87,7 +85,9 @@ def create_assumed_role_session(role_arn: str, role_session_name: str, region_na
 
     botocore_session = get_botocore_session()
     botocore_session._credentials = session_credentials
-    return boto3.Session(botocore_session=botocore_session, region_name=region_name)
+    session = boto3.Session(botocore_session=botocore_session, region_name=region_name)
+    logger.info("Created boto3 session with assumed role: role_arn=%s, region_name=%s", role_arn, session.region_name)
+    return session
 
 
 @cache_by("service_name", "region_name", "profile_name", "role_arn", "role_session_name")
@@ -124,8 +124,9 @@ def get_client(
         )
     else:
         session = boto3.Session(region_name=region_name, profile_name=profile_name)
-    logger.info("Creating cached boto3 client: service=%s, region=%s", service_name, region_name)
-    return session.client(service_name, region_name=region_name, config=config)
+    client = session.client(service_name, region_name=region_name, config=config)
+    logger.info("Created cached boto3 client: service_name=%s, region_name=%s", service_name, client.meta.region_name)
+    return client
 
 
 def check_credentials(session: boto3.Session) -> bool:

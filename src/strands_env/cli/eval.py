@@ -117,7 +117,7 @@ def list_cmd() -> None:
 @click.option("--base-url", type=str, default="http://localhost:30000", help="Base URL for SGLang server.")
 @click.option("--model-id", type=str, default=None, help="Model ID. Auto-detected for SGLang if not provided.")
 @click.option("--tokenizer-path", type=str, default=None, help="Tokenizer path for SGLang.")
-@click.option("--region", type=str, default=None, help="AWS region for Bedrock.")
+@click.option("--region-name", type=str, default=None, help="AWS region name for Bedrock.")
 @click.option("--profile-name", type=str, default=None, help="AWS profile name for Bedrock.")
 @click.option("--role-arn", type=str, default=None, help="AWS role ARN for Bedrock.")
 @click.option("--tool-parser", type=str, default=None, help="Tool parser name (e.g., 'hermes', 'qwen_xml').")
@@ -147,7 +147,7 @@ def run_cmd(
     base_url: str,
     model_id: str | None,
     tokenizer_path: str | None,
-    region: str | None,
+    region_name: str | None,
     profile_name: str | None,
     role_arn: str | None,
     tool_parser: str | None,
@@ -212,7 +212,7 @@ def run_cmd(
         tokenizer_path=tokenizer_path,
         tool_parser=tool_parser,
         max_connections=max_concurrency,
-        region_name=region or "us-west-2",
+        region_name=region_name,
         profile_name=profile_name,
         role_arn=role_arn,
         sampling_params=sampling_params,
