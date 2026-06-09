@@ -12,36 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""CLI entry point for Strands Agents Environments."""
+"""Module entry point for the evaluation CLI: `python -m strands_env.eval`."""
 
 from __future__ import annotations
 
 import os
 import sys
 
-import click
+from .cli import eval_group
 
-# Add cwd to sys.path so local modules (e.g., examples/) are importable as dotted paths.
+# Ensure the current working directory is importable so user-provided hooks resolve.
 if os.getcwd() not in sys.path:
     sys.path.insert(0, os.getcwd())
 
-from .eval import eval_group
-
-
-@click.group()
-def cli() -> None:
-    """Strands Agents Environments: CLI main entrypoint."""
-    pass
-
-
-# Register command groups
-cli.add_command(eval_group)
-
-
-def main() -> None:
-    """Run the Strands Agents Environments CLI."""
-    cli()
-
-
 if __name__ == "__main__":
-    main()
+    eval_group()

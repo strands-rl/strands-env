@@ -33,9 +33,6 @@ dependencies = [
     "aiolimiter>=1.1.0",
 ]
 
-[project.scripts]
-strands-env = "strands_env.cli:main"
-
 [project.optional-dependencies]
 dev = [
     # Testing

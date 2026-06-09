@@ -25,8 +25,9 @@ from typing import Literal
 import click
 
 from strands_env.core.models import ModelConfig
-from strands_env.eval import get_benchmark, list_benchmarks, list_unavailable_benchmarks
 from strands_env.utils.loader import load_env_factory_hook, load_evaluator_hook
+
+from . import get_benchmark, list_benchmarks, list_unavailable_benchmarks
 
 logger = logging.getLogger(__name__)
 
@@ -174,8 +175,8 @@ def run_cmd(
     Alternatively, use --evaluator to specify a custom evaluator module.
 
     Examples:
-        strands-env eval run aime-2024 -e examples.eval.simple_math.calculator_env
-        strands-env eval run --evaluator my_package.evaluator -e my_package.env_hook
+        python -m strands_env.eval run aime-2024 -e examples.eval.simple_math.calculator_env
+        python -m strands_env.eval run --evaluator my_package.evaluator -e my_package.env_hook
     """
     logging.basicConfig(
         level=logging.DEBUG if debug else logging.INFO,

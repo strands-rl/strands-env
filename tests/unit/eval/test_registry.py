@@ -16,8 +16,8 @@
 
 import pytest
 
-from strands_env.cli import cli
 from strands_env.eval import Evaluator, get_benchmark, list_benchmarks
+from strands_env.eval.cli import eval_group
 from strands_env.eval.registry import _BENCHMARKS
 from strands_env.eval.registry import register_eval as register_benchmark
 
@@ -74,7 +74,7 @@ class TestBenchmarkRegistry:
 class TestListCommand:
     def test_list_benchmarks(self, runner):
         """List command shows registered benchmarks."""
-        result = runner.invoke(cli, ["eval", "list"])
+        result = runner.invoke(eval_group, ["list"])
         assert result.exit_code == 0
         assert "Benchmarks:" in result.output
         assert "aime-2024" in result.output
@@ -84,19 +84,19 @@ class TestListCommand:
 class TestEvalCommand:
     def test_eval_requires_env(self, runner):
         """Eval run command requires --env option."""
-        result = runner.invoke(cli, ["eval", "run", "aime-2024"])
+        result = runner.invoke(eval_group, ["run", "aime-2024"])
         assert result.exit_code != 0
         assert "Missing option" in result.output or "--env" in result.output
 
     def test_eval_unknown_benchmark(self, runner):
         """Eval run command fails for unknown benchmark."""
-        result = runner.invoke(cli, ["eval", "run", "nonexistent", "--env", "some.module"])
+        result = runner.invoke(eval_group, ["run", "nonexistent", "--env", "some.module"])
         assert result.exit_code != 0
         assert isinstance(result.exception, KeyError)
         assert "Unknown benchmark" in str(result.exception)
 
     def test_eval_invalid_hook_module(self, runner):
         """Eval run command fails if hook module doesn't exist."""
-        result = runner.invoke(cli, ["eval", "run", "aime-2024", "--env", "nonexistent.module"])
+        result = runner.invoke(eval_group, ["run", "aime-2024", "--env", "nonexistent.module"])
         assert result.exit_code != 0
         assert isinstance(result.exception, ValueError)
