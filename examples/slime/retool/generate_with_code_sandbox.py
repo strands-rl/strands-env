@@ -107,8 +107,9 @@ async def generate_and_rm(args, sample: Sample, sampling_params) -> Sample:
     else:
         sample.status = Sample.Status.TRUNCATED
 
-    # Set step result for custom rollout logging in `log_rollout_metrics`
+    # Attach step result (for custom rollout logging) and env metrics (for the reward below)
     sample.step_result = step_result
+    sample.metrics = step_result.observation.metrics
 
     await env.cleanup()
 
