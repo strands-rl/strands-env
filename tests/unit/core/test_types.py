@@ -19,7 +19,7 @@ from strands.types.exceptions import (
     EventLoopException,
     MaxTokensReachedException,
 )
-from strands_sglang import MaxToolCallsReachedError, MaxToolIterationsReachedError, TokenManager
+from strands_sglang import MaxToolCallsReachedError, MaxToolIterationsReachedError
 
 from strands_env.core.types import (
     Action,
@@ -28,7 +28,6 @@ from strands_env.core.types import (
     StepResult,
     TaskContext,
     TerminationReason,
-    TokenObservation,
 )
 
 # ---------------------------------------------------------------------------
@@ -64,50 +63,6 @@ class TestAction:
         ctx = TaskContext(ground_truth="4")
         action = Action(message="What is 2+2?", task_context=ctx)
         assert action.task_context.ground_truth == "4"
-
-
-# ---------------------------------------------------------------------------
-# TokenObservation
-# ---------------------------------------------------------------------------
-
-
-class TestTokenObservation:
-    def test_rollout_slicing(self):
-        obs = TokenObservation(
-            token_ids=[10, 20, 30, 40, 50],
-            prompt_length=2,
-            loss_mask=[0, 0, 1, 1, 1],
-            logprobs=[None, None, -0.5, -0.3, -0.1],
-        )
-        assert obs.initial_prompt_token_ids == [10, 20]
-        assert obs.rollout_token_ids == [30, 40, 50]
-        assert obs.rollout_loss_mask == [1, 1, 1]
-        assert obs.rollout_logprobs == [-0.5, -0.3, -0.1]
-
-    def test_from_token_manager_empty(self):
-        tm = TokenManager()
-        assert TokenObservation.from_token_manager(tm) is None
-
-    def test_from_token_manager(self):
-        tm = TokenManager()
-        tm.add_prompt([1, 2, 3])
-        tm.add_response([4, 5], logprobs=[-0.1, -0.2])
-        obs = TokenObservation.from_token_manager(tm)
-        assert obs is not None
-        assert obs.token_ids == [1, 2, 3, 4, 5]
-        assert obs.prompt_length == 3
-        assert obs.rollout_token_ids == [4, 5]
-
-    def test_from_token_manager_uses_initial_prompt(self):
-        """Verify prompt_length is derived from the first segment."""
-        tm = TokenManager()
-        tm.add_prompt([10, 20])
-        tm.add_response([30])
-        tm.add_prompt([40])
-        tm.add_response([50])
-        obs = TokenObservation.from_token_manager(tm)
-        assert obs.prompt_length == 2
-        assert obs.initial_prompt_token_ids == [10, 20]
 
 
 # ---------------------------------------------------------------------------

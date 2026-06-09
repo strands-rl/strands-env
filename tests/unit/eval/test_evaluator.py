@@ -18,8 +18,9 @@ import logging
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from strands_sglang import Rollout
 
-from strands_env.core import Action, Observation, RewardResult, StepResult, TaskContext, TokenObservation
+from strands_env.core import Action, Observation, RewardResult, StepResult, TaskContext
 from strands_env.eval import EvalSample, Evaluator
 from strands_env.eval.metrics import compute_pass_at_k
 
@@ -130,17 +131,17 @@ class TestEvaluator:
         assert results == {}
         mock_env.step.assert_not_awaited()
 
-    async def test_tokens_stripped_by_default(self, tmp_path):
-        """Token observation is stripped from results when keep_tokens=False (default)."""
-        token_obs = TokenObservation(
-            token_ids=[1, 2, 3], prompt_length=1, loss_mask=[0, 1, 1], logprobs=[None, -0.5, -0.3]
-        )
+    async def test_rollout_stripped_by_default(self, tmp_path):
+        """Token rollout is stripped from results when keep_rollout=False (default)."""
+        rollout = Rollout()
+        rollout.add_prompt([1])
+        rollout.add_response([2, 3], logprobs=[-0.5, -0.3])
 
         async def factory(action):
             env = MagicMock()
             env.reset = AsyncMock()
             env.step = AsyncMock(
-                return_value=StepResult(observation=Observation(tokens=token_obs)),
+                return_value=StepResult(observation=Observation(rollout=rollout)),
             )
             env.cleanup = AsyncMock()
             return env
@@ -148,7 +149,7 @@ class TestEvaluator:
         evaluator = Evaluator(env_factory=factory, output_path=tmp_path / "results.jsonl")
         results = await evaluator.run([Action(message="q", task_context=TaskContext(id="p1"))])
 
-        assert results["p1"][0].step_result.observation.tokens is None
+        assert results["p1"][0].step_result.observation.rollout is None
 
     async def test_cleanup_called_on_step_error(self, tmp_path):
         """env.cleanup() is called even when env.step() raises."""
@@ -469,18 +470,18 @@ class TestDistributedEvaluation:
 
         assert sample.aborted
 
-    async def test_pool_tokens_stripped(self, tmp_path):
-        """Token observation is stripped from pool results when keep_tokens=False."""
-        token_obs = TokenObservation(
-            token_ids=[1, 2, 3], prompt_length=1, loss_mask=[0, 1, 1], logprobs=[None, -0.5, -0.3]
-        )
+    async def test_pool_rollout_stripped(self, tmp_path):
+        """Token rollout is stripped from pool results when keep_rollout=False."""
+        rollout = Rollout()
+        rollout.add_prompt([1])
+        rollout.add_response([2, 3], logprobs=[-0.5, -0.3])
         mock_pool = MagicMock()
-        mock_pool.step = AsyncMock(return_value=StepResult(observation=Observation(tokens=token_obs)))
+        mock_pool.step = AsyncMock(return_value=StepResult(observation=Observation(rollout=rollout)))
 
         evaluator = Evaluator(env_actor_pool=mock_pool, output_path=tmp_path / "results.jsonl")
         results = await evaluator.run([Action(message="q", task_context=TaskContext(id="p1"))])
 
-        assert results["p1"][0].step_result.observation.tokens is None
+        assert results["p1"][0].step_result.observation.rollout is None
 
     async def test_init_requires_factory_or_pool(self, tmp_path):
         """ValueError raised when neither env_factory nor env_actor_pool is provided."""

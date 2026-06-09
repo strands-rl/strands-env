@@ -17,7 +17,7 @@
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from strands_sglang import TokenManager
+from strands_sglang import Rollout
 
 from strands_env.core.environment import Environment
 
@@ -51,8 +51,7 @@ def mock_agent(messages: list | None = None, event_loop_metrics: MagicMock | Non
     agent_instance = MagicMock()
     agent_instance.invoke_async = AsyncMock()
     agent_instance.messages = messages if messages is not None else []
-    agent_instance.model.token_manager = TokenManager()
-    agent_instance.model.routed_experts = None
+    agent_instance.model.rollout = Rollout()
     agent_instance.event_loop_metrics = event_loop_metrics or mock_event_loop_metrics()
     return agent_instance
 
@@ -65,7 +64,7 @@ def mock_agent(messages: list | None = None, event_loop_metrics: MagicMock | Non
 @pytest.fixture
 def mock_model():
     model = MagicMock()
-    model.token_manager = TokenManager()
+    model.rollout = Rollout()
     return model
 
 

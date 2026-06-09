@@ -24,7 +24,7 @@ from strands_env.core.types import Action, TaskContext, TerminationReason
 from strands_env.environments.calculator import CalculatorEnv
 from strands_env.rewards.math_verify_reward import MathVerifyReward
 
-from .conftest import assert_successful_step, assert_token_observation, assert_token_usage
+from .conftest import assert_rollout, assert_successful_step, assert_token_usage
 
 MATH_SYSTEM_PROMPT = "You are a math assistant. Use the calculator tool to solve problems. Be concise."
 
@@ -43,7 +43,7 @@ class TestCalculatorEnv:
         result = await env.step(Action(message="What is 17 * 23?"))
 
         assert_successful_step(result)
-        assert_token_observation(result)
+        assert_rollout(result)
         assert_token_usage(result)
 
         # Per-tool breakdown for calculator

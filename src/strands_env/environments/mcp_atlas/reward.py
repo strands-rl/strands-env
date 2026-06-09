@@ -33,7 +33,7 @@ import logging
 from pydantic import BaseModel, Field
 from typing_extensions import override
 
-from strands_env.core.types import Action, Observation, RewardResult, StepResult
+from strands_env.core.types import Action, RewardResult, StepResult
 from strands_env.rewards.llm_judge_reward import LLMJudgeReward
 
 logger = logging.getLogger(__name__)
@@ -123,7 +123,7 @@ class MCPAtlasRewardFunction(LLMJudgeReward[ClaimJudgment]):
         if not claims:
             return RewardResult(reward=self.default_reward, info={"reason": "no_claims"})
 
-        self._response = Observation.get_final_response(step_result.observation.messages) or ""
+        self._response = step_result.observation.final_response or ""
 
         claim_results = []
         for claim in claims:

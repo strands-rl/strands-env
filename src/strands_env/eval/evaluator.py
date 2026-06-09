@@ -67,7 +67,7 @@ class Evaluator:
         n_samples_per_prompt: int = 1,
         output_path: Path | str | None = None,
         save_interval: int = 10,
-        keep_tokens: bool = False,
+        keep_rollout: bool = False,
         env_actor_pool: EnvironmentActorPool | None = None,
     ):
         """Initialize an `Evaluator` instance.
@@ -79,7 +79,7 @@ class Evaluator:
             n_samples_per_prompt: Number of samples per prompt (for pass@k, set to max(k_values)).
             output_path: Path to JSONL file for saving results. Enables resume.
             save_interval: Flush results to disk every N completed samples.
-            keep_tokens: Keep token-level observation in results (only valid for `SGLangModel` backends).
+            keep_rollout: Keep the token-level rollout in results (only valid for `SGLangModel` backends).
             env_actor_pool: Optional Ray actor pool for distributed evaluation.
         """
         if env_factory is None and env_actor_pool is None:
@@ -92,7 +92,7 @@ class Evaluator:
         self.n_samples_per_prompt = n_samples_per_prompt
         self.output_path = Path(output_path)
         self.save_interval = save_interval
-        self.keep_tokens = keep_tokens
+        self.keep_rollout = keep_rollout
 
         # Runtime state
         self.results: dict[str, list[EvalSample]] = defaultdict(list)
@@ -175,9 +175,9 @@ class Evaluator:
                     step_result = await env.step(action)
                 finally:
                     await env.cleanup()
-            # Clean up token-level observation if not needed to reduce verbosity
-            if not self.keep_tokens:
-                step_result.observation.tokens = None
+            # Clean up the token-level rollout if not needed to reduce verbosity
+            if not self.keep_rollout:
+                step_result.observation.rollout = None
             # Runtime logging for debugging
             reward_str = f"{step_result.reward.reward:.2f}" if step_result.reward else "N/A"
             reward_info = step_result.reward.info if step_result.reward else {}

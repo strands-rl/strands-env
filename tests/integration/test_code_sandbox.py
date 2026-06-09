@@ -25,7 +25,7 @@ from strands_env.core.types import Action, RewardResult, StepResult, TaskContext
 from strands_env.environments.code_sandbox import CodeSandboxEnv
 from strands_env.utils.aws import check_credentials, get_client, get_session
 
-from .conftest import assert_successful_step, assert_token_observation, assert_token_usage
+from .conftest import assert_rollout, assert_successful_step, assert_token_usage
 
 FORCE_TOOL_PROMPT = (
     "You are a coding assistant. Always use the execute_code tool. "
@@ -67,7 +67,7 @@ class TestCodeSandboxEnv:
         result = await code_env.step(Action(message="Use code to compute 2 ** 10 and tell me the result."))
 
         assert_successful_step(result)
-        assert_token_observation(result)
+        assert_rollout(result)
         assert_token_usage(result)
 
         assert result.observation.metrics["per_tool_metrics"]["execute_code"]["calls"] >= 1

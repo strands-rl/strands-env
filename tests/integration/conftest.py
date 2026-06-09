@@ -44,15 +44,16 @@ def assert_successful_step(result: StepResult) -> None:
     assert result.observation.final_response
 
 
-def assert_token_observation(result: StepResult) -> None:
-    """Assert that token-level observation has valid structure."""
-    tokens = result.observation.tokens
-    assert tokens is not None
-    assert tokens.prompt_length > 0
-    assert len(tokens.rollout_token_ids) > 0
-    assert len(tokens.loss_mask) == len(tokens.token_ids)
-    assert len(tokens.logprobs) == len(tokens.token_ids)
-    assert any(lp is not None for lp in tokens.rollout_logprobs)
+def assert_rollout(result: StepResult) -> None:
+    """Assert that the token-level rollout has valid structure."""
+    rollout = result.observation.rollout
+    assert rollout is not None
+    prompt_len = rollout.initial_prompt_length
+    assert prompt_len > 0
+    assert len(rollout.token_ids) > prompt_len
+    assert len(rollout.loss_mask) == len(rollout.token_ids)
+    assert len(rollout.logprobs) == len(rollout.token_ids)
+    assert any(lp is not None for lp in rollout.logprobs[prompt_len:])
 
 
 def assert_token_usage(result: StepResult) -> None:

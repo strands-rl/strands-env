@@ -177,17 +177,18 @@ class RolloutLogger:
         for s in random.sample(samples, k=n_saved):
             step_result: StepResult = s.step_result
             obs = step_result.observation
-            token_obs = obs.tokens
-            if not token_obs:
-                logger.warning("[weave] rollout %d missing `token_obs`", rollout_id)
+            rollout = obs.rollout
+            if not rollout:
+                logger.warning("[weave] rollout %d missing token rollout", rollout_id)
                 continue
 
+            prompt_len = rollout.initial_prompt_length
             rows.append(
                 {
                     "rollout_id": rollout_id,
                     "step": step,
-                    "prompt": tokenizer.decode(token_obs.initial_prompt_token_ids, skip_special_tokens=False),
-                    "response": tokenizer.decode(token_obs.rollout_token_ids, skip_special_tokens=False),
+                    "prompt": tokenizer.decode(rollout.token_ids[:prompt_len], skip_special_tokens=False),
+                    "response": tokenizer.decode(rollout.token_ids[prompt_len:], skip_special_tokens=False),
                     "termination_reason": step_result.termination_reason.value,
                     "reward": step_result.reward.reward if step_result.reward else None,
                     "reward_info": step_result.reward.info if step_result.reward else None,

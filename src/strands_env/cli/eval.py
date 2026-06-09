@@ -132,7 +132,7 @@ def list_cmd() -> None:
 @click.option("--output", "-o", type=click.Path(path_type=Path), default=None, help="Output directory.")
 @click.option("--max-samples", type=int, default=None, help="Maximum dataset samples to evaluate.")
 @click.option("--save-interval", type=int, default=10, help="Save results every N samples.")
-@click.option("--keep-tokens", is_flag=True, default=False, help="Keep token-level observations in results.")
+@click.option("--keep-rollout", is_flag=True, default=False, help="Keep the token-level rollout in results.")
 # Distributed
 @click.option("--n-actors-per-node", type=int, default=None, help="Ray actors per node for distributed eval.")
 # Debug
@@ -162,7 +162,7 @@ def run_cmd(
     max_samples: int | None,
     output: Path,
     save_interval: int,
-    keep_tokens: bool,
+    keep_rollout: bool,
     # Distributed
     n_actors_per_node: int | None,
     # Misc
@@ -248,7 +248,7 @@ def run_cmd(
         n_samples_per_prompt=n_samples_per_prompt,
         output_path=output_dir / "results.jsonl",
         save_interval=save_interval,
-        keep_tokens=keep_tokens,
+        keep_rollout=keep_rollout,
         env_actor_pool=env_actor_pool,
     )
     actions = list(evaluator.load_dataset())[:max_samples]

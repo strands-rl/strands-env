@@ -24,7 +24,6 @@ from .types import (
     StepResult,
     TaskContext,
     TerminationReason,
-    TokenObservation,
 )
 
 __all__ = [
@@ -39,5 +38,4 @@ __all__ = [
     "StepResult",
     "TaskContext",
     "TerminationReason",
-    "TokenObservation",
 ]

@@ -26,7 +26,7 @@ from strands import Agent
 from strands.agent.conversation_manager import ConversationManager, NullConversationManager
 from strands.handlers.callback_handler import PrintingCallbackHandler
 from strands.telemetry.metrics import EventLoopMetrics
-from strands_sglang import TokenManager, ToolLimiter
+from strands_sglang import ToolLimiter
 from typing_extensions import TypedDict, Unpack
 
 from .models import ModelFactory
@@ -36,7 +36,6 @@ from .types import (
     RewardFunction,
     StepResult,
     TerminationReason,
-    TokenObservation,
 )
 
 logger = logging.getLogger(__name__)
@@ -97,6 +96,7 @@ class Environment:
 
     async def step(self, action: Action) -> StepResult:
         """Run one agent episode and return observation + reward + termination."""
+        # 1. Build inputs and the agent.
         conversation_history = action.task_context.conversation_history
         tool_limiter = ToolLimiter(
             max_tool_iters=self.max_tool_iters,
@@ -113,6 +113,7 @@ class Environment:
             conversation_manager=self.get_conversation_manager(),
             callback_handler=PrintingCallbackHandler() if self.verbose else None,
         )
+        # 2. Run the agent loop.
         error = None
         try:
             message = action.message if isinstance(action.message, str) else action.message["content"]
@@ -121,8 +122,9 @@ class Environment:
             error = e
         termination_reason = TerminationReason.from_error(error)
 
+        # 3. Build the observation.
         step_messages = list(agent.messages)[len(conversation_history) :]
-        token_obs = TokenObservation.from_token_manager(getattr(agent.model, "token_manager", TokenManager()))
+        rollout = getattr(agent.model, "rollout", None)
         tool_parse_errors = getattr(agent.model, "tool_parse_errors", None)
         metrics = {
             "message_count": len(step_messages),
@@ -131,15 +133,15 @@ class Environment:
             "cancelled_tool_calls": tool_limiter.cancelled_tool_call_count,
             **self.compute_metrics(agent.event_loop_metrics, tool_parse_errors=tool_parse_errors),
         }
-        routed_experts = getattr(agent.model, "routed_experts", None)
-        observation = Observation(
-            messages=step_messages, tokens=token_obs, metrics=metrics, routed_experts=routed_experts
-        )
+        observation = Observation(messages=step_messages, rollout=rollout, metrics=metrics)
         step_result = StepResult(observation=observation, termination_reason=termination_reason)
+
+        # 4. Compute and time the reward (if any).
         if self.reward_fn:
             reward_t0 = time.perf_counter()
             step_result.reward = await self.reward_fn.compute(action=action, step_result=step_result)
             observation.metrics["reward_latency_s"] = round(time.perf_counter() - reward_t0, 4)
+
         return step_result
 
     async def cleanup(self) -> None:

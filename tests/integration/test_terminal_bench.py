@@ -30,7 +30,7 @@ pytest.importorskip("harbor", reason="harbor>=0.1.43 required for terminal_bench
 from strands_env.core.types import Action, TaskContext, TerminationReason
 from strands_env.environments.terminal_bench import TerminalBenchEnv
 
-from .conftest import assert_successful_step, assert_token_observation, assert_token_usage
+from .conftest import assert_rollout, assert_successful_step, assert_token_usage
 
 FORCE_TOOL_PROMPT = (
     "You are a terminal assistant. Always use execute_command. "
@@ -101,7 +101,7 @@ class TestTerminalBench:
         result = await terminal_bench_env.step(Action(message="Run 'echo hello world' in the terminal."))
 
         assert_successful_step(result)
-        assert_token_observation(result)
+        assert_rollout(result)
         assert_token_usage(result)
         assert result.observation.metrics["per_tool_metrics"]["execute_command"]["calls"] >= 1
 

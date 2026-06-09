@@ -25,7 +25,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field
 from strands.types.content import Message, Messages
 from strands.types.exceptions import ContextWindowOverflowException, EventLoopException, MaxTokensReachedException
-from strands_sglang import MaxToolCallsReachedError, MaxToolIterationsReachedError, TokenManager
+from strands_sglang import MaxToolCallsReachedError, MaxToolIterationsReachedError, Rollout
 
 logger = logging.getLogger(__name__)
 
@@ -59,70 +59,19 @@ class Action(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-class TokenObservation(BaseModel):
-    """Token-level observation for Token-in/Token-out (TITO) training.
-
-    `prompt_length` splits the flat `token_ids` list into initial-prompt vs. rollout.
-    `loss_mask` and `logprobs` cover all tokens (use rollout slices for training).
-    """
-
-    token_ids: list[int] = Field(default_factory=list)
-    prompt_length: int = Field(default=0)
-    loss_mask: list[int] = Field(default_factory=list)
-    logprobs: list[float | None] = Field(default_factory=list)
-
-    @property
-    def rollout_token_ids(self) -> list[int]:
-        """Return token IDs for the rollout (after the initial prompt)."""
-        return self.token_ids[self.prompt_length :]
-
-    @property
-    def rollout_logprobs(self) -> list[float | None]:
-        """Return logprobs for the rollout tokens."""
-        return self.logprobs[self.prompt_length :]
-
-    @property
-    def rollout_loss_mask(self) -> list[int]:
-        """Return loss mask for the rollout tokens."""
-        return self.loss_mask[self.prompt_length :]
-
-    @property
-    def initial_prompt_token_ids(self) -> list[int]:
-        """Return token IDs for the initial prompt."""
-        return self.token_ids[: self.prompt_length]
-
-    @classmethod
-    def from_token_manager(cls, token_manager: TokenManager) -> TokenObservation | None:
-        """Create from strands-sglang's `TokenManager`; returns None if empty."""
-        if len(token_manager) == 0:
-            return None
-        return cls(
-            token_ids=token_manager.token_ids,
-            prompt_length=len(token_manager.initial_prompt),
-            loss_mask=token_manager.loss_mask,
-            logprobs=token_manager.logprobs,
-        )
-
-
 class Observation(BaseModel):
     """Step observation: messages produced, optional token data, and metrics."""
 
     messages: Messages = Field(default_factory=list)
-    tokens: TokenObservation | None = None
+    rollout: Rollout | None = None
     metrics: dict[str, Any] = Field(default_factory=dict)
-    routed_experts: str | None = None
 
     @property
     def final_response(self) -> str | None:
         """Return text from the last assistant message, or None."""
-        return self.get_final_response(self.messages)
-
-    @staticmethod
-    def get_final_response(messages: Messages) -> str | None:
-        """Extract text from the last assistant message, or None."""
-        if not messages or messages[-1].get("role") != "assistant":
+        if not self.messages or self.messages[-1].get("role") != "assistant":
             return None
-        content = messages[-1].get("content", [])
+        content = self.messages[-1].get("content", [])
         # Take the last text block — the final textual output.
         text = next(
             (block["text"] for block in reversed(content) if isinstance(block, dict) and "text" in block),
