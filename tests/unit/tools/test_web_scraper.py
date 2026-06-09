@@ -26,7 +26,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 import tiktoken
 
-from strands_env.tools.web_scraper import (
+from strands_env.environments.web_search.scrape import (
     RESULT_TEMPLATE,
     SUMMARY_PROMPT_TEMPLATE,
     TOKEN_ENCODING,

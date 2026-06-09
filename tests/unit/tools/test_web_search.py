@@ -14,7 +14,7 @@
 
 """Unit tests for WebSearchToolkit pure-logic methods."""
 
-from strands_env.tools.web_search import WebSearchToolkit
+from strands_env.environments.web_search.search import WebSearchToolkit
 
 # ---------------------------------------------------------------------------
 # _apply_blocked_domains

@@ -22,8 +22,9 @@ from typing_extensions import Unpack, override
 from strands_env.core.environment import Environment, EnvironmentConfig
 from strands_env.core.models import ModelFactory
 from strands_env.core.types import RewardFunction
-from strands_env.tools.web_scraper import WebScraperToolkit
-from strands_env.tools.web_search import WebSearchAPIProvider, WebSearchToolkit
+
+from .scrape import WebScraperToolkit
+from .search import WebSearchAPIProvider, WebSearchToolkit
 
 
 class WebSearchConfig(EnvironmentConfig, total=False):

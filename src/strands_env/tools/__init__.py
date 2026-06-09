@@ -15,12 +15,8 @@
 """Tools for `strands_env`."""
 
 from .code_interpreter import CodeInterpreterQuotas, CodeInterpreterToolkit
-from .web_scraper import WebScraperToolkit
-from .web_search import WebSearchToolkit
 
 __all__ = [
     "CodeInterpreterQuotas",
     "CodeInterpreterToolkit",
-    "WebScraperToolkit",
-    "WebSearchToolkit",
 ]
