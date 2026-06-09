@@ -9,17 +9,17 @@ The `strands-env` CLI provides commands for running benchmark evaluations.
 ### List Benchmarks
 
 ```bash
-strands-env eval list
+python -m strands_env.eval --list
 ```
 
 ### Run Evaluation
 
 ```bash
 # Using a registered benchmark
-strands-env eval run <benchmark> --env <dotted.module.path> [options]
+python -m strands_env.eval --benchmark <benchmark> --env <dotted.module.path> [options]
 
 # Using a custom evaluator module
-strands-env eval run --evaluator <dotted.module.path> --env <dotted.module.path> [options]
+python -m strands_env.eval --evaluator <dotted.module.path> --env <dotted.module.path> [options]
 ```
 
 **Required arguments:**
@@ -36,7 +36,7 @@ strands-env eval run --evaluator <dotted.module.path> --env <dotted.module.path>
 - `--model-id` - Model ID (auto-detected for SGLang)
 - `--tokenizer-path` - Tokenizer path (defaults to model_id)
 - `--tool-parser` - Tool parser name (e.g., `hermes`, `qwen_xml`)
-- `--region` - AWS region for Bedrock
+- `--region-name` - AWS region for Bedrock
 - `--profile-name` - AWS profile name for Bedrock
 - `--role-arn` - AWS role ARN to assume for Bedrock
 
@@ -52,7 +52,7 @@ strands-env eval run --evaluator <dotted.module.path> --env <dotted.module.path>
 - `--output`, `-o` - Output directory (default: `{benchmark}_eval/`)
 - `--max-samples` - Maximum dataset samples to evaluate
 - `--save-interval` - Save results every N samples (default: 10)
-- `--keep-tokens` - Keep token-level observations in results
+- `--keep-rollout` - Keep the token-level rollout in results
 - `--debug` - Enable debug logging
 
 **Distributed options:**
@@ -62,30 +62,34 @@ strands-env eval run --evaluator <dotted.module.path> --env <dotted.module.path>
 
 ```bash
 # Using registered benchmark with code sandbox env
-strands-env eval run aime-2024 \
+python -m strands_env.eval \
+    --benchmark aime-2024 \
     --env examples.eval.aime.code_sandbox_env \
     --base-url http://localhost:30000
 
 # Using custom evaluator module
-strands-env eval run \
+python -m strands_env.eval \
     --evaluator examples.eval.simple_math.simple_math_evaluator \
     --env examples.eval.simple_math.calculator_env \
     --base-url http://localhost:30000
 
 # Pass@8 evaluation with high concurrency
-strands-env eval run aime-2024 \
+python -m strands_env.eval \
+    --benchmark aime-2024 \
     --env examples.eval.simple_math.calculator_env \
     --base-url http://localhost:30000 \
     --n-samples-per-prompt 8 \
     --max-concurrency 30
 
 # With env config override
-strands-env eval run aime-2024 \
+python -m strands_env.eval \
+    --benchmark aime-2024 \
     --env examples.eval.simple_math.calculator_env \
     --env-config '{"max_tool_iters": 5}'
 
 # Distributed eval across Ray actors (e.g. 8 actors per node)
-strands-env eval run aime-2024 \
+python -m strands_env.eval \
+    --benchmark aime-2024 \
     --env examples.eval.simple_math.calculator_env \
     --base-url http://localhost:30000 \
     --n-actors-per-node 8 \
@@ -117,7 +121,7 @@ def create_env_factory(model_config: dict, **env_config):
 # examples/eval/simple_math/calculator_env.py
 from strands_env.core.models import build_model_factory
 from strands_env.environments.calculator import CalculatorEnv
-from strands_env.rewards import MathVerifyReward
+from strands_env.environments.calculator.reward import MathVerifyReward
 
 def create_env_factory(model_config: dict, **env_config):
     model_factory = build_model_factory(model_config)
@@ -129,20 +133,20 @@ def create_env_factory(model_config: dict, **env_config):
     return env_factory
 ```
 
-### Example: Code Sandbox Environment
+### Example: AgentCore Code Environment
 
 ```python
 # examples/eval/hmmt/code_sandbox_env.py
 from strands_env.core.models import build_model_factory
-from strands_env.environments.code_sandbox import CodeSandboxEnv
-from strands_env.rewards import MathVerifyReward
+from strands_env.environments.agentcore_code import AgentCoreCodeEnv
+from strands_env.environments.calculator.reward import MathVerifyReward
 
 def create_env_factory(model_config: dict, **env_config):
     model_factory = build_model_factory(model_config)
     reward_fn = MathVerifyReward()
 
     async def env_factory(_action):
-        return CodeSandboxEnv(model_factory=model_factory, reward_fn=reward_fn, mode="code", **env_config)
+        return AgentCoreCodeEnv(model_factory=model_factory, reward_fn=reward_fn, mode="code", **env_config)
 
     return env_factory
 ```
@@ -180,7 +184,7 @@ EvaluatorClass = MyEvaluator
 
 Then run:
 ```bash
-strands-env eval run --evaluator my_package.my_evaluator --env my_package.my_env --base-url http://localhost:30000
+python -m strands_env.eval --evaluator my_package.my_evaluator --env my_package.my_env --base-url http://localhost:30000
 ```
 
 ### Registered Evaluator
@@ -212,7 +216,7 @@ class MyEvaluator(Evaluator):
             )
 ```
 
-Benchmarks are auto-discovered from the `benchmarks/` subdirectory. If a benchmark has missing dependencies, it will be listed as unavailable in `strands-env eval list` with the import error message.
+Benchmarks are auto-discovered from the `benchmarks/` subdirectory. If a benchmark has missing dependencies, it will be listed as unavailable in `python -m strands_env.eval --list` with the import error message.
 
 ### Programmatic Usage
 
@@ -224,7 +228,7 @@ async def run_evaluation():
         n_samples_per_prompt=8,
         max_concurrency=30,
         output_path="results.jsonl",
-        keep_tokens=False,
+        keep_rollout=False,
     )
 
     actions = evaluator.load_dataset()
@@ -277,7 +281,8 @@ class MyEvaluator(Evaluator):
 For models that use non-standard tool calling formats, specify a predefined parser name from `strands-sglang` via `--tool-parser`:
 
 ```bash
-strands-env eval run aime-2024 \
+python -m strands_env.eval \
+    --benchmark aime-2024 \
     --env examples.eval.simple_math.calculator_env \
     --tool-parser qwen_xml
 ```

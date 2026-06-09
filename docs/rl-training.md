@@ -4,11 +4,11 @@ This guide covers integrating `strands-env` with RL training frameworks, specifi
 
 ## Overview
 
-`strands-env` captures token-level observations (TITO) during agent rollouts, which are essential for on-policy RL training. The `TokenObservation` contains:
-- `token_ids` - All tokens (prompt + rollout)
-- `rollout_token_ids` - Only generated tokens
-- `rollout_logprobs` - Log probabilities for each generated token
-- `rollout_loss_mask` - Mask for loss computation
+`strands-env` captures token-level observations (TITO) during agent rollouts, which are essential for on-policy RL training. `Observation.rollout` is a `Rollout` (from `strands-sglang`) containing:
+- `token_ids` - All tokens (prompt + response)
+- `loss_mask` - Per-token mask (1 for model output, 0 for prompt/tool tokens)
+- `logprobs` - Per-token log probabilities (None for non-output tokens)
+- `initial_prompt_length` - Length of the prompt segment; the response is `token_ids[initial_prompt_length:]`
 
 ## slime Integration
 
@@ -40,12 +40,13 @@ async def generate_and_rm(args, sample: Sample, sampling_params) -> Sample:
     step_result = await env.step(action)
 
     # Extract TITO data for training
-    token_obs = step_result.observation.tokens
-    sample.tokens = token_obs.token_ids
-    sample.loss_mask = token_obs.rollout_loss_mask
-    sample.rollout_log_probs = token_obs.rollout_logprobs
-    sample.response_length = len(token_obs.rollout_token_ids)
-    sample.response = state.tokenizer.decode(token_obs.rollout_token_ids, skip_special_tokens=False)
+    rollout = step_result.observation.rollout
+    prompt_len = rollout.initial_prompt_length
+    sample.tokens = rollout.token_ids
+    sample.loss_mask = rollout.loss_mask[prompt_len:]
+    sample.rollout_log_probs = rollout.logprobs[prompt_len:]
+    sample.response_length = len(rollout.token_ids) - prompt_len
+    sample.response = state.tokenizer.decode(rollout.token_ids[prompt_len:], skip_special_tokens=False)
 
     # Status + reward
     sample.status = (
@@ -74,7 +75,7 @@ A complete worked example lives at `examples/slime/retool/generate_with_code_san
 ## Key Points
 
 - **Connection pooling**: `get_client_from_slime_args(args)` provides `lru_cache`-backed connection pooling across rollouts for efficient GPU utilization
-- **Token observations**: `TokenObservation` contains token IDs and logprobs for on-policy training (SGLang backend only)
+- **Token observations**: `Observation.rollout` (a `Rollout`) contains token IDs, a loss mask, and logprobs for on-policy training (SGLang backend only)
 - **Model factory pattern**: Each `step()` creates a fresh model instance for clean token tracking state
-- **Cleanup**: Call `await env.cleanup()` at the end of each rollout for envs that hold external resources (e.g. `CodeSandboxEnv`, `MCPEnvironment`, `TerminalBenchEnv`)
+- **Cleanup**: Call `await env.cleanup()` at the end of each rollout for envs that hold external resources (e.g. `AgentCoreCodeEnv`, `MCPEnvironment`, `TerminalBenchEnv`)
 - **Custom rollout logging**: Attach `step_result` to the sample and use `strands_env.utils.slime_logger.RolloutLogger` (see the retool example) to log per-step metrics via slime's `--custom-rollout-log-function-path`

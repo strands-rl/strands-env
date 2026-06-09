@@ -17,7 +17,8 @@ Set `JUDGE_MODEL_ID` to override the default judge (defaults to `us.anthropic.cl
 ## Usage
 
 ```bash
-strands-env eval run sealqa-seal-0 \
+python -m strands_env.eval \
+    --benchmark sealqa-seal-0 \
     --env examples.eval.sealqa.chat_env \
     --backend sglang \
     --base-url http://localhost:30000 \
@@ -28,4 +29,4 @@ strands-env eval run sealqa-seal-0 \
 
 Available benchmarks: `sealqa-seal-0` (111 questions), `sealqa-seal-hard` (254 questions).
 
-See `strands-env eval run --help` for all CLI options.
+See `python -m strands_env.eval --help` for all CLI options.

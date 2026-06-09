@@ -27,7 +27,8 @@ Override the judge via `--env-config '{"judge_model_id": "..."}'` (defaults to `
 
 ```bash
 # Text-only subset (works with any text model)
-strands-env eval run hle-verified-gold-text \
+python -m strands_env.eval \
+    --benchmark hle-verified-gold-text \
     --env examples.eval.hle_verified.chat_env \
     --backend sglang \
     --base-url http://localhost:30000 \
@@ -36,7 +37,8 @@ strands-env eval run hle-verified-gold-text \
     --max-concurrency 10
 
 # Full Gold subset including multimodal samples (needs a vision-capable model)
-strands-env eval run hle-verified-gold \
+python -m strands_env.eval \
+    --benchmark hle-verified-gold \
     --env examples.eval.hle_verified.chat_env \
     --backend bedrock \
     --model-id us.anthropic.claude-sonnet-4-20250514-v1:0 \
@@ -45,4 +47,4 @@ strands-env eval run hle-verified-gold \
     --max-concurrency 10
 ```
 
-See `strands-env eval run --help` for all CLI options.
+See `python -m strands_env.eval --help` for all CLI options.

@@ -1,4 +1,4 @@
-# Code Sandbox Environment
+# AgentCore Code Environment
 
 A sandboxed code execution environment using AWS Bedrock AgentCore Code Interpreter. Supports Python execution, shell commands, or both.
 
@@ -15,11 +15,11 @@ A sandboxed code execution environment using AWS Bedrock AgentCore Code Interpre
 ## Usage
 
 ```python
-from strands_env.environments.code_sandbox import CodeSandboxEnv
+from strands_env.environments.agentcore_code import AgentCoreCodeEnv
 from strands_env.utils.aws import get_client
 
 client = get_client("bedrock-agentcore", region="us-east-1")
-env = CodeSandboxEnv(
+env = AgentCoreCodeEnv(
     model_factory=model_factory,
     client=client,
     mode="code",  # "code", "terminal", or "code_and_terminal"

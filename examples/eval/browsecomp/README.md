@@ -23,7 +23,8 @@ All environments require AWS credentials with Bedrock access for the judge model
 **Chat-only (parametric-knowledge baseline):**
 
 ```bash
-strands-env eval run browsecomp \
+python -m strands_env.eval \
+    --benchmark browsecomp \
     --env examples.eval.browsecomp.chat_env \
     --backend sglang \
     --base-url http://localhost:30000 \
@@ -38,7 +39,8 @@ strands-env eval run browsecomp \
 export SERPER_API_KEY=...
 export JINA_API_KEY=...
 
-strands-env eval run browsecomp \
+python -m strands_env.eval \
+    --benchmark browsecomp \
     --env examples.eval.browsecomp.web_search_env \
     --backend sglang \
     --base-url http://localhost:30000 \
@@ -48,4 +50,4 @@ strands-env eval run browsecomp \
     --max-concurrency 10
 ```
 
-See `strands-env eval run --help` for all CLI options.
+See `python -m strands_env.eval --help` for all CLI options.

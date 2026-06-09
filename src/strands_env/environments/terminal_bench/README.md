@@ -68,7 +68,8 @@ env = TerminalBenchEnv(
 Or via CLI with `--env-config`:
 
 ```bash
-strands-env eval run terminal-bench-2 \
+python -m strands_env.eval \
+    --benchmark terminal-bench-2 \
     --env examples.eval.terminal_bench.terminal_bench_env \
     --env-config '{"backend": "eks", "eks_backend_config": {"stack_name": "harbor-aws", "region": "us-east-1", "role_arn": "arn:aws:iam::123456789012:role/harbor-role"}}'
 ```

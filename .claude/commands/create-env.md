@@ -11,7 +11,7 @@ Create the following files under `src/strands_env/environments/<name>/`:
    - Set `default_system_prompt_path = Path(__file__).parent / "system_prompt.md"`
    - Override `get_tools()` returning an empty list with a TODO comment
    - Override `async def reset(self)` with a TODO comment — resource-heavy or async initialization (e.g., spinning up containers, creating sessions, connecting to services) belongs here, not in `__init__`. `__init__` should only store config and lightweight state. `reset()` is async and called per-episode, making it the right place for setup that needs `await` or fresh-per-episode state.
-   - Class name should be `<Name>Env` (e.g., `my_env` → `MyEnvEnv`, `code_sandbox` → `CodeSandboxEnv`)
+   - Class name should be `<Name>Env` (e.g., `my_env` → `MyEnvEnv`, `agentcore_code` → `AgentCoreCodeEnv`)
 
 3. **`system_prompt.md`** — A placeholder with a TODO comment for the user to fill in.
 
@@ -25,7 +25,7 @@ Create the following files under `src/strands_env/environments/<name>/`:
    - `## Reward` — placeholder
    - `## System Prompt` — placeholder
 
-Use the existing environments (calculator, code_sandbox, terminal_bench) as style references. Match the license header used in existing files.
+Use the existing environments (calculator, agentcore_code, terminal_bench) as style references. Match the license header used in existing files.
 
 After creating the files, remind the user to:
 - Implement `get_tools()` in `env.py`

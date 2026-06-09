@@ -66,7 +66,8 @@ See [`examples/calculator_demo.py`](examples/calculator_demo.py) for a complete 
 ### Run Evaluations
 
 ```bash
-strands-env eval aime-2024 \
+python -m strands_env.eval \
+    --benchmark aime-2026 \
     --env examples.eval.simple_math.calculator_env \
     --backend sglang \
     --base-url http://localhost:30000 \
@@ -83,7 +84,7 @@ Ready-to-use environments under `src/strands_env/environments/`. Each ships with
 | Environment | Description |
 | --- | --- |
 | [`calculator`](src/strands_env/environments/calculator/README.md) | Simple environment with a calculator tool for math reasoning. |
-| [`code_sandbox`](src/strands_env/environments/code_sandbox/README.md) | Sandboxed Python / shell execution via AWS Bedrock AgentCore Code Interpreter. |
+| [`agentcore_code`](src/strands_env/environments/agentcore_code/README.md) | Sandboxed Python / shell execution via AWS Bedrock AgentCore Code Interpreter. |
 | [`web_search`](src/strands_env/environments/web_search/README.md) | Pluggable search (Serper / Google CSE) + Jina-based page scraping with optional LLM summarization, enlightened by [OpenSeeker](https://github.com/rui-ye/OpenSeeker). |
 | [`terminal_bench`](src/strands_env/environments/terminal_bench/README.md) | Run [Terminal-Bench](https://www.tbench.ai/) tasks against a [Harbor](https://github.com/harbor-framework/harbor)-managed Docker/EKS container. |
 | [`swe_bench`](src/strands_env/environments/swe_bench/) | [SWE-bench](https://www.swebench.com/) task runner — thin subclass of `terminal_bench` with a SWE-bench-tuned system prompt. |

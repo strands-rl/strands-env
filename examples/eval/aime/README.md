@@ -1,6 +1,6 @@
 # AIME Code
 
-AIME math competition benchmark using `CodeSandboxEnv` (AWS Bedrock AgentCore Code Interpreter).
+AIME math competition benchmark using `AgentCoreCodeEnv` (AWS Bedrock AgentCore Code Interpreter).
 
 ## Variants
 
@@ -17,12 +17,13 @@ Requires AWS credentials with Bedrock AgentCore access.
 ## Files
 
 - `chat_env.py` - Chat-only (no tools) — tests pure parametric knowledge
-- `code_sandbox_env.py` - Environment hook using `CodeSandboxEnv` with Python execution
+- `code_sandbox_env.py` - Environment hook using `AgentCoreCodeEnv` with Python execution
 
 ## Usage
 
 ```bash
-strands-env eval run aime-2026 \
+python -m strands_env.eval \
+    --benchmark aime-2026 \
     --env examples.eval.aime.code_sandbox_env \
     --backend sglang \
     --base-url http://localhost:30000 \
@@ -31,4 +32,4 @@ strands-env eval run aime-2026 \
     --max-concurrency 10
 ```
 
-See `strands-env eval run --help` for all CLI options.
+See `python -m strands_env.eval --help` for all CLI options.

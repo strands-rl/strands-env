@@ -27,7 +27,8 @@
 ## Usage
 
 ```bash
-strands-env eval run mcp-atlas \
+python -m strands_env.eval \
+    --benchmark mcp-atlas \
     --env examples.eval.mcp_atlas.env \
     --backend sglang \
     --base-url http://localhost:30000 \
@@ -36,4 +37,4 @@ strands-env eval run mcp-atlas \
     --max-concurrency 10
 ```
 
-See `strands-env eval run --help` for all CLI options.
+See `python -m strands_env.eval --help` for all CLI options.

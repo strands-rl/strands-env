@@ -25,7 +25,8 @@
 ### Docker (default)
 
 ```bash
-strands-env eval run swebench-verified \
+python -m strands_env.eval \
+    --benchmark swebench-verified \
     --env examples.eval.swe_bench.swe_bench_env \
     --base-url http://localhost:30000 \
     --backend sglang \
@@ -41,7 +42,8 @@ Run tasks on AWS EKS/Fargate via [harbor-aws](https://github.com/JackXu0/harbor-
 ```bash
 export HARBOR_CONTROL_URL=...
 export HARBOR_ADMIN_TOKEN=...
-strands-env eval run swebench-verified \
+python -m strands_env.eval \
+    --benchmark swebench-verified \
     --env examples.eval.swe_bench.swe_bench_env \
     --env-config '{"backend": "eks", "eks_backend_config": {"stack_name": "harbor-aws", "region": "us-east-1", "role_arn": "arn:aws:iam::123456789012:role/harbor-role", "ecr_cache": true}}' \
     --base-url http://localhost:30000 \
@@ -51,4 +53,4 @@ strands-env eval run swebench-verified \
     --max-concurrency 89
 ```
 
-See `strands-env eval run --help` for all CLI options.
+See `python -m strands_env.eval --help` for all CLI options.

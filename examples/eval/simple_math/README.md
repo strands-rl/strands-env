@@ -14,7 +14,7 @@ No additional setup required beyond `strands-env`.
 ## Usage
 
 ```bash
-strands-env eval run \
+python -m strands_env.eval \
     --evaluator examples.eval.simple_math.simple_math_evaluator \
     --env examples.eval.simple_math.calculator_env \
     --backend sglang \
@@ -24,4 +24,4 @@ strands-env eval run \
     --max-concurrency 10
 ```
 
-See `strands-env eval run --help` for all CLI options.
+See `python -m strands_env.eval --help` for all CLI options.

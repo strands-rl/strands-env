@@ -25,13 +25,14 @@ The `code_sandbox_env.py` variant requires AWS credentials with Bedrock AgentCor
 ## Files
 
 - `chat_env.py` - Chat-only (no tools) — tests pure parametric reasoning
-- `code_sandbox_env.py` - Environment hook using `CodeSandboxEnv` with Python execution
+- `code_sandbox_env.py` - Environment hook using `AgentCoreCodeEnv` with Python execution
 
 ## Usage
 
 ```bash
 # Chat-only
-strands-env eval run gpqa-diamond \
+python -m strands_env.eval \
+    --benchmark gpqa-diamond \
     --env examples.eval.gpqa.chat_env \
     --backend sglang \
     --base-url http://localhost:30000 \
@@ -40,7 +41,8 @@ strands-env eval run gpqa-diamond \
     --max-concurrency 10
 
 # With code sandbox
-strands-env eval run gpqa-diamond \
+python -m strands_env.eval \
+    --benchmark gpqa-diamond \
     --env examples.eval.gpqa.code_sandbox_env \
     --backend sglang \
     --base-url http://localhost:30000 \
@@ -49,4 +51,4 @@ strands-env eval run gpqa-diamond \
     --max-concurrency 10
 ```
 
-See `strands-env eval run --help` for all CLI options.
+See `python -m strands_env.eval --help` for all CLI options.

@@ -17,7 +17,8 @@ Set `JUDGE_MODEL_ID` to override the default judge (defaults to `us.anthropic.cl
 ## Usage
 
 ```bash
-strands-env eval run simpleqa-verified \
+python -m strands_env.eval \
+    --benchmark simpleqa-verified \
     --env examples.eval.simpleqa_verified.chat_env \
     --backend sglang \
     --base-url http://localhost:30000 \
@@ -26,4 +27,4 @@ strands-env eval run simpleqa-verified \
     --max-concurrency 10
 ```
 
-See `strands-env eval run --help` for all CLI options.
+See `python -m strands_env.eval --help` for all CLI options.

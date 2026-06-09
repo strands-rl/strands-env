@@ -25,7 +25,7 @@ Follow the existing test style in `tests/integration/`:
 Integration tests validate the **full pipeline** with a real LLM. Each test should cover one observable behavior:
 
 - `test_step_completes` — Agent completes without error, returns `TASK_COMPLETE`
-- `test_step_produces_token_observation` — SGLang captures token IDs and logprobs
+- `test_step_produces_rollout` — SGLang captures token IDs and logprobs
 - `test_step_metrics` — Metrics dict has expected keys (`message_count`, `tool_iters`, `model_calls`, etc.)
 - `test_reward_computation` — Reward function returns expected values for known inputs
 - `test_tool_iteration_limit` — Respects `max_tool_iters` setting

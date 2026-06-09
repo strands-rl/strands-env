@@ -14,7 +14,7 @@ Follow the existing test style in `tests/unit/`:
 - **Test methods**: `test_<behavior>` in snake_case, no docstrings unless the behavior is non-obvious
 - **Async tests**: Use `async def test_*` directly — `asyncio_mode = "auto"` is configured in `pyproject.toml`
 - **Fixtures**: Define at the top of the file after imports, separated by `# ---------------------------------------------------------------------------`
-- **Mocking**: Use `unittest.mock` (`MagicMock`, `AsyncMock`, `patch`). For model factories, use `MagicMock` that returns a mock model with `token_manager = TokenManager()`
+- **Mocking**: Use `unittest.mock` (`MagicMock`, `AsyncMock`, `patch`). For model factories, use `MagicMock` that returns a mock model with `rollout = Rollout()`
 - **Imports**: Import from the public API (e.g., `from strands_env.core.types import Action`) not internal modules
 - **Assertions**: Use plain `assert`, not `self.assertEqual`
 

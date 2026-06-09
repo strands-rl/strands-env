@@ -34,7 +34,8 @@ The first run will auto-download NLTK's `punkt_tab` tokenizer data (~10 MB) into
 ## Usage
 
 ```bash
-strands-env eval run ifeval \
+python -m strands_env.eval \
+    --benchmark ifeval \
     --env examples.eval.ifeval.chat_env \
     --backend sglang \
     --base-url http://localhost:30000 \
@@ -43,4 +44,4 @@ strands-env eval run ifeval \
     --max-concurrency 10
 ```
 
-See `strands-env eval run --help` for all CLI options.
+See `python -m strands_env.eval --help` for all CLI options.

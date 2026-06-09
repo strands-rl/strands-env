@@ -8,7 +8,7 @@ The user provides the eval directory path as $ARGUMENTS (e.g., `examples/eval/ai
 
 2. **Identify the key details:**
    - Benchmark name and one-line description
-   - Which environment class is used (e.g., `CodeSandboxEnv`, `CalculatorEnv`)
+   - Which environment class is used (e.g., `AgentCoreCodeEnv`, `CalculatorEnv`)
    - Prerequisites beyond the base install (Docker, extra pip packages, AWS credentials, etc.)
    - What files are in the directory and what each does
    - The CLI command(s) to run the eval
@@ -41,7 +41,7 @@ The user provides the eval directory path as $ARGUMENTS (e.g., `examples/eval/ai
 
 {CLI command(s) in a bash code block. Use paths relative to the repo root. Show the registered benchmark name if available. Include key arguments that users will commonly adjust: `--base-url`, `--max-tokens`, `--n-samples-per-prompt`, `--max-concurrency`, and `--max-tool-iters` if relevant. Omit arguments with sensible defaults that rarely need changing (e.g., `--temperature`, `-o` output folder).}
 
-See `strands-env eval --help` for all CLI options.
+See `python -m strands_env.eval --help` for all CLI options.
 ```
 
 ## Style rules
