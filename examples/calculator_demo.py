@@ -37,8 +37,7 @@ import click
 
 from strands_env.core.models import ModelConfig, build_model_factory
 from strands_env.core.types import Action, TaskContext
-from strands_env.environments.calculator.env import CalculatorEnv
-from strands_env.rewards import MathVerifyReward
+from strands_env.environments.calculator import CalculatorEnv, MathVerifyReward
 
 MATH_PROBLEMS = [
     ("What is 123 * 456?", "56088"),
