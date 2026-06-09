@@ -28,9 +28,8 @@ from strands_sglang import SGLangClient
 from strands_sglang.tool_parsers import get_tool_parser
 from transformers import AutoTokenizer
 
-from strands_env.core.models import DEFAULT_SAMPLING_PARAMS, sglang_model_factory
+from strands_env.core.models import DEFAULT_SAMPLING_PARAMS, check_server_health, get_model_id, sglang_model_factory
 from strands_env.core.types import StepResult, TerminationReason
-from strands_env.utils.sglang import check_server_health, get_model_id
 
 # ---------------------------------------------------------------------------
 # Assertion helpers

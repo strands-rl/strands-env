@@ -57,7 +57,6 @@ from transformers import PreTrainedTokenizerBase
 
 from strands_env.utils.aws import get_session
 from strands_env.utils.decorators import requires_env
-from strands_env.utils.sglang import check_server_health, get_model_id
 
 #: Factory that produces a fresh `Model` per step (for concurrent step isolation).
 ModelFactory = Callable[[], Model]
@@ -103,6 +102,36 @@ def sglang_model_factory(
         return_routed_experts=return_routed_experts,
         enable_thinking=enable_thinking,
     )
+
+
+# ---------------------------------------------------------------------------
+# SGLang server helpers
+# ---------------------------------------------------------------------------
+
+
+def check_server_health(base_url: str, timeout: float = 5.0) -> None:
+    """Check if the SGLang server is reachable.
+
+    Notes:
+        Sync convenience using httpx. For async runtime use, see
+        `SGLangClient.health()` which uses aiohttp.
+    """
+    try:
+        response = httpx.get(f"{base_url}/health", timeout=timeout)
+        response.raise_for_status()
+    except httpx.HTTPError as e:
+        raise ConnectionError(f"SGLang server at {base_url} is not reachable: {e}") from e
+
+
+def get_model_id(base_url: str, timeout: float = 5.0) -> str:
+    """Get the model's HF identifier from the SGLang server via `/get_model_info`."""
+    response = httpx.get(f"{base_url}/get_model_info", timeout=timeout)
+    response.raise_for_status()
+    info = response.json()
+    model_id = info.get("tokenizer_path") or info.get("model_path")
+    if not model_id:
+        raise RuntimeError(f"No tokenizer_path/model_path at {base_url}/get_model_info")
+    return str(model_id)
 
 
 # ---------------------------------------------------------------------------
