@@ -22,8 +22,10 @@ from typing import TYPE_CHECKING, Literal
 from typing_extensions import Unpack, override
 
 from strands_env.core.environment import Environment, EnvironmentConfig
-from strands_env.tools import CodeInterpreterQuotas, CodeInterpreterToolkit
 from strands_env.utils.aws import get_client
+
+from .quotas import CodeInterpreterQuotas
+from .tool import CodeInterpreterToolkit
 
 if TYPE_CHECKING:
     from strands_env.core.models import ModelFactory
@@ -31,14 +33,14 @@ if TYPE_CHECKING:
     from strands_env.utils.aws import BotoClient
 
 
-class CodeSandboxConfig(EnvironmentConfig, total=False):
-    """Serializable configuration for `CodeSandboxEnv`."""
+class AgentCoreCodeConfig(EnvironmentConfig, total=False):
+    """Serializable configuration for `AgentCoreCodeEnv`."""
 
     mode: Literal["code", "terminal", "code_and_terminal"]
     session_timeout_seconds: int
 
 
-class CodeSandboxEnv(Environment):
+class AgentCoreCodeEnv(Environment):
     """Code sandbox environment using AWS Bedrock AgentCore Code Interpreter.
 
     Notes:
@@ -55,9 +57,9 @@ class CodeSandboxEnv(Environment):
         reward_fn: RewardFunction | None = None,
         client: BotoClient | None = None,
         quotas: CodeInterpreterQuotas | None = None,
-        **config: Unpack[CodeSandboxConfig],
+        **config: Unpack[AgentCoreCodeConfig],
     ):
-        """Initialize a `CodeSandboxEnv` instance."""
+        """Initialize a `AgentCoreCodeEnv` instance."""
         super().__init__(model_factory=model_factory, reward_fn=reward_fn, **config)  # type: ignore[misc]
         self.mode: str = self.config.get("mode", "code")
         self._toolkit = CodeInterpreterToolkit(

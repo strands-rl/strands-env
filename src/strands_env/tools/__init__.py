@@ -13,10 +13,3 @@
 # limitations under the License.
 
 """Tools for `strands_env`."""
-
-from .code_interpreter import CodeInterpreterQuotas, CodeInterpreterToolkit
-
-__all__ = [
-    "CodeInterpreterQuotas",
-    "CodeInterpreterToolkit",
-]

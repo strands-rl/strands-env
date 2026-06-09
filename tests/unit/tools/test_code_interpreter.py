@@ -20,7 +20,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from strands_env.tools.code_interpreter import CodeInterpreterQuotas, CodeInterpreterToolkit
+from strands_env.environments.agentcore_code.quotas import CodeInterpreterQuotas
+from strands_env.environments.agentcore_code.tool import CodeInterpreterToolkit
 
 # ---------------------------------------------------------------------------
 # Helpers

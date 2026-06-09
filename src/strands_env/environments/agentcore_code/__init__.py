@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Code sandbox environment using AWS Bedrock AgentCore Code Interpreter."""
+"""AWS Bedrock AgentCore Code Interpreter environment."""
 
-from .env import CodeSandboxConfig, CodeSandboxEnv
+from .env import AgentCoreCodeConfig, AgentCoreCodeEnv
 
-__all__ = ["CodeSandboxConfig", "CodeSandboxEnv"]
+__all__ = ["AgentCoreCodeConfig", "AgentCoreCodeEnv"]

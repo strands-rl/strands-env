@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Integration tests for CodeSandboxEnv with a real SGLang model.
+"""Integration tests for AgentCoreCodeEnv with a real SGLang model.
 
 Requires:
 - A running SGLang server (default: http://localhost:30000)
@@ -22,7 +22,7 @@ Requires:
 import pytest
 
 from strands_env.core.types import Action, RewardResult, StepResult, TaskContext, TerminationReason
-from strands_env.environments.code_sandbox import CodeSandboxEnv
+from strands_env.environments.agentcore_code import AgentCoreCodeEnv
 from strands_env.utils.aws import check_credentials, get_client, get_session
 
 from .conftest import assert_rollout, assert_successful_step, assert_token_usage
@@ -50,8 +50,8 @@ def agentcore_client():
 
 @pytest.fixture
 async def code_env(model_factory, agentcore_client):
-    """CodeSandboxEnv in CODE mode with automatic cleanup."""
-    env = CodeSandboxEnv(model_factory=model_factory, client=agentcore_client, mode="code")
+    """AgentCoreCodeEnv in CODE mode with automatic cleanup."""
+    env = AgentCoreCodeEnv(model_factory=model_factory, client=agentcore_client, mode="code")
     yield env
     await env.cleanup()
 
@@ -61,7 +61,7 @@ async def code_env(model_factory, agentcore_client):
 # ---------------------------------------------------------------------------
 
 
-class TestCodeSandboxEnv:
+class TestAgentCoreCodeEnv:
     async def test_code_mode(self, code_env):
         """CODE mode: agent executes Python, produces complete observation with token trajectory and metrics."""
         result = await code_env.step(Action(message="Use code to compute 2 ** 10 and tell me the result."))
@@ -75,7 +75,7 @@ class TestCodeSandboxEnv:
 
     async def test_terminal_mode(self, model_factory, agentcore_client):
         """TERMINAL mode: agent executes shell commands."""
-        env = CodeSandboxEnv(model_factory=model_factory, client=agentcore_client, mode="terminal")
+        env = AgentCoreCodeEnv(model_factory=model_factory, client=agentcore_client, mode="terminal")
         try:
             result = await env.step(Action(message="Use a shell command to print 'hello' with echo."))
             assert_successful_step(result)
@@ -84,7 +84,7 @@ class TestCodeSandboxEnv:
 
     async def test_code_and_terminal_mode(self, model_factory, agentcore_client):
         """CODE_AND_TERMINAL mode: both execute_code and execute_command tools available."""
-        env = CodeSandboxEnv(model_factory=model_factory, client=agentcore_client, mode="code_and_terminal")
+        env = AgentCoreCodeEnv(model_factory=model_factory, client=agentcore_client, mode="code_and_terminal")
         try:
             result = await env.step(
                 Action(message="Use code to compute 2 + 2, then use a shell command to echo the result."),
@@ -102,7 +102,7 @@ class TestCodeSandboxEnv:
                 expected = str(action.task_context.ground_truth)
                 return RewardResult(reward=1.0 if expected in response else 0.0)
 
-        env = CodeSandboxEnv(
+        env = AgentCoreCodeEnv(
             model_factory=model_factory,
             client=agentcore_client,
             mode="code",
@@ -126,7 +126,7 @@ class TestCodeSandboxEnv:
 
     async def test_tool_iteration_limit(self, model_factory, agentcore_client):
         """max_tool_iters terminates the agent after the specified number of tool rounds."""
-        env = CodeSandboxEnv(
+        env = AgentCoreCodeEnv(
             model_factory=model_factory,
             client=agentcore_client,
             mode="code",
@@ -143,7 +143,7 @@ class TestCodeSandboxEnv:
 
     async def test_max_tool_calls_limit(self, model_factory, agentcore_client):
         """max_tool_calls terminates the agent after the specified total tool invocations."""
-        env = CodeSandboxEnv(
+        env = AgentCoreCodeEnv(
             model_factory=model_factory,
             client=agentcore_client,
             mode="code",
