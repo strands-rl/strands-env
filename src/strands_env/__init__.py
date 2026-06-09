@@ -12,4 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Standardizing environment infrastructure with Strands Agents — step, observe, reward."""
+"""A gym-like framework for building agent environments for RL training."""
