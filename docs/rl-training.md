@@ -70,7 +70,7 @@ async def reward_func(args, sample, **kwargs):
     return reward_result.reward
 ```
 
-A complete worked example lives at `examples/slime/retool/generate_with_code_sandbox.py`.
+A complete worked example lives at `examples/slime/retool/generate_with_agentcore_code.py`.
 
 ## Key Points
 

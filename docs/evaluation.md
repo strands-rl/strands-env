@@ -64,7 +64,7 @@ python -m strands_env.eval --evaluator <dotted.module.path> --env <dotted.module
 # Using registered benchmark with code sandbox env
 python -m strands_env.eval \
     --benchmark aime-2024 \
-    --env examples.eval.aime.code_sandbox_env \
+    --env examples.eval.aime.agentcore_code_env \
     --base-url http://localhost:30000
 
 # Using custom evaluator module
@@ -136,7 +136,7 @@ def create_env_factory(model_config: dict, **env_config):
 ### Example: AgentCore Code Environment
 
 ```python
-# examples/eval/hmmt/code_sandbox_env.py
+# examples/eval/hmmt/agentcore_code_env.py
 from strands_env.core.models import build_model_factory
 from strands_env.environments.agentcore_code import AgentCoreCodeEnv
 from strands_env.environments.calculator.reward import MathVerifyReward

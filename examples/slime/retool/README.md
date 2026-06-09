@@ -4,7 +4,7 @@ slime-based RL training for math problem solving using `AgentCoreCodeEnv` (based
 
 ## Files
 
-- **`generate_with_code_sandbox.py`**: Core generation and reward computation logic
+- **`generate_with_agentcore_code.py`**: Core generation and reward computation logic
   - `generate_and_rm()`: Async function that generates responses and computes rewards
   - `rollout_logging_with_tool_stats()`: Custom logging function for tool usage metrics
 

@@ -20,12 +20,12 @@ huggingface-cli login
 # or: export HF_TOKEN=hf_...
 ```
 
-The `code_sandbox_env.py` variant requires AWS credentials with Bedrock AgentCore access.
+The `agentcore_code_env.py` variant requires AWS credentials with Bedrock AgentCore access.
 
 ## Files
 
 - `chat_env.py` - Chat-only (no tools) — tests pure parametric reasoning
-- `code_sandbox_env.py` - Environment hook using `AgentCoreCodeEnv` with Python execution
+- `agentcore_code_env.py` - Environment hook using `AgentCoreCodeEnv` with Python execution
 
 ## Usage
 
@@ -43,7 +43,7 @@ python -m strands_env.eval \
 # With code sandbox
 python -m strands_env.eval \
     --benchmark gpqa-diamond \
-    --env examples.eval.gpqa.code_sandbox_env \
+    --env examples.eval.gpqa.agentcore_code_env \
     --backend sglang \
     --base-url http://localhost:30000 \
     --max-tokens 16384 \
