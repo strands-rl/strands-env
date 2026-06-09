@@ -33,8 +33,8 @@ import logging
 from pydantic import BaseModel, Field
 from typing_extensions import override
 
+from strands_env.core.llm_judge_reward import LLMJudgeReward
 from strands_env.core.types import Action, RewardResult, StepResult
-from strands_env.rewards.llm_judge_reward import LLMJudgeReward
 
 logger = logging.getLogger(__name__)
 

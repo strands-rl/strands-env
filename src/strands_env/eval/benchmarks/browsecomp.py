@@ -27,7 +27,7 @@ from pydantic import BaseModel, Field
 from typing_extensions import override
 
 from strands_env.core import Action, StepResult, TaskContext
-from strands_env.rewards.llm_judge_reward import LLMJudgeReward
+from strands_env.core.llm_judge_reward import LLMJudgeReward
 
 from ..evaluator import EvalSample, Evaluator
 from ..registry import register_eval

@@ -15,7 +15,7 @@
 """Tests for MathVerifyReward."""
 
 from strands_env.core.types import Action, Observation, StepResult, TaskContext
-from strands_env.rewards.math_verify_reward import MathVerifyReward
+from strands_env.environments.calculator.reward import MathVerifyReward
 
 
 def make_step_result(content: str) -> StepResult:

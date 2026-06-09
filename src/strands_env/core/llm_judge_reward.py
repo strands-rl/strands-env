@@ -27,7 +27,7 @@ from strands.models import Model
 from strands.types.exceptions import ModelThrottledException
 from typing_extensions import override
 
-from strands_env.core.types import Action, RewardFunction, RewardResult, StepResult
+from .types import Action, RewardFunction, RewardResult, StepResult
 
 logger = logging.getLogger(__name__)
 

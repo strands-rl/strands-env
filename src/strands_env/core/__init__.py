@@ -12,9 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Core module: environment, types, and model factories."""
+"""Core module: environment, types, model factories, and shared reward/tool primitives."""
 
 from .environment import AsyncEnvFactory, Environment, EnvironmentConfig
+from .llm_judge_reward import JudgmentFormat, LLMJudgeReward
+from .mcp_tool import MCPToolAdapter
 from .models import ModelFactory
 from .types import (
     Action,
@@ -31,6 +33,9 @@ __all__ = [
     "AsyncEnvFactory",
     "Environment",
     "EnvironmentConfig",
+    "JudgmentFormat",
+    "LLMJudgeReward",
+    "MCPToolAdapter",
     "ModelFactory",
     "Observation",
     "RewardFunction",

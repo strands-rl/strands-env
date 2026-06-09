@@ -12,23 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""MCP tool adapter for Strands agents.
+"""MCP tool adapter for Strands Agents.
 
-`MCPToolAdapter` is an `AgentTool` subclass that adapts an MCP tool definition
-to the Strands agent interface.  It handles tool spec building; subclasses
-implement `call_tool()` to provide the transport-specific call and result
-parsing.
+`MCPToolAdapter` is an `AgentTool` subclass that adapts an MCP tool definition to
+the Strands agent interface.  It handles tool spec building; subclasses implement
+`call_tool()` to provide the transport-specific call and result parsing.
 """
 
 from __future__ import annotations
 
 from datetime import timedelta
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
-from mcp.types import Tool as MCPToolDef
 from strands.tools.tools import AgentTool, ToolResultEvent
 from strands.types.tools import ToolGenerator, ToolResult, ToolResultContent, ToolSpec, ToolUse
 from typing_extensions import override
+
+if TYPE_CHECKING:
+    from mcp.types import Tool as MCPToolDef
 
 
 class MCPToolAdapter(AgentTool):

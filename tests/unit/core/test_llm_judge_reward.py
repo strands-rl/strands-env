@@ -19,8 +19,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from pydantic import BaseModel
 from strands.types.exceptions import ModelThrottledException
 
+from strands_env.core.llm_judge_reward import LLMJudgeReward
 from strands_env.core.types import Action, Observation, StepResult, TaskContext
-from strands_env.rewards.llm_judge_reward import LLMJudgeReward
 
 # ---------------------------------------------------------------------------
 # Concrete subclass for testing
@@ -89,7 +89,7 @@ class TestErrorRecovery:
         assert result.reward == 0.0
         assert result.info["error_type"] == "prompt_error"
 
-    @patch("strands_env.rewards.llm_judge_reward.Agent")
+    @patch("strands_env.core.llm_judge_reward.Agent")
     async def test_judge_error_returns_default_reward(self, mock_agent_cls):
         """Agent invocation raising returns default_reward with judge_error info."""
         mock_agent_instance = MagicMock()
@@ -103,7 +103,7 @@ class TestErrorRecovery:
         assert result.reward == 0.5
         assert result.info["error_type"] == "judge_error"
 
-    @patch("strands_env.rewards.llm_judge_reward.Agent")
+    @patch("strands_env.core.llm_judge_reward.Agent")
     async def test_reward_error_returns_default_reward(self, mock_agent_cls):
         """get_reward raising returns default_reward with reward_error info."""
         mock_agent_instance = MagicMock()
@@ -135,7 +135,7 @@ class TestErrorRecovery:
 
 
 class TestHappyPath:
-    @patch("strands_env.rewards.llm_judge_reward.Agent")
+    @patch("strands_env.core.llm_judge_reward.Agent")
     async def test_structured_output_success(self, mock_agent_cls):
         """Structured output mode: judgment_format set, structured output parsed."""
         mock_agent_instance = MagicMock()
@@ -152,7 +152,7 @@ class TestHappyPath:
         assert result.info["status"] == "success"
         assert result.info["judgment"]["grade"] == "correct"
 
-    @patch("strands_env.rewards.llm_judge_reward.Agent")
+    @patch("strands_env.core.llm_judge_reward.Agent")
     async def test_text_output_success(self, mock_agent_cls):
         """Text output mode: judgment_format=None, raw text passed to get_reward."""
         mock_agent_instance = MagicMock()
@@ -169,7 +169,7 @@ class TestHappyPath:
         assert result.info["status"] == "success"
         assert result.info["judgment"] == "correct answer"
 
-    @patch("strands_env.rewards.llm_judge_reward.Agent")
+    @patch("strands_env.core.llm_judge_reward.Agent")
     async def test_throttle_rotates_to_next_model(self, mock_agent_cls):
         """On throttle, cycles to the next model and succeeds."""
         mock_result = MagicMock()
@@ -186,7 +186,7 @@ class TestHappyPath:
         assert mock_agent_cls.call_args_list[0][1]["model"] is model_a
         assert mock_agent_cls.call_args_list[1][1]["model"] is model_b
 
-    @patch("strands_env.rewards.llm_judge_reward.Agent")
+    @patch("strands_env.core.llm_judge_reward.Agent")
     async def test_all_retries_throttled_returns_default(self, mock_agent_cls):
         """When all retries exhausted, returns default_reward."""
         throttled = MagicMock(invoke_async=AsyncMock(side_effect=ModelThrottledException("throttled")))

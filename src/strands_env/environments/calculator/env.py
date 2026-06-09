@@ -17,15 +17,26 @@
 from pathlib import Path
 
 from strands_tools.calculator import calculator
-from typing_extensions import override
+from typing_extensions import Unpack, override
 
-from strands_env.core.environment import Environment
+from strands_env.core import Environment, EnvironmentConfig, ModelFactory, RewardFunction
+from strands_env.environments.calculator.reward import MathVerifyReward
 
 
 class CalculatorEnv(Environment):
     """Simple math environment using a calculator tool."""
 
     default_system_prompt_path = Path(__file__).parent / "system_prompt.md"
+
+    def __init__(
+        self,
+        *,
+        model_factory: ModelFactory,
+        reward_fn: RewardFunction | None = None,
+        **config: Unpack[EnvironmentConfig],
+    ):
+        """Initialize a `CalculatorEnv` instance."""
+        super().__init__(model_factory=model_factory, reward_fn=reward_fn or MathVerifyReward(), **config)
 
     @override
     def get_tools(self) -> list:

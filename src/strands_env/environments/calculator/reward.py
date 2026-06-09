@@ -12,12 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-r"""Reward function for math problems using math-verify for symbolic equivalence.
-
-Uses HuggingFace's math-verify library to parse LaTeX/expressions from both
-the model's `\\boxed{}` output and the ground truth, then checks equivalence
-via SymPy (handling fractions, sets, nested expressions, etc.).
-"""
+r"""Reward function for math problems using HuggingFace's `math-verify` for symbolic equivalence."""
 
 from __future__ import annotations
 

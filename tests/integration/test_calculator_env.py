@@ -22,7 +22,7 @@ Requires a running SGLang server (default: http://localhost:30000).
 
 from strands_env.core.types import Action, TaskContext, TerminationReason
 from strands_env.environments.calculator import CalculatorEnv
-from strands_env.rewards.math_verify_reward import MathVerifyReward
+from strands_env.environments.calculator.reward import MathVerifyReward
 
 from .conftest import assert_rollout, assert_successful_step, assert_token_usage
 
