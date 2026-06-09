@@ -225,7 +225,7 @@ def run_cmd(
     if n_actors_per_node is not None:
         import ray
 
-        from strands_env.utils.ray import EnvironmentActorPool
+        from strands_env.core.distributed import EnvironmentActorPool
 
         if not ray.is_initialized():
             ray.init()

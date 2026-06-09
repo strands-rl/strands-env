@@ -35,7 +35,7 @@ from strands_env.core import Action, AsyncEnvFactory, Observation, StepResult
 from .metrics import MetricFn, compute_pass_at_k
 
 if TYPE_CHECKING:
-    from strands_env.utils.ray import EnvironmentActorPool
+    from strands_env.core.distributed import EnvironmentActorPool
 
 logger = logging.getLogger(__name__)
 

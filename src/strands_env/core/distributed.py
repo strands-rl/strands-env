@@ -26,8 +26,9 @@ import ray
 from ray.actor import ActorHandle
 from ray.util.scheduling_strategies import NodeAffinitySchedulingStrategy
 
-from strands_env.core.types import Action, RewardResult, StepResult
 from strands_env.utils.loader import load_function
+
+from .types import Action, RewardResult, StepResult
 
 logger = logging.getLogger(__name__)
 
