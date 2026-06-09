@@ -62,15 +62,11 @@ JSON = JsonType()
 # ---------------------------------------------------------------------------
 
 
-@click.group("eval")
-def eval_group() -> None:
-    """Benchmark evaluation commands."""
-    pass
+def _list_benchmarks(ctx: click.Context, param: click.Parameter, value: bool) -> None:
+    """Eager `--list` callback: print registered/unavailable benchmarks, then exit."""
+    if not value or ctx.resilient_parsing:
+        return
 
-
-@eval_group.command("list")
-def list_cmd() -> None:
-    """List registered benchmarks."""
     benchmarks = list_benchmarks()
     unavailable = list_unavailable_benchmarks()
 
@@ -86,16 +82,32 @@ def list_cmd() -> None:
         for module, error in sorted(unavailable.items()):
             click.echo(f"  - {module}: {error}")
 
+    ctx.exit()
 
-@eval_group.command("run")
-@click.argument("benchmark", required=False)
-# Hooks (dotted paths)
+
+@click.command("eval")
+@click.option(
+    "--list",
+    is_flag=True,
+    is_eager=True,
+    expose_value=False,
+    callback=_list_benchmarks,
+    help="List registered (and unavailable) benchmarks, then exit.",
+)
+# Benchmark / evaluator selection (mutually exclusive)
+@click.option(
+    "--benchmark",
+    "benchmark",
+    type=str,
+    default=None,
+    help="Name of a registered benchmark (e.g. 'aime-2024'). Mutually exclusive with --evaluator.",
+)
 @click.option(
     "--evaluator",
     "evaluator_path",
     type=str,
     default=None,
-    help="Dotted path to evaluator module (exporting EvaluatorClass). Mutually exclusive with BENCHMARK.",
+    help="Dotted path to a custom evaluator module (exporting EvaluatorClass). Mutually exclusive with --benchmark.",
 )
 @click.option(
     "--env",
@@ -138,7 +150,7 @@ def list_cmd() -> None:
 @click.option("--n-actors-per-node", type=int, default=None, help="Ray actors per node for distributed eval.")
 # Debug
 @click.option("--debug", is_flag=True, default=False, help="Enable debug logging.")
-def run_cmd(
+def eval_cmd(
     benchmark: str | None,
     evaluator_path: str | None,
     env_hook: str,
@@ -169,26 +181,30 @@ def run_cmd(
     # Misc
     debug: bool,
 ) -> None:
-    """Run benchmark evaluation.
+    """Run a benchmark evaluation.
 
-    BENCHMARK is the name of a registered benchmark (e.g., 'aime-2024').
-    Alternatively, use --evaluator to specify a custom evaluator module.
+    Select what to run with --benchmark (a registered benchmark name) or
+    --evaluator (a custom evaluator module exporting EvaluatorClass). Use --list
+    to see the registered benchmarks.
 
     Examples:
-        python -m strands_env.eval run aime-2024 -e examples.eval.simple_math.calculator_env
-        python -m strands_env.eval run --evaluator my_package.evaluator -e my_package.env_hook
+        python -m strands_env.eval --benchmark aime-2024 -e examples.eval.simple_math.calculator_env
+        python -m strands_env.eval --evaluator my_package.evaluator -e my_package.env_hook
     """
+    if not benchmark and not evaluator_path:
+        raise click.UsageError("Provide --benchmark <name> or --evaluator <dotted.path> (or --list to see benchmarks).")
+
     logging.basicConfig(
         level=logging.DEBUG if debug else logging.INFO,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
 
-    # Resolve evaluator; benchmark takes precedence over evaluator_path
+    # Resolve evaluator; --benchmark takes precedence over --evaluator
     if benchmark:
         evaluator_cls = get_benchmark(benchmark)
         benchmark_name = benchmark
         if evaluator_path:
-            logger.warning("Registered %s benchmark, ignoring --evaluator %s.", benchmark, evaluator_path)
+            logger.warning("Using --benchmark %s, ignoring --evaluator %s.", benchmark, evaluator_path)
     else:
         assert evaluator_path is not None
         evaluator_cls = load_evaluator_hook(evaluator_path)
