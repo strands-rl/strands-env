@@ -20,7 +20,7 @@ import logging
 import time
 from collections.abc import Awaitable, Callable, Sequence
 from pathlib import Path
-from typing import Any, ClassVar, TypeAlias
+from typing import TYPE_CHECKING, Any, ClassVar, TypeAlias
 
 from strands import Agent
 from strands.agent.conversation_manager import ConversationManager, NullConversationManager
@@ -38,6 +38,9 @@ from .types import (
     TerminationReason,
 )
 
+if TYPE_CHECKING:
+    from opentelemetry.util.types import AttributeValue
+
 logger = logging.getLogger(__name__)
 
 #: Type alias for environment factory function (async).
@@ -48,9 +51,14 @@ class EnvironmentConfig(TypedDict, total=False):
     """Serializable configuration for `Environment`."""
 
     system_prompt: str | None
+    # default tool limiting hook's config
     max_tool_iters: int | None
     max_tool_calls: int | None
     max_parallel_tool_calls: int | None
+    # otel tracing
+    trace_attributes: dict[str, AttributeValue] | None
+    agent_name: str | None
+    # verbose (streaming printouts)
     verbose: bool
 
 
@@ -81,6 +89,8 @@ class Environment:
             if self.default_system_prompt_path and self.default_system_prompt_path.exists()
             else None
         )
+        self.trace_attributes: dict[str, AttributeValue] | None = self.config.get("trace_attributes")
+        self.agent_name: str | None = self.config.get("agent_name")
 
     async def reset(self) -> None:
         """Reset for a new episode. Override for environment-specific init.
@@ -112,6 +122,8 @@ class Environment:
             hooks=[tool_limiter] + list(self.get_hooks()),
             conversation_manager=self.get_conversation_manager(),
             callback_handler=PrintingCallbackHandler() if self.verbose else None,
+            trace_attributes=self.trace_attributes or None,
+            name=self.agent_name,
         )
         # 2. Run the agent loop.
         error = None
