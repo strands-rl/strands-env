@@ -16,7 +16,7 @@
 
 from strands_env.core.models import build_model_factory
 from strands_env.environments.calculator import CalculatorEnv
-from strands_env.rewards import MathVerifyReward
+from strands_env.environments.calculator.reward import MathVerifyReward
 
 
 def create_env_factory(model_config: dict, **env_config):

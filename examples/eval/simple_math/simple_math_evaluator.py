@@ -15,8 +15,8 @@
 """Example evaluator hook for a simple math benchmark.
 
 This demonstrates how to create a custom evaluator for use with:
-    strands-env eval --evaluator examples/evaluators/simple_math_evaluator.py \
-        --env examples/envs/calculator_env.py --backend sglang
+    python -m strands_env.eval --evaluator examples.eval.simple_math.simple_math_evaluator \
+        --env examples.eval.simple_math.calculator_env --backend sglang
 
 The hook file must export `EvaluatorClass` (an Evaluator subclass).
 """
