@@ -13,11 +13,11 @@
 # limitations under the License.
 
 """
-Generate function for retool RL training using `strands-env`'s `CodeSandboxEnv`.
+Generate function for retool RL training using `strands-env`'s `AgentCoreCodeEnv`.
 
 Uses:
 - AWS Bedrock-based code execution
-- Built-in token tracking (TokenObservation)
+- Built-in token tracking (Rollout)
 - Persistent session management
 - Tool iteration/call limits
 """
@@ -30,14 +30,14 @@ from strands_sglang import get_client_from_slime_args
 
 from strands_env.core.models import sglang_model_factory
 from strands_env.core.types import Action, TaskContext
-from strands_env.environments.code_sandbox import CodeSandboxEnv
-from strands_env.rewards.math_verify_reward import MathVerifyReward
-from strands_env.tools import CodeInterpreterQuotas
+from strands_env.environments.agentcore_code import AgentCoreCodeEnv
+from strands_env.environments.agentcore_code.quotas import CodeInterpreterQuotas
+from strands_env.environments.calculator.reward import MathVerifyReward
 from strands_env.utils.aws import get_client
-from strands_env.utils.slime import RolloutLogger
+from strands_env.utils.slime_logger import RolloutLogger
 
 # export for slime's --custom-rollout-log-function-path
-log_rollout_metrics = RolloutLogger(n_rollouts_per_step=3, log_per_tool_metrics=False).log_rollouts
+log_rollout_metrics = RolloutLogger(backend="wandb", n_rollouts_per_step=3, log_per_tool_metrics=False).log_rollouts
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +58,7 @@ QUOTAS = CodeInterpreterQuotas()
 
 
 async def generate_and_rm(args, sample: Sample, sampling_params) -> Sample:
-    """Generate and compute rewards using CodeSandboxEnv."""
+    """Generate and compute rewards using AgentCoreCodeEnv."""
     assert not args.partial_rollout, "Partial rollout not supported."
 
     state = GenerateState(args)
@@ -70,7 +70,7 @@ async def generate_and_rm(args, sample: Sample, sampling_params) -> Sample:
     )
     bedrock_client = get_client("bedrock-agentcore")
     reward_fn = MathVerifyReward()
-    env = CodeSandboxEnv(
+    env = AgentCoreCodeEnv(
         model_factory=model_factory,
         client=bedrock_client,
         mode="code",
@@ -92,13 +92,14 @@ async def generate_and_rm(args, sample: Sample, sampling_params) -> Sample:
     )
     step_result = await env.step(action)
 
-    # Extract token data from observation
-    token_obs = step_result.observation.tokens
-    sample.tokens = token_obs.token_ids
-    sample.loss_mask = token_obs.rollout_loss_mask
-    sample.rollout_log_probs = token_obs.rollout_logprobs
-    sample.response_length = len(token_obs.rollout_token_ids)
-    sample.response = state.tokenizer.decode(token_obs.rollout_token_ids, skip_special_tokens=False)
+    # Extract token data from the rollout
+    rollout = step_result.observation.rollout
+    prompt_len = rollout.initial_prompt_length
+    sample.tokens = rollout.token_ids
+    sample.loss_mask = rollout.loss_mask[prompt_len:]
+    sample.rollout_log_probs = rollout.logprobs[prompt_len:]
+    sample.response_length = len(rollout.token_ids) - prompt_len
+    sample.response = state.tokenizer.decode(rollout.token_ids[prompt_len:], skip_special_tokens=False)
 
     # Set status
     if step_result.termination_reason.value == "task_complete":

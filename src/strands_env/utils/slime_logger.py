@@ -12,25 +12,35 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Utilities for logging `strands-env` rollouts in `slime`."""
+"""Rollout logger for `slime` training, with a pluggable logging backend.
+
+`RolloutLogger` aggregates per-rollout environment metrics into slime's
+`rollout_extra_metrics` and publishes a sample of decoded rollouts to the
+configured `backend`:
+
+- `"wandb"` — metrics to `wandb`, samples to a W&B Weave dataset.
+- `"mlflow"` — metrics and samples to MLflow.
+
+Instantiate one and pass its bound `log_rollouts` as slime's
+`--custom-rollout-log-function-path` callback. Backend libraries are imported
+lazily, so only the selected backend needs to be installed.
+"""
 
 from __future__ import annotations
 
 import logging
 import random
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
-import wandb
-import weave
 from slime.rollout.sglang_rollout import GenerateState  # type: ignore
-
-if TYPE_CHECKING:
-    from weave.trace.refs import ObjectRef
-    from weave.trace.weave_client import WeaveClient
 from slime.utils.metric_utils import compute_rollout_step, compute_statistics, dict_add_prefix  # type: ignore
 from slime.utils.types import Sample  # type: ignore
 
 from strands_env.core.types import StepResult
+
+if TYPE_CHECKING:
+    from weave.trace.refs import ObjectRef
+    from weave.trace.weave_client import WeaveClient
 
 logger = logging.getLogger(__name__)
 
@@ -38,30 +48,36 @@ logger = logging.getLogger(__name__)
 
 
 class RolloutLogger:
-    """Custom rollout logger for `slime` that logs env metrics to `wandb` and samples to `weave`.
+    """Custom `slime` rollout logger with a pluggable logging backend.
 
-    Instantiate once and use `log_rollout_metrics` as the
-    `--custom-rollout-log-function-path` callback.
+    Aggregates per-rollout env metrics into slime's `rollout_extra_metrics` and
+    publishes a sample of decoded rollouts to `backend` (`"wandb"` → a W&B Weave
+    dataset, `"mlflow"` → MLflow JSON artifacts).
 
-    Weave sample logging is controlled by `n_rollouts_per_step` (default 3).
-    Set to 0 to disable.
+    Instantiate once and use `log_rollouts` as the
+    `--custom-rollout-log-function-path` callback. Sample logging is controlled by
+    `n_rollouts_per_step` (default 3); set to 0 to disable. `max_rollouts` caps the
+    accumulated Weave dataset and is ignored by the MLflow backend.
     """
 
     def __init__(
         self,
+        backend: Literal["wandb", "mlflow"] = "wandb",
         n_rollouts_per_step: int = 3,
         max_rollouts: int = 3000,
         log_per_tool_metrics: bool = False,
     ) -> None:
         """Initialize a `RolloutLogger` instance."""
+        self.backend = backend
+        self.n_rollouts_per_step = n_rollouts_per_step
+        self.log_per_tool_metrics = log_per_tool_metrics
+        self.max_rollouts = max_rollouts
+        # Weave (wandb backend) state, lazily initialized on first publish.
         self._weave_init = False
         self._weave_client: WeaveClient | None = None
         self._prev_ref: ObjectRef | None = None
         self._rows: list[dict] = []
         self.run_name: str | None = None
-        self.n_rollouts_per_step = n_rollouts_per_step
-        self.log_per_tool_metrics = log_per_tool_metrics
-        self.max_rollouts = max_rollouts
 
     def log_rollouts(
         self,
@@ -71,7 +87,7 @@ class RolloutLogger:
         rollout_extra_metrics: dict | None,
         _rollout_time: float,
     ) -> bool:
-        """Log env metrics to wandb and optionally publish samples to Weave.
+        """Log env metrics and optionally publish sampled rollouts.
 
         Returns `False` so slime's default logging still runs.
         """
@@ -87,7 +103,7 @@ class RolloutLogger:
         return False
 
     def log_rollout_metrics(self, samples: list[Sample], rollout_extra_metrics: dict | None) -> None:
-        """Aggregate `StepResult.observation.metrics` across samples.
+        """Aggregate `StepResult.observation.metrics` across samples into `rollout_extra_metrics`.
 
         Note:
             - Need to set `sample.metrics = step_result.observation.metrics` in `generate()`
@@ -159,8 +175,51 @@ class RolloutLogger:
         else:
             logger.warning("rollout_extra_metrics is None, env metrics will not be logged")
 
+    def _build_sample_rows(self, rollout_id: int, step: int, args: Any, samples: list[Sample]) -> list[dict]:
+        """Decode a random subset of rollouts into serializable rows for backend logging."""
+        tokenizer = GenerateState(args).tokenizer
+        n_saved = min(len(samples), self.n_rollouts_per_step)
+        rows = []
+        for s in random.sample(samples, k=n_saved):
+            step_result: StepResult = s.step_result
+            obs = step_result.observation
+            rollout = obs.rollout
+            if not rollout:
+                logger.warning("rollout %d missing token rollout", rollout_id)
+                continue
+
+            prompt_len = rollout.initial_prompt_length
+            rows.append(
+                {
+                    "rollout_id": rollout_id,
+                    "step": step,
+                    "group_index": s.group_index,
+                    "index": s.index,
+                    "prompt": tokenizer.decode(rollout.token_ids[:prompt_len], skip_special_tokens=False),
+                    "response": tokenizer.decode(rollout.token_ids[prompt_len:], skip_special_tokens=False),
+                    "termination_reason": step_result.termination_reason.value,
+                    "reward": step_result.reward.reward if step_result.reward else None,
+                    "reward_info": step_result.reward.info if step_result.reward else None,
+                    "metrics": obs.metrics,
+                }
+            )
+        return rows
+
     def log_rollout_samples(self, rollout_id: int, args: Any, samples: list[Sample]) -> None:
+        """Publish a sample of decoded rollouts to the configured backend."""
+        match self.backend:
+            case "wandb":
+                self._log_samples_wandb(rollout_id, args, samples)
+            case "mlflow":
+                self._log_samples_mlflow(rollout_id, args, samples)
+            case _:
+                raise ValueError(f"Unknown logging backend {self.backend!r} (expected 'wandb' or 'mlflow')")
+
+    def _log_samples_wandb(self, rollout_id: int, args: Any, samples: list[Sample]) -> None:
         """Publish sampled rollout step_results to a single W&B Weave dataset per run."""
+        import wandb
+        import weave
+
         # Lazy Weave init from args.wandb_project
         if not self._weave_init:
             project = getattr(args, "wandb_project", None)
@@ -170,36 +229,12 @@ class RolloutLogger:
             self.run_name = wandb.run.name if wandb.run else "unknown"
             self._weave_init = True
 
-        tokenizer = GenerateState(args).tokenizer
         step = compute_rollout_step(args, rollout_id)
-        n_saved = min(len(samples), self.n_rollouts_per_step)
-        rows = []
-        for s in random.sample(samples, k=n_saved):
-            step_result: StepResult = s.step_result
-            obs = step_result.observation
-            rollout = obs.rollout
-            if not rollout:
-                logger.warning("[weave] rollout %d missing token rollout", rollout_id)
-                continue
-
-            prompt_len = rollout.initial_prompt_length
-            rows.append(
-                {
-                    "rollout_id": rollout_id,
-                    "step": step,
-                    "prompt": tokenizer.decode(rollout.token_ids[:prompt_len], skip_special_tokens=False),
-                    "response": tokenizer.decode(rollout.token_ids[prompt_len:], skip_special_tokens=False),
-                    "termination_reason": step_result.termination_reason.value,
-                    "reward": step_result.reward.reward if step_result.reward else None,
-                    "reward_info": step_result.reward.info if step_result.reward else None,
-                    "metrics": obs.metrics,
-                }
-            )
-
+        rows = self._build_sample_rows(rollout_id, step, args, samples)
         if not rows:
             return
 
-        # Accumulate rows locally, cap at max_weave_rows, publish fresh each time.
+        # Accumulate rows locally, cap at max_rollouts, publish fresh each time.
         self._rows.extend(rows)
         if len(self._rows) > self.max_rollouts:
             self._rows = self._rows[-self.max_rollouts :]
@@ -216,9 +251,17 @@ class RolloutLogger:
                 logger.debug("Failed to delete previous Weave dataset version", exc_info=True)
         self._prev_ref = new_ref
 
-        logger.info(
-            "Published %d new samples to Weave (rollout %d, step %d)",
-            len(rows),
-            rollout_id,
-            step,
-        )
+        logger.info("Published %d new samples to Weave (rollout %d, step %d)", len(rows), rollout_id, step)
+
+    def _log_samples_mlflow(self, rollout_id: int, args: Any, samples: list[Sample]) -> None:
+        """Publish sampled rollout step_results to MLflow as a per-step JSON artifact."""
+        import mlflow
+
+        step = compute_rollout_step(args, rollout_id)
+        rows = self._build_sample_rows(rollout_id, step, args, samples)
+        if not rows:
+            return
+
+        mlflow.log_dict(rows, f"rollout_samples/step_{step:05d}.json")  # type: ignore[arg-type]
+
+        logger.info("Logged %d samples to MLflow (rollout %d, step %d)", len(rows), rollout_id, step)

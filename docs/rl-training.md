@@ -77,4 +77,4 @@ A complete worked example lives at `examples/slime/retool/generate_with_code_san
 - **Token observations**: `TokenObservation` contains token IDs and logprobs for on-policy training (SGLang backend only)
 - **Model factory pattern**: Each `step()` creates a fresh model instance for clean token tracking state
 - **Cleanup**: Call `await env.cleanup()` at the end of each rollout for envs that hold external resources (e.g. `CodeSandboxEnv`, `MCPEnvironment`, `TerminalBenchEnv`)
-- **Custom rollout logging**: Attach `step_result` to the sample and use `strands_env.utils.slime.RolloutLogger` (see the retool example) to log per-step metrics via slime's `--custom-rollout-log-function-path`
+- **Custom rollout logging**: Attach `step_result` to the sample and use `strands_env.utils.slime_logger.RolloutLogger` (see the retool example) to log per-step metrics via slime's `--custom-rollout-log-function-path`
