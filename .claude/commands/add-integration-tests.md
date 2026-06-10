@@ -16,7 +16,7 @@ Follow the existing test style in `tests/integration/`:
 - **Assertions**: Use plain `assert`
 - **Extra dependencies**: If the environment has a `requirements.txt` with additional deps, use `pytest.importorskip()` at the top of the test file so tests skip gracefully when deps are missing. Example:
   ```python
-  harbor = pytest.importorskip("harbor", reason="harbor required for terminal_bench integration tests")
+  harbor = pytest.importorskip("harbor", reason="harbor required for harbor env integration tests")
   ```
   Also note the dependency in the file docstring so users know what to install.
 

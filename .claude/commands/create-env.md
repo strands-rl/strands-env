@@ -25,7 +25,7 @@ Create the following files under `src/strands_env/environments/<name>/`:
    - `## Reward` — placeholder
    - `## System Prompt` — placeholder
 
-Use the existing environments (calculator, agentcore_code, terminal_bench) as style references. Match the license header used in existing files.
+Use the existing environments (calculator, agentcore_code, harbor) as style references. Match the license header used in existing files.
 
 After creating the files, remind the user to:
 - Implement `get_tools()` in `env.py`

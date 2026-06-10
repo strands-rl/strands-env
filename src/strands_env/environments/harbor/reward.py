@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Reward function for Terminal-Bench environment."""
+"""Reward function for the Harbor task environment."""
 
 from __future__ import annotations
 
@@ -24,16 +24,16 @@ from harbor.models.trial.paths import EnvironmentPaths
 from strands_env.core.types import Action, RewardFunction, RewardResult, StepResult
 
 if TYPE_CHECKING:
-    from .env import TerminalBenchEnv
+    from .env import HarborEnv
 
 logger = logging.getLogger(__name__)
 
 
-class TerminalBenchReward(RewardFunction):
+class HarborReward(RewardFunction):
     """Execute test scripts in Docker and compute binary reward (0 or 1)."""
 
-    def __init__(self, env: TerminalBenchEnv) -> None:
-        """Initialize a `TerminalBenchReward` instance."""
+    def __init__(self, env: HarborEnv) -> None:
+        """Initialize a `HarborReward` instance."""
         self._env = env
 
     async def compute(self, action: Action, step_result: StepResult) -> RewardResult:

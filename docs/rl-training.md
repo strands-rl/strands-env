@@ -77,5 +77,5 @@ A complete worked example lives at `examples/slime/retool/generate_with_agentcor
 - **Connection pooling**: `get_client_from_slime_args(args)` provides `lru_cache`-backed connection pooling across rollouts for efficient GPU utilization
 - **Token observations**: `Observation.rollout` (a `Rollout`) contains token IDs, a loss mask, and logprobs for on-policy training (SGLang backend only)
 - **Model factory pattern**: Each `step()` creates a fresh model instance for clean token tracking state
-- **Cleanup**: Call `await env.cleanup()` at the end of each rollout for envs that hold external resources (e.g. `AgentCoreCodeEnv`, `MCPEnvironment`, `TerminalBenchEnv`)
+- **Cleanup**: Call `await env.cleanup()` at the end of each rollout for envs that hold external resources (e.g. `AgentCoreCodeEnv`, `MCPEnvironment`, `HarborEnv`)
 - **Custom rollout logging**: Attach `step_result` to the sample and use `strands_env.utils.slime_logger.RolloutLogger` (see the retool example) to log per-step metrics via slime's `--custom-rollout-log-function-path`

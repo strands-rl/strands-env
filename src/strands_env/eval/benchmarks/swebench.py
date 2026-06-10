@@ -23,10 +23,12 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
+from typing import ClassVar
 
 from typing_extensions import override
 
 from strands_env.core import Action
+from strands_env.environments.harbor import SWE_SYSTEM_PROMPT_PATH
 from strands_env.eval.benchmarks.terminal_bench import TerminalBenchEvaluator
 
 from ..registry import register_eval
@@ -46,6 +48,8 @@ class SWEBenchVerifiedEvaluator(TerminalBenchEvaluator):
     GIT_COMMIT = "0d48cdd78e14a1e22afa09abcfc1bf210427d66f"
     SUBDIR = "datasets/swebench-verified"
     data_dir: Path = Path("./data/swebench-verified")
+    #: SWE-bench-tuned system prompt injected into each task's config (shipped with `HarborEnv`).
+    system_prompt_path: ClassVar[Path | None] = SWE_SYSTEM_PROMPT_PATH
 
     @override
     def _download_dataset(self) -> None:

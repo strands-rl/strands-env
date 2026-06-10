@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Integration tests for TerminalBenchEnv with a real SGLang model.
+"""Integration tests for HarborEnv with a real SGLang model.
 
 Requires:
 - A running SGLang server (default: http://localhost:30000)
@@ -25,10 +25,10 @@ import subprocess
 
 import pytest
 
-pytest.importorskip("harbor", reason="harbor>=0.1.43 required for terminal_bench integration tests")
+pytest.importorskip("harbor", reason="harbor>=0.1.43 required for harbor env integration tests")
 
 from strands_env.core.types import Action, TaskContext, TerminationReason
-from strands_env.environments.terminal_bench import TerminalBenchEnv
+from strands_env.environments.harbor import HarborEnv
 
 from .conftest import assert_rollout, assert_successful_step, assert_token_usage
 
@@ -63,7 +63,7 @@ def task_dir(tmp_path_factory, docker_available):
     from harbor.models.trial.paths import EnvironmentPaths
 
     verifier_dir = EnvironmentPaths.verifier_dir
-    task = tmp_path_factory.mktemp("terminal_bench_task")
+    task = tmp_path_factory.mktemp("harbor_task")
 
     env_dir = task / "environment"
     env_dir.mkdir()
@@ -77,9 +77,9 @@ def task_dir(tmp_path_factory, docker_available):
 
 
 @pytest.fixture
-async def terminal_bench_env(model_factory, task_dir, tmp_path):
-    """TerminalBenchEnv with Docker reset and cleanup."""
-    env = TerminalBenchEnv(
+async def harbor_env(model_factory, task_dir, tmp_path):
+    """HarborEnv with Docker reset and cleanup."""
+    env = HarborEnv(
         model_factory=model_factory,
         task_id="test-task",
         task_dir=str(task_dir),
@@ -95,10 +95,10 @@ async def terminal_bench_env(model_factory, task_dir, tmp_path):
 # ---------------------------------------------------------------------------
 
 
-class TestTerminalBench:
-    async def test_step_with_docker_reward(self, terminal_bench_env):
+class TestHarborEnv:
+    async def test_step_with_docker_reward(self, harbor_env):
         """Full pipeline: agent runs command in Docker, observation is complete, reward comes from test.sh."""
-        result = await terminal_bench_env.step(Action(message="Run 'echo hello world' in the terminal."))
+        result = await harbor_env.step(Action(message="Run 'echo hello world' in the terminal."))
 
         assert_successful_step(result)
         assert_rollout(result)
@@ -110,12 +110,12 @@ class TestTerminalBench:
         assert result.reward is not None
         assert result.reward.reward == 1.0
 
-    async def test_multi_turn_conversation(self, terminal_bench_env):
+    async def test_multi_turn_conversation(self, harbor_env):
         """Agent uses conversation history from a prior turn to maintain context."""
-        result1 = await terminal_bench_env.step(Action(message="Run 'echo hello' in the terminal."))
+        result1 = await harbor_env.step(Action(message="Run 'echo hello' in the terminal."))
         assert result1.termination_reason == TerminationReason.TASK_COMPLETE
 
-        result2 = await terminal_bench_env.step(
+        result2 = await harbor_env.step(
             Action(
                 message="Now run 'echo world'.",
                 task_context=TaskContext(conversation_history=result1.observation.messages),
@@ -125,7 +125,7 @@ class TestTerminalBench:
 
     async def test_tool_iteration_limit(self, model_factory, task_dir, tmp_path):
         """max_tool_iters terminates the agent after the specified number of tool rounds."""
-        env = TerminalBenchEnv(
+        env = HarborEnv(
             model_factory=model_factory,
             task_id="test-iter-limit",
             task_dir=str(task_dir),
@@ -144,7 +144,7 @@ class TestTerminalBench:
 
     async def test_max_tool_calls_limit(self, model_factory, task_dir, tmp_path):
         """max_tool_calls terminates the agent after the specified total tool invocations."""
-        env = TerminalBenchEnv(
+        env = HarborEnv(
             model_factory=model_factory,
             task_id="test-calls-limit",
             task_dir=str(task_dir),

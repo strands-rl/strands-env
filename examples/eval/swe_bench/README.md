@@ -1,6 +1,6 @@
 # SWE-bench
 
-[SWE-bench Verified](https://www.swebench.com/) benchmark using `SWEBenchEnv`, a thin subclass of `TerminalBenchEnv` with a SWE-bench-tuned system prompt. Each task runs in an isolated container with the agent fixing the repository at `/testbed` via `execute_command` tool calls.
+[SWE-bench Verified](https://www.swebench.com/) benchmark using `HarborEnv`. The `swebench-verified` evaluator injects a SWE-bench-tuned system prompt into each task's config. Each task runs in an isolated container with the agent fixing the repository at `/testbed` via `execute_command` tool calls.
 
 ## Variants
 
@@ -13,12 +13,12 @@
 1. **Docker** - Must be installed and running
 2. **Dependencies** - Install additional requirements:
    ```bash
-   pip install -r src/strands_env/environments/terminal_bench/requirements.txt
+   pip install -r src/strands_env/environments/harbor/requirements.txt
    ```
 
 ## Files
 
-- `swe_bench_env.py` - Environment hook that creates `SWEBenchEnv` instances
+- `swe_bench_env.py` - Environment hook that creates `HarborEnv` instances
 
 ## Usage
 

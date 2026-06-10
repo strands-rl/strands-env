@@ -20,12 +20,13 @@ import json
 import subprocess
 from collections.abc import Iterable
 from pathlib import Path
+from typing import ClassVar
 
 from harbor.models.task.task import Task
 from typing_extensions import override
 
 from strands_env.core import Action, TaskContext
-from strands_env.environments.terminal_bench import TerminalBenchConfig
+from strands_env.environments.harbor import HarborConfig
 from strands_env.eval import Evaluator
 from strands_env.eval.evaluator import EvalSample
 
@@ -33,16 +34,18 @@ from ..registry import register_eval
 
 
 class TerminalBenchTaskContext(TaskContext):
-    """TaskContext with Terminal-Bench specific fields."""
+    """TaskContext with Harbor task config."""
 
-    config: TerminalBenchConfig
+    config: HarborConfig
 
 
 class TerminalBenchEvaluator(Evaluator):
-    """Base evaluator for Terminal-Bench benchmarks."""
+    """Base evaluator for Harbor-format benchmarks (loads a directory of task subdirs)."""
 
     GIT_URL: str = ""
     data_dir: Path = Path("./data/terminal-bench")
+    #: Optional benchmark-specific system prompt injected into each task's config.
+    system_prompt_path: ClassVar[Path | None] = None
 
     def _download_dataset(self) -> None:
         """Download Terminal-Bench tasks from Git repository."""
@@ -68,13 +71,15 @@ class TerminalBenchEvaluator(Evaluator):
         """Load a single task from a directory."""
         task = Task(task_dir)
         task.config.environment.memory_mb *= 2
-        config: TerminalBenchConfig = {
+        config: HarborConfig = {
             "task_id": task.name,
             "task_dir": str(task_dir.resolve()),
             "trial_dir": str(self.output_path.parent / task.name),
             "harbor_env_config": task.config.environment,
             "timeout": int(task.config.verifier.timeout_sec),
         }
+        if self.system_prompt_path is not None:
+            config["system_prompt"] = self.system_prompt_path.read_text().strip()
         return Action(
             message=task.instruction,
             task_context=TerminalBenchTaskContext(id=task.name, config=config),
@@ -115,7 +120,7 @@ class TerminalBenchEvaluator(Evaluator):
         try:
             return await super().run(actions)
         finally:
-            from strands_env.environments.terminal_bench._harbor_aws import cleanup_harbor_aws_session
+            from strands_env.environments.harbor._harbor_aws import cleanup_harbor_aws_session
 
             await cleanup_harbor_aws_session()
 

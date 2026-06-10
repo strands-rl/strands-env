@@ -12,7 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Terminal-Bench environment using Harbor for container management and test execution."""
+"""Harbor task environment for container management and test execution.
+
+Runs any Harbor-format task (a directory with `task.toml`, `environment/Dockerfile`,
+`tests/test.sh`) in an isolated Docker or EKS container. The agent gets a single
+`execute_command` tool; `HarborReward` runs `tests/test.sh` for a binary reward.
+Terminal-Bench and SWE-bench tasks share this exact contract, so both run on this
+environment — they differ only in their dataset and system prompt (set per-benchmark).
+"""
 
 from __future__ import annotations
 
@@ -33,7 +40,7 @@ from strands_env.core import Environment, ModelFactory
 from strands_env.core.environment import EnvironmentConfig
 from strands_env.core.types import RewardFunction
 
-from .reward import TerminalBenchReward
+from .reward import HarborReward
 
 if TYPE_CHECKING:
     from harbor.environments.base import BaseEnvironment
@@ -43,8 +50,8 @@ if TYPE_CHECKING:
 HarborEnvironmentConfig: TypeAlias = _HarborEnvironmentConfig
 
 
-class TerminalBenchConfig(EnvironmentConfig):
-    """Serializable configuration for `TerminalBenchEnv`.
+class HarborConfig(EnvironmentConfig):
+    """Serializable configuration for `HarborEnv`.
 
     Backends:
         - "docker": Local Docker via `harbor`'s native `DockerEnvironment`.
@@ -69,8 +76,8 @@ class EKSBackendConfig(TypedDict, total=False):
     role_arn: str | None
 
 
-class TerminalBenchEnv(Environment):
-    """Terminal-Bench environment using Harbor for container management and test execution."""
+class HarborEnv(Environment):
+    """Harbor task environment using Harbor for container management and test execution."""
 
     default_system_prompt_path = Path(__file__).parent / "system_prompt.md"
 
@@ -79,9 +86,9 @@ class TerminalBenchEnv(Environment):
         *,
         model_factory: ModelFactory,
         reward_fn: RewardFunction | None = None,
-        **config: Unpack[TerminalBenchConfig],
+        **config: Unpack[HarborConfig],
     ):
-        """Initialize a `TerminalBenchEnv` instance."""
+        """Initialize a `HarborEnv` instance."""
         super().__init__(model_factory=model_factory, reward_fn=None, **config)  # type: ignore[misc]
         self.task_id: str = str(self.config["task_id"])
         self.task_paths = TaskPaths(Path(str(self.config["task_dir"])))
@@ -93,7 +100,7 @@ class TerminalBenchEnv(Environment):
         )
         self.eks_backend_config: EKSBackendConfig = self.config.get("eks_backend_config", {})
         self.docker_env: HarborEnvironment | AWSEnvironment | None = None
-        self.reward_fn = reward_fn or TerminalBenchReward(self)
+        self.reward_fn = reward_fn or HarborReward(self)
 
     @override
     async def reset(self) -> None:

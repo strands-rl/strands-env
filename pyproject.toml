@@ -50,7 +50,7 @@ dev = [
     "mypy>=1.10.0",
 ]
 litellm = ["litellm"]
-terminal-bench = [
+harbor = [
     "harbor>=0.1.43; python_version>='3.12'",
     "harbor-aws==0.4.0; python_version>='3.12'",
     "awscli; python_version>='3.12'",
@@ -87,7 +87,7 @@ ignore_missing_imports = true
 conflicts = [
     [
         { extra = "litellm" },
-        { extra = "terminal-bench" },
+        { extra = "harbor" },
     ],
 ]
 

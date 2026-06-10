@@ -12,22 +12,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Environment hook for SWE-bench Verified evaluation with `SWEBenchEnv`."""
+"""Environment hook for SWE-bench Verified evaluation with `HarborEnv`.
+
+The `swebench-verified` benchmark injects a SWE-bench-tuned `system_prompt`
+into each task's config, so this hook just instantiates the generic `HarborEnv`.
+"""
 
 from __future__ import annotations
 
 from strands_env.core.models import build_model_factory
 from strands_env.core.types import Action
-from strands_env.environments.swe_bench import SWEBenchEnv
+from strands_env.environments.harbor import HarborEnv
 
 
 def create_env_factory(model_config: dict, **env_config):
-    """Create env_factory for `SWEBenchEnv`."""
+    """Create env_factory for `HarborEnv`."""
     model_factory = build_model_factory(model_config)
 
-    async def env_factory(action: Action) -> SWEBenchEnv:
-        """Create a new SWEBenchEnv with its own container/pod."""
+    async def env_factory(action: Action) -> HarborEnv:
+        """Create a new HarborEnv with its own container/pod."""
         ctx = action.task_context
-        return SWEBenchEnv(model_factory=model_factory, **ctx.config, **env_config)
+        return HarborEnv(model_factory=model_factory, **ctx.config, **env_config)
 
     return env_factory

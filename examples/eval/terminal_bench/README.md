@@ -1,6 +1,6 @@
 # Terminal-Bench
 
-[Terminal-Bench](https://github.com/laude-institute/terminal-bench) benchmark using `TerminalBenchEnv` with Docker-based task execution. Each task runs in an isolated Docker container with the agent interacting via `execute_command` tool calls.
+[Terminal-Bench](https://github.com/laude-institute/terminal-bench) benchmark using `HarborEnv` with Docker-based task execution. Each task runs in an isolated Docker container with the agent interacting via `execute_command` tool calls.
 
 ## Variants
 
@@ -14,12 +14,12 @@
 1. **Docker** - Must be installed and running
 2. **Dependencies** - Install additional requirements:
    ```bash
-   pip install -r src/strands_env/environments/terminal_bench/requirements.txt
+   pip install -r src/strands_env/environments/harbor/requirements.txt
    ```
 
 ## Files
 
-- `terminal_bench_env.py` - Environment hook that creates `TerminalBenchEnv` instances
+- `terminal_bench_env.py` - Environment hook that creates `HarborEnv` instances
 
 ## Usage
 
