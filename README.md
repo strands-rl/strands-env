@@ -84,9 +84,9 @@ Ready-to-use environments under `src/strands_env/environments/`. Each ships with
 | Environment | Description |
 | --- | --- |
 | [`calculator`](src/strands_env/environments/calculator/README.md) | Simple environment with a calculator tool for math reasoning. |
-| [`agentcore_code`](src/strands_env/environments/agentcore_code/README.md) | Sandboxed Python / shell execution via AWS Bedrock AgentCore Code Interpreter. |
-| [`web_search`](src/strands_env/environments/web_search/README.md) | Pluggable search (Serper / Google CSE) + Jina-based page scraping with optional LLM summarization, enlightened by [OpenSeeker](https://github.com/rui-ye/OpenSeeker). |
-| [`harbor`](src/strands_env/environments/harbor/README.md) | Run any [Harbor](https://github.com/laude-institute/harbor)-format task against a Harbor-managed Docker/EKS container. Powers the [Terminal-Bench](https://www.tbench.ai/) and [SWE-bench](https://www.swebench.com/) benchmarks (which differ only in dataset + system prompt). |
+| [`harbor`](src/strands_env/environments/harbor/README.md) | Run [Harbor](https://github.com/laude-institute/harbor)-format tasks in sandboxes. Supports training like [SETA](https://github.com/camel-ai/seta) and evaluation like [Terminal-Bench](https://www.tbench.ai/) and [SWE-bench](https://www.swebench.com/). |
+| [`agentcore_code`](src/strands_env/environments/agentcore_code/README.md) | Python / shell execution via AWS Bedrock AgentCore Code Interpreter. |
+| [`web_search`](src/strands_env/environments/web_search/README.md) | Google search + Jina page scraping with optional LLM summarization, enlightened by [OpenSeeker](https://github.com/rui-ye/OpenSeeker). |
 | [`mcp_atlas`](src/strands_env/environments/mcp_atlas/README.md) | [MCP-Atlas](https://github.com/scaleapi/mcp-atlas) benchmark runner across 36 MCP servers with 500 tasks. |
 | [`agent_world_model`](src/strands_env/environments/agent_world_model/README.md) | [AgentWorldModel](https://github.com/scaleapi/agent-world-model) tasks with 1000 synthetic FastAPI + SQLite environments exposed as MCP tools. |
 
