@@ -55,6 +55,15 @@ harbor = [
     "harbor-aws==0.4.0; python_version>='3.12'",
     "awscli; python_version>='3.12'",
 ]
+# Self-hosted e2b sandbox backend for Harbor. Adds the `"e2b"` backend to the
+# `harbor` env, so install alongside it: `strands-env[harbor,e2b]`.
+e2b = [
+    "e2b==2.25.1",
+    "httpx",
+    "httpcore",
+    "h2",
+    "packaging",
+]
 ifeval = ["lm_eval[ifeval]>=0.4.11"]
 agent-world-model = ["agent-world-model==0.1.0; python_version>='3.12'"]
 
