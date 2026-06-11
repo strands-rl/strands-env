@@ -100,13 +100,15 @@ The package lives in `src/strands_env/` with these modules:
 
 ### `environments/`
 
+Each environment is a package: `env.py` holds the `Environment` subclass, plus domain-named helpers as needed (`server.py`, `quotas.py`, etc.). **Layout convention for tools and rewards**: one of each → a singular module (`tool.py`, `reward.py`); several → a plural subpackage (`tools/`, `rewards/`) whose members keep domain names (`tools/search.py`, not `tools/tool1.py`). Pay the rename on the 1→N transition rather than pre-creating an empty package — this matches the repo's flatten-by-default preference.
+
 **calculator/** — `CalculatorEnv` provides a simple calculator tool for math problems. Useful for testing and as a reference implementation.
 
 **agentcore_code/** — `AgentCoreCodeEnv` uses AWS Bedrock AgentCore Code Interpreter for sandboxed code execution. `AgentCoreCodeConfig` extends `EnvironmentConfig` with `mode: Literal["code", "terminal", "code_and_terminal"]`.
 
 **mcp/** — `MCPEnvironment` backed by a single MCP server. Manages `MCPClient` lifecycle via `reset()` (starts client) and `cleanup()` (stops client). Supports optional pre-constructed client or subclass-managed initialization.
 
-**web_search/** — `WebSearchEnv` with pluggable search providers. `WebSearchConfig` extends `EnvironmentConfig` with search/scrape settings (`search_provider`, `search_timeout`, `blocked_domains`, `scrape_enabled`, `scrape_timeout`, `scrape_token_budget`). Non-serializable params (`search_concurrency`, `scrape_concurrency`, `summarizer_model_factory`) are named args.
+**web_search/** — `WebSearchEnv` with pluggable search providers. Its two tools live in `tools/` (`tools/search.py` → `WebSearchToolkit`, `tools/scrape.py` → `WebScraperToolkit`) per the plural-subpackage convention. `WebSearchConfig` extends `EnvironmentConfig` with search/scrape settings (`search_provider`, `search_timeout`, `blocked_domains`, `scrape_enabled`, `scrape_timeout`, `scrape_token_budget`). Non-serializable params (`search_concurrency`, `scrape_concurrency`, `summarizer_model_factory`) are named args.
 
 **harbor/** — `HarborEnv` runs any Harbor-format task (Docker or EKS) for task execution. `HarborConfig` extends `EnvironmentConfig` with `task_id`, `task_dir`, `trial_dir`, `harbor_env_config`, `timeout`, `backend`, `eks_backend_config`. Provides `execute_command` tool for shell commands in the container. `HarborReward` runs verification tests (`tests/test.sh`) in the container for binary (0/1) reward. Both the `terminal-bench-*` and `swebench-verified` eval benchmarks run on this single env — they differ only in dataset and system prompt (the SWE-bench evaluator injects its prompt via the serializable `system_prompt` config key, so there is no separate SWE env class).
 
