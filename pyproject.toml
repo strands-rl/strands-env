@@ -50,9 +50,6 @@ dev = [
     "mypy>=1.10.0",
 ]
 litellm = ["litellm"]
-# Bundles the self-hosted e2b sandbox backend so both the "docker" and "e2b"
-# backends work from a single `strands-env[harbor]` install. `e2b` transitively
-# pins httpx/httpcore/h2/packaging, so they need not be listed here.
 harbor = [
     "harbor>=0.1.43; python_version>='3.12'",
     "e2b==2.25.1",
