@@ -30,26 +30,13 @@ import e2b.api as _e2b_api
 from e2b.exceptions import AuthenticationException
 from harbor.environments.e2b import E2BEnvironment
 from harbor.models.trial.paths import EnvironmentPaths
-from typing_extensions import TypedDict, override
+from typing_extensions import override
 
 if TYPE_CHECKING:
     from harbor.models.task.config import EnvironmentConfig as TaskEnvironmentConfig
     from harbor.models.trial.paths import TrialPaths
 
-
-class PrebakedE2BConfig(TypedDict, total=False):
-    """Connection + template config for the e2b backend (all fields optional)."""
-
-    # e2b cluster API domain (env: E2B_DOMAIN).
-    domain: str
-    # e2b API key (env: E2B_API_KEY); prefer `api_key_file` to keep it out of config.
-    api_key: str
-    # Read the e2b API key from this file instead of inlining it.
-    api_key_file: str
-    # Template to boot; falls back to a `templates_json` lookup by task name.
-    template_id: str
-    # {task_name: template_id} JSON map (env: E2B_TEMPLATES_PATH).
-    templates_json: str
+    from .env import PrebakedE2BConfig
 
 
 class PrebakedE2BEnvironment(E2BEnvironment):

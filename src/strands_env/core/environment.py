@@ -20,8 +20,9 @@ import logging
 import time
 from collections.abc import Awaitable, Callable, Sequence
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar, TypeAlias
+from typing import Any, ClassVar, TypeAlias
 
+from opentelemetry.util.types import AttributeValue
 from strands import Agent
 from strands.agent.conversation_manager import ConversationManager, NullConversationManager
 from strands.handlers.callback_handler import PrintingCallbackHandler
@@ -37,9 +38,6 @@ from .types import (
     StepResult,
     TerminationReason,
 )
-
-if TYPE_CHECKING:
-    from opentelemetry.util.types import AttributeValue
 
 logger = logging.getLogger(__name__)
 

@@ -247,3 +247,27 @@ class TestComputeMetrics:
         result = env.compute_metrics(metrics)
 
         assert result["cache_hit_rate"] is None
+
+
+# ---------------------------------------------------------------------------
+# Config type-hint resolution
+# ---------------------------------------------------------------------------
+
+
+class TestEnvironmentConfigTypeHints:
+    """`EnvironmentConfig` annotations must resolve at runtime.
+
+    Subclass configs are embedded as Pydantic fields by benchmark task contexts
+    (e.g. `config: HarborConfig`), so Pydantic resolves the hints at runtime. A
+    TYPE_CHECKING-only import in an annotation (e.g. `AttributeValue`) breaks
+    that with a `NameError`.
+    """
+
+    def test_type_hints_resolve(self):
+        """get_type_hints succeeds — no unresolved forward refs."""
+        import typing
+
+        from strands_env.core.environment import EnvironmentConfig
+
+        hints = typing.get_type_hints(EnvironmentConfig)
+        assert "trace_attributes" in hints
