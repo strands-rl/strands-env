@@ -12,39 +12,38 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Unit tests for the Harbor `e2b` backend adapter (`_e2b_aws.py`).
+"""Unit tests for the Harbor `e2b` backend adapter (`e2b.py`).
 
 Covers the harbor-independent logic: template resolution, the templates.json
-loader, the HTTP/2-transient retry helper, the permissive api-key validator,
-and the `E2bAWSEnvironment` overrides (build-skip, Harbor dir creation, the
-retry-wrapped file/exec methods). Harbor's `E2BEnvironment` base and the e2b
-SDK are not exercised against a real cluster — sandbox creation is mocked.
+loader, the permissive api-key validator, and the `PrebakedE2BEnvironment`
+overrides (build-skip + Harbor dir creation). Harbor's `E2BEnvironment` base and
+the e2b SDK are not exercised against a real cluster — sandbox creation is mocked.
 """
 
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import httpx
 import pytest
 
 # The adapter subclasses harbor's E2BEnvironment, so the module can't import
 # without harbor. Skip the whole file when harbor isn't installed (matches the
 # convention in tests/integration/test_harbor.py).
-pytest.importorskip("harbor", reason="harbor>=0.1.43 required for the e2b backend adapter")
+pytest.importorskip("harbor", reason="harbor>=0.13.2 required for the e2b backend adapter")
 
 from e2b.exceptions import AuthenticationException  # noqa: E402
 
-from strands_env.environments.harbor import _e2b_aws  # noqa: E402
-from strands_env.environments.harbor._e2b_aws import (  # noqa: E402
-    E2bAWSEnvironment,
-    _load_template_map,
-    _permissive_validate_api_key,
-    _retry_on_http2_transient,
-    resolve_template_id,
-)
+from strands_env.environments.harbor import e2b  # noqa: E402
+from strands_env.environments.harbor.e2b import PrebakedE2BEnvironment  # noqa: E402
+
+# The api-key validator and template-resolution helpers are static/class methods
+# on PrebakedE2BEnvironment; bind them as module-local names for readable tests.
+_permissive_validate_api_key = PrebakedE2BEnvironment._permissive_validate_api_key
+_load_template_map = PrebakedE2BEnvironment._load_template_map
+resolve_template_id = PrebakedE2BEnvironment.resolve_template_id
 
 # ---------------------------------------------------------------------------
 # _permissive_validate_api_key
@@ -169,68 +168,31 @@ class TestResolveTemplateId:
 
 
 # ---------------------------------------------------------------------------
-# _retry_on_http2_transient
+# PrebakedE2BEnvironment
 # ---------------------------------------------------------------------------
 
 
-class TestRetryOnHttp2Transient:
-    """The bounded-retry helper for HTTP/2 transients."""
-
-    async def test_returns_on_first_success(self):
-        """A call that succeeds immediately runs exactly once."""
-        op = AsyncMock(return_value="ok")
-        result = await _retry_on_http2_transient(op, op_name="x", initial_backoff_s=0.0)
-        assert result == "ok"
-        assert op.call_count == 1
-
-    async def test_retries_then_succeeds(self):
-        """A retryable transient is retried until the call succeeds."""
-        op = AsyncMock(side_effect=[httpx.ReadError("boom"), "ok"])
-        result = await _retry_on_http2_transient(op, op_name="x", initial_backoff_s=0.0)
-        assert result == "ok"
-        assert op.call_count == 2
-
-    async def test_exhausts_attempts_and_reraises(self):
-        """All attempts failing re-raises the last transient after max_attempts."""
-        op = AsyncMock(side_effect=httpx.ConnectError("always"))
-        with pytest.raises(httpx.ConnectError):
-            await _retry_on_http2_transient(op, op_name="x", max_attempts=3, initial_backoff_s=0.0)
-        assert op.call_count == 3
-
-    async def test_non_retryable_raises_immediately(self):
-        """A non-transient error propagates on the first attempt (no retry)."""
-        op = AsyncMock(side_effect=ValueError("nope"))
-        with pytest.raises(ValueError):
-            await _retry_on_http2_transient(op, op_name="x", initial_backoff_s=0.0)
-        assert op.call_count == 1
-
-
-# ---------------------------------------------------------------------------
-# E2bAWSEnvironment
-# ---------------------------------------------------------------------------
-
-
-def _make_env() -> E2bAWSEnvironment:
-    """Build an E2bAWSEnvironment without running harbor's heavy __init__.
+def _make_env() -> PrebakedE2BEnvironment:
+    """Build a PrebakedE2BEnvironment without running harbor's heavy __init__.
 
     We bypass __init__ (which would touch the e2b SDK / harbor internals) and
     set only the attributes the methods under test read, so the override logic
     is exercised in isolation.
     """
-    env = E2bAWSEnvironment.__new__(E2bAWSEnvironment)
+    env = PrebakedE2BEnvironment.__new__(PrebakedE2BEnvironment)
     env._template_id = "tmpl-pinned"
     env._sandbox = MagicMock()
     env.logger = MagicMock()
     return env
 
 
-class TestE2bAWSEnvironmentConstruction:
+class TestPrebakedE2BEnvironmentConstruction:
     """Constructor + class-level attributes."""
 
     def test_init_stores_template_id(self):
         """The `template_id` kwarg is recorded as `_template_id`."""
-        with patch.object(_e2b_aws.E2BEnvironment, "__init__", return_value=None) as base_init:
-            env = E2bAWSEnvironment(
+        with patch.object(e2b.E2BEnvironment, "__init__", return_value=None) as base_init:
+            env = PrebakedE2BEnvironment(
                 Path("/env"),
                 "env-name",
                 "sess-1",
@@ -241,12 +203,8 @@ class TestE2bAWSEnvironmentConstruction:
         assert env._template_id == "tmpl-xyz"
         base_init.assert_called_once()
 
-    def test_is_mounted_is_false(self):
-        """e2b sandboxes are remote, so is_mounted must be False (drives result download)."""
-        assert E2bAWSEnvironment.is_mounted is False
 
-
-class TestE2bAWSEnvironmentStart:
+class TestPrebakedE2BEnvironmentStart:
     """The `start()` override: skip build, create dirs, upload env dir."""
 
     async def test_start_pins_template_and_creates_dirs(self):
@@ -299,33 +257,97 @@ class TestE2bAWSEnvironmentStart:
             await env._create_template()
 
 
-class TestE2bAWSEnvironmentRetryWrappers:
-    """The idempotent file-transfer overrides delegate to the base through the retry helper."""
+# ---------------------------------------------------------------------------
+# PrebakedE2BEnvironment._apply_connection_env
+# ---------------------------------------------------------------------------
 
-    async def test_upload_file_delegates_to_base(self):
-        """upload_file() routes through the base implementation."""
-        env = _make_env()
-        with patch.object(_e2b_aws.E2BEnvironment, "upload_file", new=AsyncMock()) as base_upload:
-            await env.upload_file("/src", "/dst")
-        base_upload.assert_awaited_once()
 
-    async def test_upload_file_retries_transient_then_succeeds(self):
-        """A transient on the first attempt is retried via the helper (idempotent op)."""
-        env = _make_env()
-        base_upload = AsyncMock(side_effect=[httpx.RemoteProtocolError("drop"), None])
-        with patch.object(_e2b_aws.E2BEnvironment, "upload_file", new=base_upload):
-            await env.upload_file("/src", "/dst")
-        assert base_upload.await_count == 2
+class TestApplyConnectionEnv:
+    """Writing the e2b connection (domain/api_key) into the env vars the SDK reads."""
 
-    async def test_download_dir_delegates_to_base(self):
-        """download_dir() routes through the base implementation."""
-        env = _make_env()
-        with patch.object(_e2b_aws.E2BEnvironment, "download_dir", new=AsyncMock()) as base_download:
-            await env.download_dir("/remote", "/local")
-        base_download.assert_awaited_once()
+    def test_sets_domain_and_api_key(self):
+        """`domain`/`api_key` land in E2B_DOMAIN/E2B_API_KEY."""
+        with patch.dict(os.environ, {}, clear=True):
+            PrebakedE2BEnvironment._apply_connection_env({"domain": "e2b.acme.dev", "api_key": "e2b_abc"})
+            assert os.environ["E2B_DOMAIN"] == "e2b.acme.dev"
+            assert os.environ["E2B_API_KEY"] == "e2b_abc"
 
-    def test_exec_is_not_overridden(self):
-        """`exec` must NOT be wrapped in retry: a post-dispatch retry could double-run a
-        non-idempotent agent command. The adapter inherits the base, un-retried `exec`.
-        (Retrying the known-idempotent verifier exec is tracked as separate work.)"""
-        assert "exec" not in E2bAWSEnvironment.__dict__
+    def test_api_key_file_is_read_and_stripped(self, tmp_path: Path):
+        """`api_key_file` is read and stripped into E2B_API_KEY."""
+        key_file = tmp_path / "key"
+        key_file.write_text("  e2b_fromfile\n")
+        with patch.dict(os.environ, {}, clear=True):
+            PrebakedE2BEnvironment._apply_connection_env({"api_key_file": str(key_file)})
+            assert os.environ["E2B_API_KEY"] == "e2b_fromfile"
+
+    def test_api_key_wins_over_api_key_file(self, tmp_path: Path):
+        """An explicit `api_key` takes precedence; the file is not consulted."""
+        key_file = tmp_path / "key"
+        key_file.write_text("e2b_fromfile")
+        with patch.dict(os.environ, {}, clear=True):
+            PrebakedE2BEnvironment._apply_connection_env({"api_key": "e2b_inline", "api_key_file": str(key_file)})
+            assert os.environ["E2B_API_KEY"] == "e2b_inline"
+
+    def test_empty_api_key_file_raises(self, tmp_path: Path):
+        """A blank `api_key_file` is a hard error, not a silent empty key."""
+        key_file = tmp_path / "key"
+        key_file.write_text("   \n")
+        with (
+            patch.dict(os.environ, {}, clear=True),
+            pytest.raises(ValueError, match="api_key_file is empty"),
+        ):
+            PrebakedE2BEnvironment._apply_connection_env({"api_key_file": str(key_file)})
+
+    def test_empty_config_is_noop(self):
+        """An empty config writes nothing."""
+        with patch.dict(os.environ, {}, clear=True):
+            PrebakedE2BEnvironment._apply_connection_env({})
+            assert "E2B_DOMAIN" not in os.environ
+            assert "E2B_API_KEY" not in os.environ
+
+
+# ---------------------------------------------------------------------------
+# PrebakedE2BEnvironment.from_config
+# ---------------------------------------------------------------------------
+
+
+class TestFromConfig:
+    """The factory: apply connection env, resolve template id, construct."""
+
+    @staticmethod
+    def _build_kwargs() -> dict:
+        return {
+            "task_id": "fix-git",
+            "environment_dir": Path("/env"),
+            "environment_name": "env-name",
+            "session_id": "sess-1",
+            "trial_paths": MagicMock(),
+            "task_env_config": MagicMock(),
+        }
+
+    def test_explicit_template_id_skips_resolution(self):
+        """An explicit `template_id` is used directly and the connection env is applied."""
+        with (
+            patch.dict(os.environ, {}, clear=True),
+            patch.object(e2b.E2BEnvironment, "__init__", return_value=None),
+        ):
+            env = PrebakedE2BEnvironment.from_config(
+                {"template_id": "tmpl-explicit", "domain": "e2b.acme.dev"},
+                **self._build_kwargs(),
+            )
+            assert env._template_id == "tmpl-explicit"
+            assert os.environ["E2B_DOMAIN"] == "e2b.acme.dev"
+
+    def test_resolves_template_from_map(self, tmp_path: Path):
+        """With no `template_id`, the id is resolved from `templates_json` by task name."""
+        templates = tmp_path / "templates.json"
+        templates.write_text(json.dumps({"fix-git": "tmpl-resolved"}))
+        with (
+            patch.dict(os.environ, {}, clear=True),
+            patch.object(e2b.E2BEnvironment, "__init__", return_value=None),
+        ):
+            env = PrebakedE2BEnvironment.from_config(
+                {"templates_json": str(templates)},
+                **self._build_kwargs(),
+            )
+        assert env._template_id == "tmpl-resolved"

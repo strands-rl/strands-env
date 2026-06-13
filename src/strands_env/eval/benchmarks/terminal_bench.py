@@ -74,7 +74,7 @@ class TerminalBenchEvaluator(Evaluator):
             "task_id": task.name,
             "task_dir": str(task_dir.resolve()),
             "trial_dir": str(self.output_path.parent / task.name),
-            "harbor_env_config": task.config.environment,
+            "task_env_config": task.config.environment,
             "timeout": int(task.config.verifier.timeout_sec),
         }
         if self.system_prompt_path is not None:

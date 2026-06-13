@@ -6,10 +6,10 @@ Both [Terminal-Bench](https://github.com/laude-institute/terminal-bench) and [SW
 
 ## Backends
 
-| Backend | Description | Install |
-|---|---|---|
-| `"docker"` (default) | Local Docker via Harbor's `DockerEnvironment` | `pip install strands-env[harbor]` |
-| `"e2b"` | Self-hosted e2b sandbox (Firecracker microVM, e2b-on-AWS) | `pip install strands-env[harbor]` |
+| Backend | Description |
+|---|---|
+| `"docker"` (default) | Local Docker via Harbor's `DockerEnvironment` |
+| `"e2b"` | Self-hosted e2b sandbox (Firecracker microVM, e2b-on-AWS) |
 
 ## Setup
 

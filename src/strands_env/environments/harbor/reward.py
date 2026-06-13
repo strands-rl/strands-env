@@ -62,7 +62,7 @@ class HarborReward(RewardFunction):
         await docker_env.exec(test_cmd, timeout_sec=timeout)
 
         # Download results if not using mounted volumes
-        if not docker_env.is_mounted:
+        if not docker_env.capabilities.mounted:
             await docker_env.download_dir(
                 source_dir=str(EnvironmentPaths.verifier_dir),
                 target_dir=trial_paths.verifier_dir,
