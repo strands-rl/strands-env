@@ -9,7 +9,7 @@ Both [Terminal-Bench](https://github.com/laude-institute/terminal-bench) and [SW
 | Backend | Description | Install |
 |---|---|---|
 | `"docker"` (default) | Local Docker via Harbor's `DockerEnvironment` | `pip install strands-env[harbor]` |
-| `"eks"` | AWS EKS/Fargate via [harbor-aws](https://github.com/JackXu0/harbor-aws) | `pip install strands-env[harbor]` |
+| `"e2b"` | Self-hosted e2b sandbox (Firecracker microVM, e2b-on-AWS) | `pip install strands-env[harbor]` |
 
 ## Setup
 
@@ -50,32 +50,6 @@ env = HarborEnv(
 await env.reset()       # Build and start container
 result = await env.step(action)  # action.message = task.instruction
 await env.cleanup()     # Stop and delete container
-```
-
-### EKS Backend
-
-```python
-env = HarborEnv(
-    model_factory=model_factory,
-    task_id="task-001",
-    task_dir="/path/to/task",
-    trial_dir="/path/to/output",
-    backend="eks",
-    eks_backend_config={
-        "stack_name": "harbor-aws",
-        "region": "us-east-1",
-        "role_arn": "arn:aws:iam::123456789012:role/harbor-role",  # optional
-    },
-)
-```
-
-Or via CLI with `--env-config`:
-
-```bash
-python -m strands_env.eval \
-    --benchmark terminal-bench-2 \
-    --env examples.eval.terminal_bench.terminal_bench_env \
-    --env-config '{"backend": "eks", "eks_backend_config": {"stack_name": "harbor-aws", "region": "us-east-1", "role_arn": "arn:aws:iam::123456789012:role/harbor-role"}}'
 ```
 
 ## Tools

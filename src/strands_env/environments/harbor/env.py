@@ -15,7 +15,7 @@
 """Harbor task environment for container management and test execution.
 
 Runs any Harbor-format task (a directory with `task.toml`, `environment/Dockerfile`,
-`tests/test.sh`) in an isolated Docker or EKS container. The agent gets a single
+`tests/test.sh`) in an isolated Docker container or self-hosted e2b sandbox. The agent gets a single
 `execute_command` tool; `HarborReward` runs `tests/test.sh` for a binary reward.
 Terminal-Bench and SWE-bench tasks share this exact contract, so both run on this
 environment — they differ only in their dataset and system prompt (set per-benchmark).
@@ -33,7 +33,6 @@ from harbor.models.environment_type import EnvironmentType
 from harbor.models.task.config import EnvironmentConfig as _HarborEnvironmentConfig
 from harbor.models.task.paths import TaskPaths
 from harbor.models.trial.paths import TrialPaths
-from harbor_aws.adapter import AWSEnvironment
 from strands import tool
 from typing_extensions import NotRequired, TypedDict, Unpack, override
 
@@ -56,7 +55,6 @@ class HarborConfig(EnvironmentConfig):
 
     Backends:
         - "docker": Local Docker via `harbor`'s native `DockerEnvironment`.
-        - "eks": AWS EKS/Fargate via `harbor-aws`'s `AWSEnvironment`.
         - "e2b": Self-hosted e2b sandbox (Firecracker microVM, e2b-on-AWS) via
             `E2bAWSEnvironment`. Connection (`domain`/`api_key`) and template
             config go in `e2b_backend_config`, or fall back to the
@@ -67,26 +65,16 @@ class HarborConfig(EnvironmentConfig):
     task_dir: str
     trial_dir: str
     timeout: NotRequired[int]
-    backend: NotRequired[Literal["docker", "eks", "e2b"]]
+    backend: NotRequired[Literal["docker", "e2b"]]
     harbor_env_config: NotRequired[HarborEnvironmentConfig]
-    eks_backend_config: NotRequired[EKSBackendConfig]
     e2b_backend_config: NotRequired[E2bBackendConfig]
-
-
-class EKSBackendConfig(TypedDict, total=False):
-    """Configuration for the EKS backend (harbor-aws)."""
-
-    stack_name: str
-    region: str
-    ecr_cache: bool
-    role_arn: str | None
 
 
 class E2bBackendConfig(TypedDict, total=False):
     """Configuration for the e2b backend.
 
     Every field is optional and serializable, so a run is fully reproducible
-    from config alone (mirrors `EKSBackendConfig`). `domain`/`api_key`, when
+    from config alone. `domain`/`api_key`, when
     provided, are written back into `E2B_DOMAIN`/`E2B_API_KEY` before the
     sandbox is built, because the underlying harbor `E2BEnvironment` + e2b SDK
     read those env vars directly. When omitted, the existing process env vars
@@ -131,13 +119,12 @@ class HarborEnv(Environment):
         self.task_paths = TaskPaths(Path(str(self.config["task_dir"])))
         self.trial_paths = TrialPaths(Path(str(self.config["trial_dir"])))
         self.timeout: int = int(self.config.get("timeout", 1200))
-        self.backend: Literal["docker", "eks", "e2b"] = self.config.get("backend", "docker")
+        self.backend: Literal["docker", "e2b"] = self.config.get("backend", "docker")
         self.harbor_env_config: HarborEnvironmentConfig = self.config.get(
             "harbor_env_config", HarborEnvironmentConfig()
         )
-        self.eks_backend_config: EKSBackendConfig = self.config.get("eks_backend_config", {})
         self.e2b_backend_config: E2bBackendConfig = self.config.get("e2b_backend_config", {})
-        self.docker_env: HarborEnvironment | AWSEnvironment | None = None
+        self.docker_env: HarborEnvironment | None = None
         self.reward_fn = reward_fn or HarborReward(self)
 
     @override
@@ -156,18 +143,6 @@ class HarborEnv(Environment):
                     session_id=session_id,
                     trial_paths=self.trial_paths,
                     task_env_config=self.harbor_env_config,
-                )
-            case "eks":
-                from ._harbor_aws import ensure_harbor_aws_session
-
-                await ensure_harbor_aws_session()
-                self.docker_env = AWSEnvironment(
-                    environment_dir=self.task_paths.environment_dir,
-                    environment_name=session_id,
-                    session_id=session_id,
-                    trial_paths=self.trial_paths,
-                    task_env_config=self.harbor_env_config,
-                    **self.eks_backend_config,
                 )
             case "e2b":
                 from ._e2b_aws import E2bAWSEnvironment, resolve_template_id

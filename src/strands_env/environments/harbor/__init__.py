@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Harbor task environment for Docker/EKS-based task evaluation."""
+"""Harbor task environment for Docker/e2b-based task evaluation."""
 
 from pathlib import Path
 

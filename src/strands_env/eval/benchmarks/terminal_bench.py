@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import json
 import subprocess
-from collections.abc import Iterable
 from pathlib import Path
 from typing import ClassVar
 
@@ -110,19 +109,6 @@ class TerminalBenchEvaluator(Evaluator):
             json.dumps(sample.step_result.observation.messages, indent=2, default=str)
         )
         return sample
-
-    @override
-    async def run(self, actions: Iterable[Action]) -> dict[str, list[EvalSample]]:
-        """Run evaluation on actions with `n_samples_per_prompt` each.
-
-        Closes the shared `harbor-aws` aiohttp session at exit if using the EKS backend.
-        """
-        try:
-            return await super().run(actions)
-        finally:
-            from strands_env.environments.harbor._harbor_aws import cleanup_harbor_aws_session
-
-            await cleanup_harbor_aws_session()
 
 
 @register_eval("terminal-bench-2")
