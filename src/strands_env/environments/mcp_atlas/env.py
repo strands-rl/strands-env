@@ -60,6 +60,7 @@ class MCPAtlasEnvironment(Environment):
         model_factory: ModelFactory,
         http_client: httpx.AsyncClient,
         reward_fn: RewardFunction | None = None,
+        cached_tools: list[dict] | None = None,
         **config: Unpack[MCPAtlasConfig],
     ):
         """Initialize a `MCPAtlasEnvironment` instance."""
@@ -69,6 +70,7 @@ class MCPAtlasEnvironment(Environment):
             **config,  # type: ignore[misc]
         )
         self._http_client = http_client
+        self._cached_tools = cached_tools
         self._tools: list[MCPAtlasTool] = []
         self._tool_timeout: int = int(self.config.get("tool_timeout", 60))
         enabled = self.config.get("enabled_tools")
@@ -99,13 +101,14 @@ class MCPAtlasEnvironment(Environment):
 
     @override
     async def reset(self) -> None:
-        """Fetch tools from the container and apply per-task filter."""
-        response = await self._http_client.post("/list-tools", timeout=self._tool_timeout)
-        response.raise_for_status()
-        all_tools = response.json()
+        """Fetch tools from the container (or use cache) and apply per-task filter."""
+        if self._cached_tools is None:
+            response = await self._http_client.post("/list-tools", timeout=self._tool_timeout)
+            response.raise_for_status()
+            self._cached_tools = response.json()
         self._tools = [
             MCPAtlasTool(MCPToolDef.model_validate(tool), self._http_client, timeout=self._tool_timeout)
-            for tool in all_tools
+            for tool in self._cached_tools
             if self._enabled_tools is None or tool["name"] in self._enabled_tools
         ]
         logger.info("MCP-Atlas: %d tools enabled", len(self._tools))
