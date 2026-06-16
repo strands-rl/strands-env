@@ -35,19 +35,19 @@ OUTCOME_AGENT_FAILED = "AGENT_FAILED"
 OUTCOME_VERIFY_ERROR = "VERIFY_ERROR"
 
 
-def _run_verification(verify_code: str, initial_db_path: str, work_db_path: str, final_answer: str) -> dict:
-    """Execute verification code in a thread (blocking exec + SQLite I/O)."""
-    namespace: dict = {"sqlite3": sqlite3, "json": json}
-    exec(verify_code, namespace)  # noqa: S102
-    return namespace["verify_task_completion"](
-        initial_db_path=initial_db_path,
-        final_db_path=work_db_path,
-        final_answer=final_answer,
-    )
-
-
 class AgentWorldModelRewardFunction(RewardFunction):
     """Binary reward via execution-based verification."""
+
+    @staticmethod
+    def _run_verification(verify_code: str, initial_db_path: str, work_db_path: str, final_answer: str) -> dict:
+        """Execute verification code in a thread (blocking exec + SQLite I/O)."""
+        namespace: dict = {"sqlite3": sqlite3, "json": json}
+        exec(verify_code, namespace)  # noqa: S102
+        return namespace["verify_task_completion"](
+            initial_db_path=initial_db_path,
+            final_db_path=work_db_path,
+            final_answer=final_answer,
+        )
 
     async def compute(self, action: Action, step_result: StepResult) -> RewardResult:
         """Run verification code against the agent's final response."""
@@ -56,7 +56,7 @@ class AgentWorldModelRewardFunction(RewardFunction):
 
         try:
             result = await asyncio.to_thread(
-                _run_verification,
+                self._run_verification,
                 ctx.verify_code,
                 ctx.initial_db_path,
                 ctx.work_db_path,
