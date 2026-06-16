@@ -15,7 +15,7 @@
 """Evaluator for SWE-bench Verified (Harbor format).
 
 The Harbor-format SWE-bench Verified tasks live as a subdirectory inside
-the larger ``harbor-datasets.git`` repo. We sparse-checkout just that
+the larger `harbor-datasets.git` repo. We sparse-checkout just that
 subdirectory at a pinned commit so we don't have to clone every benchmark.
 """
 
@@ -23,7 +23,6 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
-from typing import ClassVar
 
 from typing_extensions import override
 
@@ -44,12 +43,10 @@ class SWEBenchVerifiedEvaluator(TerminalBenchEvaluator):
     """
 
     benchmark_name = "swebench-verified"
-    GIT_URL = "https://github.com/laude-institute/harbor-datasets.git"
-    GIT_COMMIT = "0d48cdd78e14a1e22afa09abcfc1bf210427d66f"
-    SUBDIR = "datasets/swebench-verified"
-    data_dir: Path = Path("./data/swebench-verified")
-    #: SWE-bench-tuned system prompt injected into each task's config (shipped with `HarborEnv`).
-    system_prompt_path: ClassVar[Path | None] = SWE_SYSTEM_PROMPT_PATH
+    git_url = "https://github.com/laude-institute/harbor-datasets.git"
+    git_commit = "0d48cdd78e14a1e22afa09abcfc1bf210427d66f"
+    git_subdir = "datasets/swebench-verified"
+    system_prompt_path: Path | None = SWE_SYSTEM_PROMPT_PATH
 
     @override
     def _download_dataset(self) -> None:
@@ -80,7 +77,7 @@ class SWEBenchVerifiedEvaluator(TerminalBenchEvaluator):
                 "1",
                 "--branch",
                 "main",
-                self.GIT_URL,
+                self.git_url,
                 str(repo_dir),
             ],
             check=True,
@@ -90,15 +87,15 @@ class SWEBenchVerifiedEvaluator(TerminalBenchEvaluator):
             check=True,
         )
         subprocess.run(
-            ["git", "-C", str(repo_dir), "sparse-checkout", "set", self.SUBDIR],
+            ["git", "-C", str(repo_dir), "sparse-checkout", "set", self.git_subdir],
             check=True,
         )
         subprocess.run(
-            ["git", "-C", str(repo_dir), "checkout", self.GIT_COMMIT],
+            ["git", "-C", str(repo_dir), "checkout", self.git_commit],
             check=True,
         )
 
-        sub = repo_dir / self.SUBDIR
+        sub = repo_dir / self.git_subdir
         if not sub.is_dir():
             raise RuntimeError(f"sparse checkout missing {sub}")
         sub.rename(self.data_dir)

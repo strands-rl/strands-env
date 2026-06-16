@@ -19,7 +19,6 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
-from typing import ClassVar
 
 from harbor.models.task.task import Task
 from typing_extensions import override
@@ -41,16 +40,21 @@ class TerminalBenchTaskContext(TaskContext):
 class TerminalBenchEvaluator(Evaluator):
     """Base evaluator for Harbor-format benchmarks (loads a directory of task subdirs)."""
 
-    GIT_URL: str = ""
-    data_dir: Path = Path("./data/terminal-bench")
-    #: Optional benchmark-specific system prompt injected into each task's config.
-    system_prompt_path: ClassVar[Path | None] = None
+    benchmark_name: str = "terminal-bench"
+    git_url: str = ""
+    tasks_subdir: str = "."  # subdirectory within `data_dir` if any
+    system_prompt_path: Path | None = None  # optional benchmark-specific system prompt
+
+    @property
+    def data_dir(self) -> Path:
+        """Local directory the dataset is downloaded into (`./data/<benchmark_name>`)."""
+        return Path("data") / self.benchmark_name
 
     def _download_dataset(self) -> None:
         """Download Terminal-Bench tasks from Git repository."""
         self.data_dir.parent.mkdir(parents=True, exist_ok=True)
         subprocess.run(
-            ["git", "clone", "--depth", "1", self.GIT_URL, str(self.data_dir)],
+            ["git", "clone", "--depth", "1", self.git_url, str(self.data_dir)],
             check=True,
         )
 
@@ -61,7 +65,7 @@ class TerminalBenchEvaluator(Evaluator):
             self._download_dataset()
 
         actions = []
-        for task_dir in sorted(self.data_dir.iterdir()):
+        for task_dir in sorted((self.data_dir / self.tasks_subdir).iterdir()):
             if task_dir.is_dir() and not task_dir.name.startswith("."):
                 actions.append(self._load_single_task(task_dir))
         return actions
@@ -111,13 +115,25 @@ class TerminalBenchEvaluator(Evaluator):
         return sample
 
 
+@register_eval("terminal-bench-2.1")
+class TerminalBench21Evaluator(TerminalBenchEvaluator):
+    """Evaluator for Terminal-Bench-2.1 benchmark.
+
+    The upstream repo nests its 89 Harbor-format tasks under a `tasks/` directory (alongside a
+    `configs/` folder of leaderboard agent configs), so the task root differs from Terminal-Bench-2.
+    """
+
+    benchmark_name = "terminal-bench-2.1"
+    git_url = "https://github.com/harbor-framework/terminal-bench-2-1.git"
+    tasks_subdir = "tasks"
+
+
 @register_eval("terminal-bench-2")
 class TerminalBench2Evaluator(TerminalBenchEvaluator):
     """Evaluator for Terminal-Bench-2 benchmark."""
 
     benchmark_name = "terminal-bench-2"
-    GIT_URL = "https://github.com/laude-institute/terminal-bench-2.git"
-    data_dir: Path = Path("./data/terminal-bench-2")
+    git_url = "https://github.com/laude-institute/terminal-bench-2.git"
 
 
 @register_eval("terminal-bench-1")
@@ -125,8 +141,7 @@ class TerminalBench1Evaluator(TerminalBenchEvaluator):
     """Evaluator for Terminal-Bench-1 benchmark (migrated to Harbor format)."""
 
     benchmark_name = "terminal-bench-1"
-    GIT_URL = "https://github.com/laude-institute/terminal-bench.git"
-    data_dir: Path = Path("./data/terminal-bench-1")
+    git_url = "https://github.com/laude-institute/terminal-bench.git"
 
     def _rename_solution_yaml_files(self, tasks_dir: Path) -> None:
         """Rename solution.yaml files to allow all tasks to be mapped successfully."""
