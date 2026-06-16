@@ -89,6 +89,16 @@ class MCPAtlasEvaluator(Evaluator):
         self._available_servers = available_servers
 
     @override
+    async def run(self, actions: Iterable[Action]) -> dict[str, list[EvalSample]]:
+        """Run evaluation, closing any shared HTTP client at the end."""
+        try:
+            return await super().run(actions)
+        finally:
+            http_client = getattr(self.env_factory, "http_client", None)
+            if http_client is not None:
+                await http_client.aclose()
+
+    @override
     def validate_sample(self, sample: EvalSample) -> bool:
         """Abort samples where reward is missing or judge failed, so they are retried on resume."""
         reward = sample.step_result.reward

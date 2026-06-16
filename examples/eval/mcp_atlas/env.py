@@ -39,13 +39,7 @@ def create_env_factory(model_config: dict, **env_config):
     max_judge_retries = env_config.get("max_judge_retries", 3)
 
     docker_url = env_config.get("docker_url", MCPAtlasEnvironment.DEFAULT_DOCKER_URL)
-    http_client: httpx.AsyncClient | None = None
-
-    def _get_client() -> httpx.AsyncClient:
-        nonlocal http_client
-        if http_client is None or http_client.is_closed:
-            http_client = MCPAtlasEnvironment.create_client(base_url=docker_url)
-        return http_client
+    http_client = MCPAtlasEnvironment.create_client(base_url=docker_url)
 
     async def env_factory(action):
         ctx = action.task_context
@@ -54,10 +48,11 @@ def create_env_factory(model_config: dict, **env_config):
         reward_fn = MCPAtlasRewardFunction(judge_model=judge_models, max_model_retries=max_judge_retries)
         return MCPAtlasEnvironment(
             model_factory=model_factory,
-            http_client=_get_client(),
+            http_client=http_client,
             reward_fn=reward_fn,
             enabled_tools=ctx.enabled_tools,
             **env_config,
         )
 
+    env_factory.http_client = http_client  # type: ignore[attr-defined]
     return env_factory
