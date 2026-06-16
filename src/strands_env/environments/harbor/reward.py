@@ -47,23 +47,23 @@ class HarborReward(RewardFunction):
 
     async def _run_verification(self) -> float:
         """Upload tests, execute `test.sh`, download results, and parse reward."""
-        assert self._env.docker_env is not None, "Docker environment not initialized"
-        docker_env = self._env.docker_env
+        assert self._env.sandbox is not None, "Sandbox not initialized"
+        sandbox = self._env.sandbox
         task_paths = self._env.task_paths
         trial_paths = self._env.trial_paths
         timeout = self._env.timeout
 
         # Upload and run tests.
-        await docker_env.upload_dir(source_dir=task_paths.tests_dir, target_dir="/tests")
+        await sandbox.upload_dir(source_dir=task_paths.tests_dir, target_dir="/tests")
         test_cmd = (
             'export PATH="$HOME/.local/bin:$PATH" && '
             f"bash /tests/test.sh 2>&1 | tee {EnvironmentPaths.verifier_dir}/test-stdout.txt"
         )
-        await docker_env.exec(test_cmd, timeout_sec=timeout)
+        await sandbox.exec(test_cmd, timeout_sec=timeout)
 
         # Download results if not using mounted volumes
-        if not docker_env.capabilities.mounted:
-            await docker_env.download_dir(
+        if not sandbox.capabilities.mounted:
+            await sandbox.download_dir(
                 source_dir=str(EnvironmentPaths.verifier_dir),
                 target_dir=trial_paths.verifier_dir,
             )

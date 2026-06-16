@@ -37,7 +37,6 @@ from typing_extensions import NotRequired, TypedDict, Unpack, override
 
 from strands_env.core import Environment, ModelFactory
 from strands_env.core.environment import EnvironmentConfig
-from strands_env.core.types import RewardFunction
 
 from .reward import HarborReward
 
@@ -91,11 +90,10 @@ class HarborEnv(Environment):
         self,
         *,
         model_factory: ModelFactory,
-        reward_fn: RewardFunction | None = None,
         **config: Unpack[HarborConfig],
     ):
         """Initialize a `HarborEnv` instance."""
-        super().__init__(model_factory=model_factory, reward_fn=None, **config)  # type: ignore[misc]
+        super().__init__(model_factory=model_factory, **config)  # type: ignore[misc]
         self.task_id: str = str(self.config["task_id"])
         self.task_paths = TaskPaths(Path(str(self.config["task_dir"])))
         self.trial_paths = TrialPaths(Path(str(self.config["trial_dir"])))
@@ -103,19 +101,20 @@ class HarborEnv(Environment):
         self.backend: Literal["docker", "e2b"] = self.config.get("backend", "docker")
         self.task_env_config: TaskEnvironmentConfig = self.config.get("task_env_config", TaskEnvironmentConfig())
         self.prebaked_e2b_config: PrebakedE2BConfig = self.config.get("prebaked_e2b_config", {})
-        self.docker_env: HarborEnvironment | None = None
-        self.reward_fn = reward_fn or HarborReward(self)
+        self.sandbox: HarborEnvironment | None = None
+        # Harbor's reward is tied to the sandbox, so we don't need to pass it in.
+        self.reward_fn = HarborReward(self)
 
     @override
     async def reset(self) -> None:
-        """Build and start the container environment."""
+        """Build and start the sandbox."""
         self.trial_paths.mkdir()
         session_id = f"{self.task_id}-{uuid.uuid4().hex[:8]}"
 
         force_build = True
         match self.backend:
             case "docker":
-                self.docker_env = EnvironmentFactory.create_environment(
+                self.sandbox = EnvironmentFactory.create_environment(
                     type=EnvironmentType.DOCKER,
                     environment_dir=self.task_paths.environment_dir,
                     environment_name=session_id,
@@ -126,9 +125,11 @@ class HarborEnv(Environment):
             case "e2b":
                 from .e2b import PrebakedE2BEnvironment
 
-                self.docker_env = PrebakedE2BEnvironment.from_config(
-                    self.prebaked_e2b_config,
+                # we use prebaked e2b for self-hosting on e.g., AWS
+                self.sandbox = PrebakedE2BEnvironment(
                     task_id=self.task_id,
+                    prebaked_e2b_config=self.prebaked_e2b_config,
+                    # below are the same as harbor's E2BEnvironment
                     environment_dir=self.task_paths.environment_dir,
                     environment_name=session_id,
                     session_id=session_id,
@@ -138,7 +139,7 @@ class HarborEnv(Environment):
                 # Prebaked templates are static; force_build is a no-op here.
                 force_build = False
 
-        await self.docker_env.start(force_build=force_build)
+        await self.sandbox.start(force_build=force_build)
 
     @tool
     async def execute_command(self, command: str) -> str:
@@ -151,9 +152,9 @@ class HarborEnv(Environment):
             Command output (stdout + stderr combined).
         """
         # TODO: Align the terminal command ouput with OpenHand's output format.
-        if not self.docker_env:
-            raise RuntimeError("Docker environment not initialized")
-        result = await self.docker_env.exec(command, timeout_sec=self.timeout)
+        if not self.sandbox:
+            raise RuntimeError("Sandbox not initialized")
+        result = await self.sandbox.exec(command, timeout_sec=self.timeout)
         output = result.stdout or ""
         if result.stderr:
             output += f"\n[stderr]: {result.stderr}"
@@ -168,7 +169,7 @@ class HarborEnv(Environment):
 
     @override
     async def cleanup(self) -> None:
-        """Stop and delete the Docker environment."""
-        if self.docker_env:
-            await self.docker_env.stop(delete=True)
-            self.docker_env = None
+        """Stop and delete the sandbox."""
+        if self.sandbox:
+            await self.sandbox.stop(delete=True)
+            self.sandbox = None

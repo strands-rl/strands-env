@@ -14,10 +14,10 @@
 
 """Unit tests for the Harbor `e2b` backend adapter (`e2b.py`).
 
-Covers the harbor-independent logic: template resolution, the templates.json
-loader, the permissive api-key validator, and the `PrebakedE2BEnvironment`
-overrides (build-skip + Harbor dir creation). Harbor's `E2BEnvironment` base and
-the e2b SDK are not exercised against a real cluster — sandbox creation is mocked.
+Covers the harbor-independent logic: template resolution, connection env-var
+export, the permissive api-key validator, and the `PrebakedE2BEnvironment`
+`__init__`/`start` overrides. Harbor's `E2BEnvironment` base and the e2b SDK are
+not exercised against a real cluster — sandbox creation is mocked.
 """
 
 from __future__ import annotations
@@ -39,14 +39,35 @@ from e2b.exceptions import AuthenticationException  # noqa: E402
 from strands_env.environments.harbor import e2b  # noqa: E402
 from strands_env.environments.harbor.e2b import PrebakedE2BEnvironment  # noqa: E402
 
-# The api-key validator and template-resolution helpers are static/class methods
-# on PrebakedE2BEnvironment; bind them as module-local names for readable tests.
-_permissive_validate_api_key = PrebakedE2BEnvironment._permissive_validate_api_key
-_load_template_map = PrebakedE2BEnvironment._load_template_map
-resolve_template_id = PrebakedE2BEnvironment.resolve_template_id
+#: `validate_api_key` is a module-level function; bind it for readable tests.
+validate_api_key = e2b.validate_api_key
+
+
+def _bare_env(*, task_id: str = "fix-git", config: dict | None = None) -> PrebakedE2BEnvironment:
+    """A `PrebakedE2BEnvironment` with only `task_id`/`_config` set, bypassing __init__.
+
+    `_resolve_template_id` and `_set_e2b_env_vars` are private instance methods
+    that read only those two attributes, so this drives them in isolation without
+    touching the e2b SDK or harbor's base `__init__`.
+    """
+    env = PrebakedE2BEnvironment.__new__(PrebakedE2BEnvironment)
+    env.task_id = task_id
+    env._config = config or {}
+    return env
+
+
+def _resolve_template_id(task_id: str, config: dict) -> str:
+    """Drive `_resolve_template_id` on a bare instance."""
+    return _bare_env(task_id=task_id, config=config)._resolve_template_id()
+
+
+def _set_e2b_env_vars(config: dict) -> None:
+    """Drive `_set_e2b_env_vars` on a bare instance."""
+    _bare_env(config=config)._set_e2b_env_vars()
+
 
 # ---------------------------------------------------------------------------
-# _permissive_validate_api_key
+# validate_api_key
 # ---------------------------------------------------------------------------
 
 
@@ -55,30 +76,30 @@ class TestPermissiveValidateApiKey:
 
     def test_accepts_hex_key(self):
         """A standard hex key passes (no-op for upstream keys)."""
-        _permissive_validate_api_key("e2b_0123456789abcdef")  # no raise
+        validate_api_key("e2b_0123456789abcdef")  # no raise
 
     def test_accepts_non_hex_alnum_key(self):
         """A self-hosted `[a-z0-9]` key passes (the reason the patch exists)."""
-        _permissive_validate_api_key("e2b_3fw7jq32e71yfqu0")  # no raise
+        validate_api_key("e2b_3fw7jq32e71yfqu0")  # no raise
 
     def test_rejects_missing_prefix(self):
         """A key without the `e2b_` prefix is rejected."""
         with pytest.raises(AuthenticationException):
-            _permissive_validate_api_key("sk_0123456789")
+            validate_api_key("sk_0123456789")
 
     def test_rejects_empty_body(self):
         """`e2b_` with no body (len <= 4) is rejected."""
         with pytest.raises(AuthenticationException):
-            _permissive_validate_api_key("e2b_")
+            validate_api_key("e2b_")
 
     def test_rejects_non_string(self):
         """A non-string key is rejected, not crashed on."""
         with pytest.raises(AuthenticationException):
-            _permissive_validate_api_key(None)  # type: ignore[arg-type]
+            validate_api_key(None)  # type: ignore[arg-type]
 
     def test_patch_is_installed_on_e2b_sdk(self):
         """Importing the module installs the validator on e2b.api at module load."""
-        assert _e2b_api_validator() is _permissive_validate_api_key
+        assert _e2b_api_validator() is validate_api_key
 
 
 def _e2b_api_validator():
@@ -88,45 +109,12 @@ def _e2b_api_validator():
 
 
 # ---------------------------------------------------------------------------
-# _load_template_map
-# ---------------------------------------------------------------------------
-
-
-class TestLoadTemplateMap:
-    """Loading + validating a templates.json file."""
-
-    def test_loads_valid_mapping(self, tmp_path: Path):
-        """A JSON object is returned as a dict."""
-        p = tmp_path / "templates.json"
-        p.write_text(json.dumps({"fix-git": "tmpl-abc", "make-doc": "tmpl-def"}))
-        assert _load_template_map(p) == {"fix-git": "tmpl-abc", "make-doc": "tmpl-def"}
-
-    def test_missing_file_raises_filenotfound(self, tmp_path: Path):
-        """A nonexistent path raises FileNotFoundError with guidance."""
-        with pytest.raises(FileNotFoundError, match="Templates file not found"):
-            _load_template_map(tmp_path / "nope.json")
-
-    def test_non_dict_json_raises_valueerror(self, tmp_path: Path):
-        """A JSON array (or any non-object) raises a clear ValueError."""
-        p = tmp_path / "bad.json"
-        p.write_text(json.dumps(["fix-git", "make-doc"]))
-        with pytest.raises(ValueError, match="must contain a JSON object"):
-            _load_template_map(p)
-
-    def test_accepts_str_path(self, tmp_path: Path):
-        """A str path (not just Path) works."""
-        p = tmp_path / "templates.json"
-        p.write_text(json.dumps({"t": "id"}))
-        assert _load_template_map(str(p)) == {"t": "id"}
-
-
-# ---------------------------------------------------------------------------
-# resolve_template_id
+# _resolve_template_id
 # ---------------------------------------------------------------------------
 
 
 class TestResolveTemplateId:
-    """Resolving a task name to its template id."""
+    """Resolving a task name to its template id (`_resolve_template_id`)."""
 
     @pytest.fixture
     def templates(self, tmp_path: Path) -> Path:
@@ -136,39 +124,80 @@ class TestResolveTemplateId:
 
     def test_direct_name_hit(self, templates: Path):
         """A bare task name resolves directly."""
-        assert resolve_template_id("fix-git", templates) == "tmpl-fixgit"
+        assert _resolve_template_id("fix-git", {"templates_json": str(templates)}) == "tmpl-fixgit"
 
     def test_benchmark_prefixed_name_falls_back_to_bare(self, templates: Path):
         """Harbor's `<benchmark>/<task>` form falls back to the bare dir name."""
-        assert resolve_template_id("terminal-bench/fix-git", templates) == "tmpl-fixgit"
+        assert _resolve_template_id("terminal-bench/fix-git", {"templates_json": str(templates)}) == "tmpl-fixgit"
 
-    def test_reads_env_var_when_path_is_none(self, templates: Path, monkeypatch):
-        """With no explicit path, E2B_TEMPLATES_PATH is used."""
+    def test_reads_env_var_when_config_has_no_path(self, templates: Path, monkeypatch):
+        """With no `templates_json` in config, E2B_TEMPLATES_PATH is used."""
         monkeypatch.setenv("E2B_TEMPLATES_PATH", str(templates))
-        assert resolve_template_id("make-doc") == "tmpl-makedoc"
+        assert _resolve_template_id("make-doc", {}) == "tmpl-makedoc"
 
     def test_missing_env_var_and_path_raises_runtimeerror(self, monkeypatch):
-        """No path + unset env var raises an actionable RuntimeError."""
+        """No `templates_json` + unset env var raises an actionable RuntimeError."""
         monkeypatch.delenv("E2B_TEMPLATES_PATH", raising=False)
         with pytest.raises(RuntimeError, match="E2B_TEMPLATES_PATH not set"):
-            resolve_template_id("fix-git")
+            _resolve_template_id("fix-git", {})
 
     def test_unknown_task_raises_keyerror(self, templates: Path):
         """A task absent from the mapping raises KeyError listing what was tried."""
-        with pytest.raises(KeyError, match="has no template"):
-            resolve_template_id("never-baked", templates)
+        with pytest.raises(KeyError, match="has no matching template"):
+            _resolve_template_id("never-baked", {"templates_json": str(templates)})
 
-    def test_explicit_path_overrides_env_var(self, templates: Path, tmp_path: Path, monkeypatch):
-        """An explicit template_map_path wins over E2B_TEMPLATES_PATH."""
+    def test_missing_file_raises_filenotfound(self, tmp_path: Path):
+        """A nonexistent templates path surfaces FileNotFoundError."""
+        with pytest.raises(FileNotFoundError):
+            _resolve_template_id("fix-git", {"templates_json": str(tmp_path / "nope.json")})
+
+    def test_config_path_overrides_env_var(self, templates: Path, tmp_path: Path, monkeypatch):
+        """A `templates_json` in config wins over E2B_TEMPLATES_PATH."""
         other = tmp_path / "other.json"
         other.write_text(json.dumps({"fix-git": "from-env-var"}))
         monkeypatch.setenv("E2B_TEMPLATES_PATH", str(other))
-        # explicit `templates` maps fix-git -> tmpl-fixgit, not from-env-var
-        assert resolve_template_id("fix-git", templates) == "tmpl-fixgit"
+        assert _resolve_template_id("fix-git", {"templates_json": str(templates)}) == "tmpl-fixgit"
 
 
 # ---------------------------------------------------------------------------
-# PrebakedE2BEnvironment
+# PrebakedE2BEnvironment.__init__
+# ---------------------------------------------------------------------------
+
+
+class TestPrebakedE2BEnvironmentInit:
+    """__init__: resolve the pinned template id + export connection env vars."""
+
+    def test_explicit_template_id_skips_resolution(self):
+        """An explicit `template_id` is used directly and the connection env is exported."""
+        with (
+            patch.dict(os.environ, {}, clear=True),
+            patch.object(e2b.E2BEnvironment, "__init__", return_value=None) as base_init,
+        ):
+            env = PrebakedE2BEnvironment(
+                task_id="fix-git",
+                prebaked_e2b_config={"template_id": "tmpl-explicit", "domain": "e2b.acme.dev"},
+            )
+            assert env._template_id == "tmpl-explicit"
+            assert os.environ["E2B_DOMAIN"] == "e2b.acme.dev"
+        base_init.assert_called_once()
+
+    def test_resolves_template_from_map(self, tmp_path: Path):
+        """With no `template_id`, the id is resolved from `templates_json` by task name."""
+        templates = tmp_path / "templates.json"
+        templates.write_text(json.dumps({"fix-git": "tmpl-resolved"}))
+        with (
+            patch.dict(os.environ, {}, clear=True),
+            patch.object(e2b.E2BEnvironment, "__init__", return_value=None),
+        ):
+            env = PrebakedE2BEnvironment(
+                task_id="fix-git",
+                prebaked_e2b_config={"templates_json": str(templates)},
+            )
+        assert env._template_id == "tmpl-resolved"
+
+
+# ---------------------------------------------------------------------------
+# PrebakedE2BEnvironment.start
 # ---------------------------------------------------------------------------
 
 
@@ -184,24 +213,6 @@ def _make_env() -> PrebakedE2BEnvironment:
     env._sandbox = MagicMock()
     env.logger = MagicMock()
     return env
-
-
-class TestPrebakedE2BEnvironmentConstruction:
-    """Constructor + class-level attributes."""
-
-    def test_init_stores_template_id(self):
-        """The `template_id` kwarg is recorded as `_template_id`."""
-        with patch.object(e2b.E2BEnvironment, "__init__", return_value=None) as base_init:
-            env = PrebakedE2BEnvironment(
-                Path("/env"),
-                "env-name",
-                "sess-1",
-                MagicMock(),  # trial_paths
-                MagicMock(),  # task_env_config
-                template_id="tmpl-xyz",
-            )
-        assert env._template_id == "tmpl-xyz"
-        base_init.assert_called_once()
 
 
 class TestPrebakedE2BEnvironmentStart:
@@ -250,25 +261,19 @@ class TestPrebakedE2BEnvironmentStart:
         with pytest.raises(RuntimeError, match="Sandbox not found"):
             await env.start(force_build=False)
 
-    async def test_create_template_raises(self):
-        """The auto-build path is disabled and raises a precise error."""
-        env = _make_env()
-        with pytest.raises(RuntimeError, match="does not auto-build templates"):
-            await env._create_template()
-
 
 # ---------------------------------------------------------------------------
-# PrebakedE2BEnvironment._apply_connection_env
+# _set_e2b_env_vars
 # ---------------------------------------------------------------------------
 
 
-class TestApplyConnectionEnv:
+class TestSetE2BEnvVars:
     """Writing the e2b connection (domain/api_key) into the env vars the SDK reads."""
 
     def test_sets_domain_and_api_key(self):
         """`domain`/`api_key` land in E2B_DOMAIN/E2B_API_KEY."""
         with patch.dict(os.environ, {}, clear=True):
-            PrebakedE2BEnvironment._apply_connection_env({"domain": "e2b.acme.dev", "api_key": "e2b_abc"})
+            _set_e2b_env_vars({"domain": "e2b.acme.dev", "api_key": "e2b_abc"})
             assert os.environ["E2B_DOMAIN"] == "e2b.acme.dev"
             assert os.environ["E2B_API_KEY"] == "e2b_abc"
 
@@ -277,7 +282,7 @@ class TestApplyConnectionEnv:
         key_file = tmp_path / "key"
         key_file.write_text("  e2b_fromfile\n")
         with patch.dict(os.environ, {}, clear=True):
-            PrebakedE2BEnvironment._apply_connection_env({"api_key_file": str(key_file)})
+            _set_e2b_env_vars({"api_key_file": str(key_file)})
             assert os.environ["E2B_API_KEY"] == "e2b_fromfile"
 
     def test_api_key_wins_over_api_key_file(self, tmp_path: Path):
@@ -285,7 +290,7 @@ class TestApplyConnectionEnv:
         key_file = tmp_path / "key"
         key_file.write_text("e2b_fromfile")
         with patch.dict(os.environ, {}, clear=True):
-            PrebakedE2BEnvironment._apply_connection_env({"api_key": "e2b_inline", "api_key_file": str(key_file)})
+            _set_e2b_env_vars({"api_key": "e2b_inline", "api_key_file": str(key_file)})
             assert os.environ["E2B_API_KEY"] == "e2b_inline"
 
     def test_empty_api_key_file_raises(self, tmp_path: Path):
@@ -296,58 +301,11 @@ class TestApplyConnectionEnv:
             patch.dict(os.environ, {}, clear=True),
             pytest.raises(ValueError, match="api_key_file is empty"),
         ):
-            PrebakedE2BEnvironment._apply_connection_env({"api_key_file": str(key_file)})
+            _set_e2b_env_vars({"api_key_file": str(key_file)})
 
     def test_empty_config_is_noop(self):
         """An empty config writes nothing."""
         with patch.dict(os.environ, {}, clear=True):
-            PrebakedE2BEnvironment._apply_connection_env({})
+            _set_e2b_env_vars({})
             assert "E2B_DOMAIN" not in os.environ
             assert "E2B_API_KEY" not in os.environ
-
-
-# ---------------------------------------------------------------------------
-# PrebakedE2BEnvironment.from_config
-# ---------------------------------------------------------------------------
-
-
-class TestFromConfig:
-    """The factory: apply connection env, resolve template id, construct."""
-
-    @staticmethod
-    def _build_kwargs() -> dict:
-        return {
-            "task_id": "fix-git",
-            "environment_dir": Path("/env"),
-            "environment_name": "env-name",
-            "session_id": "sess-1",
-            "trial_paths": MagicMock(),
-            "task_env_config": MagicMock(),
-        }
-
-    def test_explicit_template_id_skips_resolution(self):
-        """An explicit `template_id` is used directly and the connection env is applied."""
-        with (
-            patch.dict(os.environ, {}, clear=True),
-            patch.object(e2b.E2BEnvironment, "__init__", return_value=None),
-        ):
-            env = PrebakedE2BEnvironment.from_config(
-                {"template_id": "tmpl-explicit", "domain": "e2b.acme.dev"},
-                **self._build_kwargs(),
-            )
-            assert env._template_id == "tmpl-explicit"
-            assert os.environ["E2B_DOMAIN"] == "e2b.acme.dev"
-
-    def test_resolves_template_from_map(self, tmp_path: Path):
-        """With no `template_id`, the id is resolved from `templates_json` by task name."""
-        templates = tmp_path / "templates.json"
-        templates.write_text(json.dumps({"fix-git": "tmpl-resolved"}))
-        with (
-            patch.dict(os.environ, {}, clear=True),
-            patch.object(e2b.E2BEnvironment, "__init__", return_value=None),
-        ):
-            env = PrebakedE2BEnvironment.from_config(
-                {"templates_json": str(templates)},
-                **self._build_kwargs(),
-            )
-        assert env._template_id == "tmpl-resolved"

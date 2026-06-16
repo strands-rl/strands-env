@@ -33,9 +33,6 @@ from harbor.models.trial.paths import EnvironmentPaths
 from typing_extensions import override
 
 if TYPE_CHECKING:
-    from harbor.models.task.config import EnvironmentConfig as TaskEnvironmentConfig
-    from harbor.models.trial.paths import TrialPaths
-
     from .env import PrebakedE2BConfig
 
 
@@ -46,45 +43,43 @@ class PrebakedE2BEnvironment(E2BEnvironment):
     already-baked template to boot from. Retries are inherited from the base.
     """
 
-    def __init__(self, *args: Any, template_id: str, **kwargs: Any) -> None:
+    def __init__(self, task_id: str, prebaked_e2b_config: PrebakedE2BConfig, *args: Any, **kwargs: Any) -> None:
         """Initialize a `PrebakedE2BEnvironment` instance.
 
-        `template_id` (keyword-only) pins the pre-baked template; the rest is
-        forwarded to `E2BEnvironment.__init__`.
+        Resolves the pinned template id from `prebaked_e2b_config` (an explicit
+        `template_id`, else a `templates.json` lookup by `task_id`) and exports the
+        e2b connection env vars; `*args`/`**kwargs` forward to `E2BEnvironment.__init__`.
         """
+        self.task_id = task_id
+        self._config = prebaked_e2b_config
+        self._template_id = self._config.get("template_id") or self._resolve_template_id()
+        self._set_e2b_env_vars()
         super().__init__(*args, **kwargs)
-        self._template_id = template_id
 
-    @classmethod
-    def from_config(
-        cls,
-        config: PrebakedE2BConfig,
-        *,
-        task_id: str,
-        environment_dir: Path,
-        environment_name: str,
-        session_id: str,
-        trial_paths: TrialPaths,
-        task_env_config: TaskEnvironmentConfig,
-    ) -> PrebakedE2BEnvironment:
-        """Build a `PrebakedE2BEnvironment` from a `PrebakedE2BConfig`.
+    def _resolve_template_id(self) -> str:
+        """Resolve a Harbor task name to its e2b template id."""
+        templates_path = self._config.get("templates_json") or os.environ.get("E2B_TEMPLATES_PATH")
+        if templates_path is None:
+            raise RuntimeError("E2B_TEMPLATES_PATH not set and no templates_path provided.")
+        templates = json.loads(Path(templates_path).read_text())
+        # Accept both Harbor's `<benchmark>/<task>` form and the bare dir name.
+        candidates = [self.task_id, self.task_id.split("/")[-1]]
+        for name in candidates:
+            if name in templates:
+                return templates[name]
+        raise KeyError(f"Task {self.task_id!r} has no matching template; tried: {candidates}.")
 
-        Applies the connection env vars the e2b SDK reads, resolves the template
-        id (explicit or via the templates map), and constructs the environment.
-        """
-        cls._apply_connection_env(config)
-        template_id = config.get("template_id") or cls.resolve_template_id(
-            task_name=task_id,
-            template_map_path=config.get("templates_json"),
-        )
-        return cls(
-            environment_dir=environment_dir,
-            environment_name=environment_name,
-            session_id=session_id,
-            trial_paths=trial_paths,
-            task_env_config=task_env_config,
-            template_id=template_id,
-        )
+    def _set_e2b_env_vars(self) -> None:
+        """Write `domain`/`api_key` into the env vars harbor's E2BEnvironment + SDK read."""
+        if domain := self._config.get("domain"):
+            os.environ["E2B_DOMAIN"] = domain
+        if api_key := self._config.get("api_key"):
+            os.environ["E2B_API_KEY"] = api_key
+        elif api_key_file := self._config.get("api_key_file"):
+            key = Path(api_key_file).expanduser().read_text().strip()
+            if not key:
+                raise ValueError(f"e2b api_key_file is empty: {api_key_file}")
+            os.environ["E2B_API_KEY"] = key
 
     @override
     async def start(self, force_build: bool) -> None:
@@ -114,86 +109,16 @@ class PrebakedE2BEnvironment(E2BEnvironment):
         # workdir. Self-guards to a no-op when not needed, so always safe.
         await self._upload_environment_dir_after_start()
 
-    @override
-    async def _create_template(self) -> None:  # type: ignore[override]
-        # Defensive: start() skips the build path, so this should be unreachable.
-        raise RuntimeError(
-            "PrebakedE2BEnvironment does not auto-build templates. "
-            "Templates must be baked against the e2b cluster before eval.",
-        )
 
-    @staticmethod
-    def _apply_connection_env(config: PrebakedE2BConfig) -> None:
-        """Write `domain`/`api_key` into the env vars harbor's E2BEnvironment + SDK read."""
-        if domain := config.get("domain"):
-            os.environ["E2B_DOMAIN"] = domain
-        if api_key := config.get("api_key"):
-            os.environ["E2B_API_KEY"] = api_key
-        elif api_key_file := config.get("api_key_file"):
-            key = Path(api_key_file).expanduser().read_text().strip()
-            if not key:
-                raise ValueError(f"e2b api_key_file is empty: {api_key_file}")
-            os.environ["E2B_API_KEY"] = key
+def validate_api_key(api_key: str) -> None:
+    """Validate an e2b API key by `e2b_` prefix + non-empty body only.
 
-    @staticmethod
-    def _permissive_validate_api_key(api_key: str) -> None:
-        """Validate an e2b API key by `e2b_` prefix + non-empty body only.
-
-        The SDK normally requires hex keys; self-hosted clusters mint `[a-z0-9]`
-        ones. Installed onto `e2b.api.validate_api_key` at import (bottom of file).
-        """
-        if not isinstance(api_key, str) or not api_key.startswith("e2b_") or len(api_key) <= 4:
-            raise AuthenticationException('Invalid API key format: expected "e2b_" followed by a non-empty body.')
-
-    @staticmethod
-    def _load_template_map(path: str | Path) -> dict[str, str]:
-        """Load a {task_name: template_id} mapping from a JSON file."""
-        p = Path(path)
-        if not p.exists():
-            raise FileNotFoundError(
-                f"Templates file not found at {p}. Bake the task templates against the e2b cluster first.",
-            )
-        data = json.loads(p.read_text())
-        if not isinstance(data, dict):
-            raise ValueError(f"{p} must contain a JSON object mapping task_name -> template_id.")
-        return data
-
-    @classmethod
-    def resolve_template_id(cls, task_name: str, template_map_path: str | Path | None = None) -> str:
-        """Resolve a Harbor task name to its e2b template id.
-
-        Args:
-            task_name: The task's name (e.g. `"fix-git"`), matching the dataset
-                directory and `Task.name` after Harbor's mapper has run.
-            template_map_path: Path to `templates.json`; falls back to
-                `E2B_TEMPLATES_PATH` when None.
-
-        Raises:
-            FileNotFoundError: If the templates file does not exist.
-            KeyError: If the task has no entry (its template isn't baked yet).
-        """
-        if template_map_path is None:
-            template_map_path = os.environ.get("E2B_TEMPLATES_PATH")
-        if template_map_path is None:
-            raise RuntimeError(
-                "E2B_TEMPLATES_PATH not set and no template_map_path provided. "
-                "Set it to a templates.json mapping task_name -> template_id.",
-            )
-        mapping = cls._load_template_map(template_map_path)
-        # Accept both Harbor's `<benchmark>/<task>` form and the bare dir name:
-        # the mapping is keyed by bare name; the evaluator passes the full Task.name.
-        candidates = [task_name, task_name.split("/")[-1]]
-        for candidate in candidates:
-            if candidate in mapping:
-                return mapping[candidate]
-        raise KeyError(
-            f"Task {task_name!r} has no template. "
-            f"Tried: {candidates}. "
-            f"Known tasks: {sorted(mapping.keys())[:10]}{'...' if len(mapping) > 10 else ''}. "
-            f"Bake the template for {candidates[-1]!r} first.",
-        )
+    The SDK normally requires hex keys; self-hosted clusters mint `[a-z0-9]`
+    ones. Installed onto `e2b.api.validate_api_key` at import (bottom of file).
+    """
+    if not isinstance(api_key, str) or not api_key.startswith("e2b_") or len(api_key) <= 4:
+        raise AuthenticationException('Invalid API key format: expected "e2b_" followed by a non-empty body.')
 
 
-# Relax the SDK's hex-only key check before any Sandbox is constructed; some
-# self-hosted clusters use a broader key alphabet. See `_permissive_validate_api_key`.
-_e2b_api.validate_api_key = PrebakedE2BEnvironment._permissive_validate_api_key
+# Relax the SDK's hex-only key check before any Sandbox is constructed; self-hosted clusters use a broader key alphabet.
+_e2b_api.validate_api_key = validate_api_key
