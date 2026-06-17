@@ -51,7 +51,7 @@ dev = [
 ]
 litellm = ["litellm"]
 harbor = [
-    "harbor>=0.13.2; python_version>='3.12'",
+    "harbor>=0.14.0; python_version>='3.12'",
     "e2b==2.25.1",
 ]
 ifeval = ["lm_eval[ifeval]>=0.4.11"]
