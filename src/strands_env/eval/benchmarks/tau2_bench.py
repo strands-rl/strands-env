@@ -31,7 +31,7 @@ from strands_env.core import Action, TaskContext
 from strands_env.environments.tau2_bench import Tau2BenchConfig
 from strands_env.eval import Evaluator
 from strands_env.eval.evaluator import EvalSample
-from strands_env.eval.metrics import MetricFn, compute_pass_at_k
+from strands_env.eval.metrics import MetricFunction, compute_pass_at_k
 
 from ..registry import register_eval
 
@@ -131,7 +131,7 @@ class Tau2BenchEvaluator(Evaluator):
         return True
 
     @override
-    def get_metric_fns(self) -> list[MetricFn]:
+    def get_metric_fns(self) -> list[MetricFunction]:
         """Report both ``pass@k`` (at-least-one) and ``pass^k`` (consistency, tau2 paper)."""
         k_values = list(range(1, self.n_samples_per_prompt + 1))
         return [
