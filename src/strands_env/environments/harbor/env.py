@@ -151,7 +151,6 @@ class HarborEnv(Environment):
         Returns:
             Command output (stdout + stderr combined).
         """
-        # TODO: Align the terminal command ouput with OpenHand's output format.
         if not self.sandbox:
             raise RuntimeError("Sandbox not initialized")
         result = await self.sandbox.exec(command, timeout_sec=self.timeout)
