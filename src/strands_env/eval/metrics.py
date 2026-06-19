@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     from .evaluator import EvalSample
 
 #: Type alias for metric function: takes results {prompt_id: [EvalSample, ...]}, returns {metric_name: value}.
-MetricFn = Callable[[dict[str, list["EvalSample"]]], dict[str, float]]
+MetricFunction = Callable[[dict[str, list["EvalSample"]]], dict[str, float]]
 
 
 def compute_pass_at_k(

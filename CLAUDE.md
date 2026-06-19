@@ -78,7 +78,7 @@ Holds the environment base, data types, model factories, and shared reward/tool 
 
 **registry.py** — Benchmark registry with `@register_eval(name)` decorator. Auto-discovers benchmark modules from `benchmarks/` subdirectory on first access. `get_benchmark(name)`, `list_benchmarks()`, and `list_unavailable_benchmarks()` for discovery. Modules with missing dependencies are tracked as unavailable.
 
-**metrics.py** — `compute_pass_at_k` implements the unbiased pass@k estimator. `MetricFn` type alias for pluggable metrics.
+**metrics.py** — `compute_pass_at_k` implements the unbiased pass@k estimator. `MetricFunction` type alias for pluggable metrics.
 
 **benchmarks/** — Benchmark evaluator modules. Each module uses `@register_eval` decorator. Auto-discovered on first registry access; missing dependencies cause module to be skipped with warning. Registered families: math (`aime-2024/2025/2026`, `hmmt-feb-2025/nov-2025/feb-2026`), QA/research (`gpqa-*`, `hle-verified-gold[-text]`, `simpleqa-verified`, `frames`, `sealqa-seal-0/hard`, `browsecomp`), instruction following (`ifeval`), MCP (`mcp-atlas`), and agentic-coding/terminal (`swebench-verified`, `terminal-bench-1/2/2.1`).
 

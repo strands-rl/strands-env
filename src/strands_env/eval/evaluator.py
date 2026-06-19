@@ -32,7 +32,7 @@ from tqdm.contrib.logging import logging_redirect_tqdm
 
 from strands_env.core import Action, AsyncEnvFactory, Observation, StepResult
 
-from .metrics import MetricFn, compute_pass_at_k
+from .metrics import MetricFunction, compute_pass_at_k
 
 if TYPE_CHECKING:
     from strands_env.core.distributed import EnvironmentActorPool
@@ -113,7 +113,7 @@ class Evaluator:
         """
         return True
 
-    def get_metric_fns(self) -> list[MetricFn]:
+    def get_metric_fns(self) -> list[MetricFunction]:
         """Return metric functions for evaluation. Override to customize.
 
         Notes:
