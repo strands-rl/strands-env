@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Protocol, cast
 
 from strands import tool
 
@@ -25,6 +25,22 @@ from .quotas import CodeInterpreterQuotas
 
 if TYPE_CHECKING:
     from strands_env.utils.aws import BotoClient
+
+
+class _CodeInterpreterClient(Protocol):
+    """Operations this toolkit calls on the dynamically-built bedrock-agentcore client.
+
+    Avoids depending on the per-service `boto3-stubs[bedrock-agentcore]` stub.
+    """
+
+    def start_code_interpreter_session(self, **kwargs: Any) -> dict[str, Any]:
+        """Start a code interpreter session."""
+
+    def invoke_code_interpreter(self, **kwargs: Any) -> dict[str, Any]:
+        """Invoke the code interpreter."""
+
+    def stop_code_interpreter_session(self, **kwargs: Any) -> dict[str, Any]:
+        """Stop a code interpreter session."""
 
 
 class CodeInterpreterToolkit:
@@ -57,7 +73,7 @@ class CodeInterpreterToolkit:
                 Create one `CodeInterpreterQuotas` instance and pass it to all toolkit
                 instances to enforce account-wide limits.
         """
-        self.client = client
+        self.client = cast(_CodeInterpreterClient, client)
         self.session_id: str | None = None
         self.session_name = session_name
         self.session_timeout_seconds = session_timeout_seconds

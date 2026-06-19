@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import TypeAlias
+from typing import Any, TypeAlias
 
 import boto3
 from botocore.client import BaseClient
@@ -105,7 +105,9 @@ def create_assumed_role_session(role_arn: str, role_session_name: str, region_na
         method="sts-assume-role",
     )
 
-    botocore_session = get_botocore_session()
+    # No public API to inject RefreshableCredentials; set the private attr directly
+    # (typed `Any` as `_credentials` isn't in botocore-stubs).
+    botocore_session: Any = get_botocore_session()
     botocore_session._credentials = session_credentials
     session = boto3.Session(botocore_session=botocore_session, region_name=region_name)
     logger.info("Created boto3 session with assumed role: role_arn=%s, region_name=%s", role_arn, session.region_name)
@@ -147,7 +149,10 @@ def get_client(
         )
     else:
         session = boto3.Session(region_name=region_name, profile_name=profile_name)
-    client = session.client(service_name, region_name=region_name, config=config)
+    # boto3-stubs types `.client()` only for literal service names; this helper
+    # takes a runtime str, so call through an untyped ref to get `BaseClient`.
+    create_client: Any = session.client
+    client: BotoClient = create_client(service_name, region_name=region_name, config=config)
     logger.info("Created cached boto3 client: service_name=%s, region_name=%s", service_name, client.meta.region_name)
     return client
 
