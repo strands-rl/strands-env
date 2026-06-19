@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "strands-env"
 dynamic = ["version"]
-description = "Standardizing environment infrastructure with Strands Agents — step, observe, reward."
+description = "A framework for building agent environments with Strands Agents."
 authors = [{name = "Yuan He", email = "yuanhe.cs.ai@gmail.com"}]
 requires-python = ">=3.10"
 readme = "README.md"
