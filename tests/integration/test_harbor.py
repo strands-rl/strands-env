@@ -98,7 +98,7 @@ async def harbor_env(model_factory, task_dir, tmp_path):
 class TestHarborEnv:
     async def test_step_with_docker_reward(self, harbor_env):
         """Full pipeline: agent runs command in Docker, observation is complete, reward comes from test.sh."""
-        result = await harbor_env.step(Action(message="Run 'echo hello world' in the terminal."))
+        result = await harbor_env.rollout(Action(message="Run 'echo hello world' in the terminal."))
 
         assert_successful_step(result)
         assert_rollout(result)
@@ -112,10 +112,10 @@ class TestHarborEnv:
 
     async def test_multi_turn_conversation(self, harbor_env):
         """Agent uses conversation history from a prior turn to maintain context."""
-        result1 = await harbor_env.step(Action(message="Run 'echo hello' in the terminal."))
+        result1 = await harbor_env.rollout(Action(message="Run 'echo hello' in the terminal."))
         assert result1.termination_reason == TerminationReason.TASK_COMPLETE
 
-        result2 = await harbor_env.step(
+        result2 = await harbor_env.rollout(
             Action(
                 message="Now run 'echo world'.",
                 task_context=TaskContext(conversation_history=result1.observation.messages),
@@ -135,7 +135,7 @@ class TestHarborEnv:
         )
         try:
             await env.reset()
-            result = await env.step(Action(message=MANY_STEPS_PROMPT))
+            result = await env.rollout(Action(message=MANY_STEPS_PROMPT))
 
             assert result.termination_reason == TerminationReason.MAX_TOOL_ITERATIONS_REACHED
             assert result.observation.metrics["tool_iters"] <= 1
@@ -154,7 +154,7 @@ class TestHarborEnv:
         )
         try:
             await env.reset()
-            result = await env.step(Action(message=MANY_STEPS_PROMPT))
+            result = await env.rollout(Action(message=MANY_STEPS_PROMPT))
 
             assert result.termination_reason == TerminationReason.MAX_TOOL_CALLS_REACHED
             assert result.observation.metrics["tool_calls"] >= 1

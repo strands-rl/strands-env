@@ -56,7 +56,7 @@ class TestEnvironmentInit:
 
 
 # ---------------------------------------------------------------------------
-# step()
+# rollout()
 # ---------------------------------------------------------------------------
 
 
@@ -73,7 +73,7 @@ class TestStep:
             message="What is 2+2?",
             task_context=TaskContext(conversation_history=conversation_history),
         )
-        result = await env.step(action)
+        result = await env.rollout(action)
 
         assert result.termination_reason == TerminationReason.TASK_COMPLETE
         assert result.observation.metrics["message_count"] == 1
@@ -87,7 +87,7 @@ class TestStep:
         mock_agent_cls.return_value = agent
 
         action = Action(message="Do something")
-        result = await env.step(action)
+        result = await env.rollout(action)
 
         assert result.termination_reason == TerminationReason.UNCLASSIFIED_ERROR
 
@@ -103,7 +103,7 @@ class TestStep:
         env = Environment(model_factory=model_factory, reward_fn=reward_fn)
 
         action = Action(message="What is 2+2?", task_context=TaskContext(ground_truth="4"))
-        result = await env.step(action)
+        result = await env.rollout(action)
 
         reward_fn.compute.assert_awaited_once()
         assert result.reward.reward == 1.0
@@ -121,7 +121,7 @@ class TestStep:
         )
 
         action = Action(message={"role": "user", "content": [{"text": "hello"}]})
-        result = await env.step(action)
+        result = await env.rollout(action)
 
         assert result.termination_reason == TerminationReason.TASK_COMPLETE
         # Agent.invoke_async should receive the content list, not the full dict
@@ -141,7 +141,7 @@ class TestStep:
         mock_agent_cls.return_value = mock_agent(messages=history + new_messages)
 
         action = Action(message="msg2", task_context=TaskContext(conversation_history=history))
-        result = await env.step(action)
+        result = await env.rollout(action)
 
         assert result.observation.metrics["message_count"] == 2
         assert result.observation.messages == new_messages
@@ -153,7 +153,7 @@ class TestStep:
             messages=[{"role": "assistant", "content": [{"text": "done"}]}],
         )
 
-        result = await env.step(Action(message="test"))
+        result = await env.rollout(Action(message="test"))
 
         assert "tool_iters" in result.observation.metrics
         assert "tool_calls" in result.observation.metrics

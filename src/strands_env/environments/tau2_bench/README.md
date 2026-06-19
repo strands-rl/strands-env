@@ -37,7 +37,7 @@ env = Tau2BenchEnv(
 )
 
 await env.reset()                # Build per-episode tau2 env, prime the user-sim
-result = await env.step(action)  # Runs the full multi-turn episode
+result = await env.rollout(action)  # Runs the full multi-turn episode
 ```
 
 `reset()` builds a fresh tau2 domain environment (applying `task.initial_state`), constructs the agent/user tools, and gets the user-sim's reply to a canned greeting to seed the agent's first turn. No `cleanup()` is needed — the DB is per-episode in-memory state.

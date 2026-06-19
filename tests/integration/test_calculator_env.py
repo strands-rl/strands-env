@@ -40,7 +40,7 @@ class TestCalculatorEnv:
     async def test_step_produces_complete_observation(self, model_factory):
         """A single step produces a complete observation with messages, token trajectory, and metrics."""
         env = CalculatorEnv(model_factory=model_factory, system_prompt=MATH_SYSTEM_PROMPT)
-        result = await env.step(Action(message="What is 17 * 23?"))
+        result = await env.rollout(Action(message="What is 17 * 23?"))
 
         assert_successful_step(result)
         assert_rollout(result)
@@ -57,10 +57,10 @@ class TestCalculatorEnv:
         """Agent uses conversation history from a prior turn to maintain context."""
         env = CalculatorEnv(model_factory=model_factory, system_prompt=MATH_SYSTEM_PROMPT)
 
-        result1 = await env.step(Action(message="What is 10 + 5?"))
+        result1 = await env.rollout(Action(message="What is 10 + 5?"))
         assert result1.termination_reason == TerminationReason.TASK_COMPLETE
 
-        result2 = await env.step(
+        result2 = await env.rollout(
             Action(
                 message="Now multiply that result by 3.",
                 task_context=TaskContext(conversation_history=result1.observation.messages),
@@ -75,7 +75,7 @@ class TestCalculatorEnv:
             system_prompt=MATH_SYSTEM_PROMPT + " Put your final answer inside \\boxed{}.",
             reward_fn=MathVerifyReward(),
         )
-        result = await env.step(
+        result = await env.rollout(
             Action(message="What is 6 * 7?", task_context=TaskContext(ground_truth="42")),
         )
 
@@ -86,7 +86,7 @@ class TestCalculatorEnv:
     async def test_tool_iteration_limit(self, model_factory):
         """max_tool_iters terminates the agent after the specified number of tool rounds."""
         env = CalculatorEnv(model_factory=model_factory, system_prompt=FORCE_TOOL_PROMPT, max_tool_iters=1)
-        result = await env.step(Action(message=MANY_STEPS_PROMPT))
+        result = await env.rollout(Action(message=MANY_STEPS_PROMPT))
 
         assert result.termination_reason == TerminationReason.MAX_TOOL_ITERATIONS_REACHED
         assert result.observation.metrics["tool_iters"] <= 1
@@ -94,7 +94,7 @@ class TestCalculatorEnv:
     async def test_max_tool_calls_limit(self, model_factory):
         """max_tool_calls terminates the agent after the specified total tool invocations."""
         env = CalculatorEnv(model_factory=model_factory, system_prompt=FORCE_TOOL_PROMPT, max_tool_calls=1)
-        result = await env.step(Action(message=MANY_STEPS_PROMPT))
+        result = await env.rollout(Action(message=MANY_STEPS_PROMPT))
 
         assert result.termination_reason == TerminationReason.MAX_TOOL_CALLS_REACHED
         assert result.observation.metrics["tool_calls"] >= 1

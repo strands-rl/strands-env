@@ -25,7 +25,7 @@ env = AgentCoreCodeEnv(
     mode="code",  # "code", "terminal", or "code_and_terminal"
 )
 
-result = await env.step(action)
+result = await env.rollout(action)
 await env.cleanup()  # Clean up code interpreter session
 ```
 

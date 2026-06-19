@@ -166,13 +166,13 @@ class Evaluator:
         try:
             # Run evaluation in distributed or local mode
             if self.env_actor_pool is not None:
-                step_result = await self.env_actor_pool.step(action)
+                step_result = await self.env_actor_pool.rollout(action)
             else:
                 assert self.env_factory is not None
                 env = await self.env_factory(action)
                 try:
                     await env.reset()
-                    step_result = await env.step(action)
+                    step_result = await env.rollout(action)
                 finally:
                     await env.cleanup()
             # Clean up the token-level rollout if not needed to reduce verbosity

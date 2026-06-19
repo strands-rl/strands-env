@@ -103,7 +103,7 @@ class Tau2BenchEvaluator(Evaluator):
         user_sim_guidelines = get_global_user_sim_guidelines(use_tools=self.user_has_tools)
         return [
             Action(
-                message="",  # set by Tau2BenchEnv.step() from env.first_user_msg (after reset)
+                message="",  # set by Tau2BenchEnv.rollout() from env.first_user_msg (after reset)
                 task_context=Tau2BenchTaskContext(
                     id=str(task["id"]),
                     ground_truth=(task.get("evaluation_criteria") or {}).get("reward_basis"),

@@ -102,7 +102,7 @@ class Environment:
         """
         pass
 
-    async def step(self, action: Action) -> StepResult:
+    async def rollout(self, action: Action) -> StepResult:
         """Run one agent episode and return observation + reward + termination."""
         # 1. Build inputs and the agent.
         conversation_history = action.task_context.conversation_history

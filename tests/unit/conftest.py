@@ -46,7 +46,7 @@ def mock_env():
     """Mock Environment with async reset/step/cleanup."""
     env = MagicMock(spec=Environment)
     env.reset = AsyncMock()
-    env.step = AsyncMock()
+    env.rollout = AsyncMock()
     env.cleanup = AsyncMock()
     return env
 

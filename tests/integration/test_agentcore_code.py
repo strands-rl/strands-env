@@ -64,7 +64,7 @@ async def code_env(model_factory, agentcore_client):
 class TestAgentCoreCodeEnv:
     async def test_code_mode(self, code_env):
         """CODE mode: agent executes Python, produces complete observation with token trajectory and metrics."""
-        result = await code_env.step(Action(message="Use code to compute 2 ** 10 and tell me the result."))
+        result = await code_env.rollout(Action(message="Use code to compute 2 ** 10 and tell me the result."))
 
         assert_successful_step(result)
         assert_rollout(result)
@@ -77,7 +77,7 @@ class TestAgentCoreCodeEnv:
         """TERMINAL mode: agent executes shell commands."""
         env = AgentCoreCodeEnv(model_factory=model_factory, client=agentcore_client, mode="terminal")
         try:
-            result = await env.step(Action(message="Use a shell command to print 'hello' with echo."))
+            result = await env.rollout(Action(message="Use a shell command to print 'hello' with echo."))
             assert_successful_step(result)
         finally:
             await env.cleanup()
@@ -86,7 +86,7 @@ class TestAgentCoreCodeEnv:
         """CODE_AND_TERMINAL mode: both execute_code and execute_command tools available."""
         env = AgentCoreCodeEnv(model_factory=model_factory, client=agentcore_client, mode="code_and_terminal")
         try:
-            result = await env.step(
+            result = await env.rollout(
                 Action(message="Use code to compute 2 + 2, then use a shell command to echo the result."),
             )
             assert_successful_step(result)
@@ -109,10 +109,10 @@ class TestAgentCoreCodeEnv:
             reward_fn=ContainsReward(),
         )
         try:
-            result1 = await env.step(Action(message="Use code to define x = 42 and print it."))
+            result1 = await env.rollout(Action(message="Use code to define x = 42 and print it."))
             assert result1.termination_reason == TerminationReason.TASK_COMPLETE
 
-            result2 = await env.step(
+            result2 = await env.rollout(
                 Action(
                     message="Now use code to compute x * 2 and give me the final number.",
                     task_context=TaskContext(conversation_history=result1.observation.messages, ground_truth=84),
@@ -134,7 +134,7 @@ class TestAgentCoreCodeEnv:
             max_tool_iters=1,
         )
         try:
-            result = await env.step(Action(message=MANY_STEPS_PROMPT))
+            result = await env.rollout(Action(message=MANY_STEPS_PROMPT))
 
             assert result.termination_reason == TerminationReason.MAX_TOOL_ITERATIONS_REACHED
             assert result.observation.metrics["tool_iters"] <= 1
@@ -151,7 +151,7 @@ class TestAgentCoreCodeEnv:
             max_tool_calls=1,
         )
         try:
-            result = await env.step(Action(message=MANY_STEPS_PROMPT))
+            result = await env.rollout(Action(message=MANY_STEPS_PROMPT))
 
             assert result.termination_reason == TerminationReason.MAX_TOOL_CALLS_REACHED
             assert result.observation.metrics["tool_calls"] >= 1

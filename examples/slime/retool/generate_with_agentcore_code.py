@@ -90,7 +90,7 @@ async def generate_and_rm(args, sample: Sample, sampling_params) -> Sample:
             conversation_history=[],
         ),
     )
-    step_result = await env.step(action)
+    step_result = await env.rollout(action)
 
     # Extract token data from the rollout
     rollout = step_result.observation.rollout

@@ -77,7 +77,7 @@ async def run_demo(
         click.echo(f"Question: {QUESTION}")
         click.echo("-" * 60)
 
-        result = await env.step(Action(message=QUESTION))
+        result = await env.rollout(Action(message=QUESTION))
 
         click.echo(f"\nMessages:    {result.observation.messages}")
         click.echo(f"\nTermination: {result.termination_reason.value}")

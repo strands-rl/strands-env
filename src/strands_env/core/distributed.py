@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Ray actor pool for distributing `Environment.step()` across processes."""
+"""Ray actor pool for distributing `Environment.rollout()` across processes."""
 
 from __future__ import annotations
 
@@ -51,8 +51,8 @@ class EnvironmentActor:
         env_hook = load_function(env_hook_path)
         self.env_factory = env_hook(**env_hook_config)
 
-    async def step(self, action_json: str) -> str:
-        """Run one environment step and return the JSON-serialized `StepResult`.
+    async def rollout(self, action_json: str) -> str:
+        """Run one rollout and return the JSON-serialized `StepResult`.
 
         Args:
             action_json: JSON string from `Action.model_dump_json()`.
@@ -64,7 +64,7 @@ class EnvironmentActor:
         env = await self.env_factory(action)
         try:
             await env.reset()
-            step_result = await env.step(action)
+            step_result = await env.rollout(action)
             return step_result.model_dump_json()
         finally:
             await env.cleanup()
@@ -135,14 +135,14 @@ class EnvironmentActorPool:
             n_actors_per_node,
         )
 
-    async def step(self, action: Action) -> StepResult:
-        """Run one environment step on the next available actor.
+    async def rollout(self, action: Action) -> StepResult:
+        """Run one rollout on the next available actor.
 
         Uses `asyncio.to_thread(ray.get, ...)` to avoid blocking the
         caller's event loop.
         """
         actor = next(self.cycle)
-        obj_ref = actor.step.remote(action.model_dump_json())
+        obj_ref = actor.rollout.remote(action.model_dump_json())
         result_json: str = await asyncio.to_thread(ray.get, obj_ref)
         return StepResult.model_validate_json(result_json)
 

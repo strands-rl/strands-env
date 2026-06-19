@@ -14,7 +14,7 @@
 
 """tau2-bench environment.
 
-Multi-turn agent vs LLM user-sim over a shared in-memory DB. One `env.step()`
+Multi-turn agent vs LLM user-sim over a shared in-memory DB. One `env.rollout()`
 runs the full episode inside a single `agent.invoke_async()`, driven turn-by-turn
 by `Tau2BenchUserSimHook` via `AfterInvocationEvent.resume` (strands-agents >= 1.30.0).
 """
@@ -201,13 +201,13 @@ class Tau2BenchEnv(Environment):
         self.user_sim_hook = Tau2BenchUserSimHook(self.user_sim, self.max_turns)
 
     @override
-    async def step(self, action: Action) -> StepResult:
+    async def rollout(self, action: Action) -> StepResult:
         """Inject `first_user_msg` and the canned greeting history into the action."""
         action.message = self.first_user_msg
         action.task_context.conversation_history = [
             {"role": "assistant", "content": [{"text": DEFAULT_FIRST_AGENT_MESSAGE}]}
         ]
-        return await super().step(action)
+        return await super().rollout(action)
 
     @override
     def get_tools(self) -> list:

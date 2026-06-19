@@ -185,7 +185,7 @@ class TerminationReason(str, Enum):
 
 
 class StepResult(BaseModel):
-    """Result of a single `Environment.step` call."""
+    """Result of a single `Environment.rollout` call."""
 
     observation: Observation
     reward: RewardResult | None = None

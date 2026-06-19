@@ -25,7 +25,7 @@ env = AgentWorldModelEnv(
     max_tool_iters=10,
 )
 await env.reset()       # starts server + opens MCP session
-result = await env.step(action)
+result = await env.rollout(action)
 await env.cleanup()     # closes session + kills server + removes temp dir
 ```
 

@@ -38,7 +38,7 @@ env = MCPAtlasEnv(
     enabled_tools=["calculator_calculate", "fetch_fetch"],
 )
 await env.reset()       # fetches tools and applies filtering
-result = await env.step(action)
+result = await env.rollout(action)
 await env.cleanup()     # clears tools (does NOT close the shared client)
 ```
 
