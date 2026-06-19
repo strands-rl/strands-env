@@ -32,10 +32,10 @@ from typing_extensions import TypedDict, Unpack
 
 from .models import ModelFactory
 from .types import (
-    Action,
     Observation,
     RewardFunction,
     StepResult,
+    Task,
     TerminationReason,
 )
 
@@ -102,10 +102,10 @@ class Environment:
         """
         pass
 
-    async def rollout(self, action: Action) -> StepResult:
+    async def rollout(self, task: Task) -> StepResult:
         """Run one agent episode and return observation + reward + termination."""
         # 1. Build inputs and the agent.
-        conversation_history = action.task_context.conversation_history
+        conversation_history = task.context.conversation_history
         tool_limiter = ToolLimiter(
             max_tool_iters=self.max_tool_iters,
             max_tool_calls=self.max_tool_calls,
@@ -126,7 +126,7 @@ class Environment:
         # 2. Run the agent loop.
         error = None
         try:
-            message = action.message if isinstance(action.message, str) else action.message["content"]
+            message = task.message if isinstance(task.message, str) else task.message["content"]
             await agent.invoke_async(message)
         except Exception as e:
             error = e
@@ -149,7 +149,7 @@ class Environment:
         # 4. Compute and time the reward (if any).
         if self.reward_fn:
             reward_t0 = time.perf_counter()
-            step_result.reward = await self.reward_fn.compute(action=action, step_result=step_result)
+            step_result.reward = await self.reward_fn.compute(task, step_result)
             observation.metrics["reward_latency_s"] = round(time.perf_counter() - reward_t0, 4)
 
         return step_result

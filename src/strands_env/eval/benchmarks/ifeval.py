@@ -24,7 +24,7 @@ from datasets import load_dataset
 from lm_eval.tasks.ifeval.utils import process_results
 from typing_extensions import override
 
-from strands_env.core import Action, TaskContext
+from strands_env.core import Task, TaskContext
 from strands_env.core.types import RewardFunction, RewardResult, StepResult
 
 from ..evaluator import Evaluator
@@ -72,23 +72,23 @@ class IFEvalReward(RewardFunction):
         return (sum(value) / len(value)) if value else 0.0
 
     @override
-    async def compute(self, action: Action, step_result: StepResult) -> RewardResult:
+    async def compute(self, task: Task, step_result: StepResult) -> RewardResult:
         """Run the IFEval grader on the final response and return a `RewardResult`."""
         response = step_result.observation.final_response or ""
-        ctx = action.task_context
+        ctx = task.context
 
         # `process_results` expects a `doc` dict mirroring the original IFEval JSONL row.
         doc: dict[str, Any] = {
             "key": getattr(ctx, "key", 0),
             "instruction_id_list": list(getattr(ctx, "instruction_id_list", [])),
-            "prompt": action.message if isinstance(action.message, str) else "",
+            "prompt": task.message if isinstance(task.message, str) else "",
             "kwargs": list(getattr(ctx, "ifeval_kwargs", [])),
         }
 
         try:
             results = process_results(doc, [response])
         except Exception as e:
-            logger.error("IFEval grader failed for %s: %s", ctx.id, e)
+            logger.error("IFEval grader failed for %s: %s", task.id, e)
             return RewardResult(reward=0.0, info={"status": "error", "error": str(e)})
 
         info: dict[str, Any] = {
@@ -108,7 +108,7 @@ class IFEvalEvaluator(Evaluator):
     """Evaluator for IFEval (Instruction-Following Eval).
 
     Loads the 541-row [google/IFEval](https://huggingface.co/datasets/google/IFEval)
-    dataset and emits one `Action` per row. Each `TaskContext` carries the `key`,
+    dataset and emits one `Task` per row. Each `TaskContext` carries the `key`,
     `instruction_id_list`, and `ifeval_kwargs` fields needed by `IFEvalReward` to
     run the rule-based grader. Pair this evaluator with an `IFEvalReward` instance
     on the environment.
@@ -118,11 +118,11 @@ class IFEvalEvaluator(Evaluator):
     dataset_path: str = "google/IFEval"
 
     @override
-    def load_dataset(self) -> Iterable[Action]:
+    def load_dataset(self) -> Iterable[Task]:
         """Load the IFEval dataset from HuggingFace (streaming).
 
         Yields:
-            Action objects. Each `TaskContext` stores the IFEval `key`,
+            Task objects. Each `TaskContext` stores the IFEval `key`,
             `instruction_id_list`, and `ifeval_kwargs` as extras.
         """
         dataset = load_dataset(self.dataset_path, split="train", streaming=True)
@@ -137,7 +137,8 @@ class IFEvalEvaluator(Evaluator):
                 "instruction_id_list": list(row.get("instruction_id_list", [])),
                 "ifeval_kwargs": list(row.get("kwargs", [])),
             }
-            yield Action(
+            yield Task(
+                id=f"{self.benchmark_name}_{row.get('key', i)}",
                 message=str(prompt),
-                task_context=TaskContext(id=f"{self.benchmark_name}_{row.get('key', i)}", **extras),
+                context=TaskContext(**extras),
             )

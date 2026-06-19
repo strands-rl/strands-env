@@ -31,7 +31,7 @@ import importlib
 from typing import Any
 
 from strands_env.core.models import build_model_factory
-from strands_env.core.types import Action
+from strands_env.core.types import Task
 from strands_env.environments.tau2_bench import Tau2BenchEnv
 
 #: Default model for the user-simulator and NL-assertion judge (override via ``--env-config``).
@@ -46,9 +46,9 @@ def create_env_factory(model_config: dict, **env_config: Any):
     judge_model_factory = build_model_factory(judge_config) if judge_config else None
     initial_db_cache: dict[str, Any] = {}  # pristine base DB per domain, loaded once
 
-    async def env_factory(action: Action) -> Tau2BenchEnv:
+    async def env_factory(task: Task) -> Tau2BenchEnv:
         """Construct a fresh `Tau2BenchEnv` for one task."""
-        config = dict(action.task_context.config)  # type: ignore[attr-defined]
+        config = dict(task.context.config)  # type: ignore[attr-defined]
         domain = config["domain"]
         if domain not in initial_db_cache:
             domain_mod = importlib.import_module(f"tau2.domains.{domain}.environment")

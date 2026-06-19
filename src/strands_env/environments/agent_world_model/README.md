@@ -25,7 +25,7 @@ env = AgentWorldModelEnv(
     max_tool_iters=10,
 )
 await env.reset()       # starts server + opens MCP session
-result = await env.rollout(action)
+result = await env.rollout(task)
 await env.cleanup()     # closes session + kills server + removes temp dir
 ```
 
@@ -71,5 +71,5 @@ Returns 1.0 if `result["result"] == "complete"`, 0.0 otherwise.
 ## Lifecycle
 
 - **`reset()`** — Picks a free port, generates and starts a FastAPI server subprocess, waits for TCP readiness, opens an MCP session via `streamable_http_client`, discovers tools as `AgentWorldModelTool` instances.
-- **`step(action)`** — Runs the Strands agent with MCP tools. The agent interacts with the FastAPI server to complete the task.
+- **`step(task)`** — Runs the Strands agent with MCP tools. The agent interacts with the FastAPI server to complete the task.
 - **`cleanup()`** — Clears tools, closes MCP session/transport (`AsyncExitStack`), kills the server process group (SIGTERM, then SIGKILL after 5s timeout), removes the temp dir.

@@ -20,10 +20,10 @@ import json
 import subprocess
 from pathlib import Path
 
-from harbor.models.task.task import Task
+from harbor.models.task.task import Task as HarborTask
 from typing_extensions import override
 
-from strands_env.core import Action, TaskContext
+from strands_env.core import Task, TaskContext
 from strands_env.environments.harbor import HarborConfig
 from strands_env.eval import Evaluator
 from strands_env.eval.evaluator import EvalSample
@@ -59,7 +59,7 @@ class TerminalBenchEvaluator(Evaluator):
         )
 
     @override
-    def load_dataset(self) -> list[Action]:
+    def load_dataset(self) -> list[Task]:
         """Load Harbor-format tasks and create Actions."""
         if not self.data_dir.exists():
             self._download_dataset()
@@ -70,9 +70,9 @@ class TerminalBenchEvaluator(Evaluator):
                 actions.append(self._load_single_task(task_dir))
         return actions
 
-    def _load_single_task(self, task_dir: Path) -> Action:
+    def _load_single_task(self, task_dir: Path) -> Task:
         """Load a single task from a directory."""
-        task = Task(task_dir)
+        task = HarborTask(task_dir)
         task.config.environment.memory_mb *= 2
         config: HarborConfig = {
             "task_id": task.name,
@@ -83,9 +83,10 @@ class TerminalBenchEvaluator(Evaluator):
         }
         if self.system_prompt_path is not None:
             config["system_prompt"] = self.system_prompt_path.read_text().strip()
-        return Action(
+        return Task(
+            id=task.name,
             message=task.instruction,
-            task_context=TerminalBenchTaskContext(id=task.name, config=config),
+            context=TerminalBenchTaskContext(config=config),
         )
 
     @override
@@ -97,14 +98,14 @@ class TerminalBenchEvaluator(Evaluator):
         return reward.info.get("status") != "error"
 
     @override
-    async def evaluate_sample(self, action: Action) -> EvalSample:
+    async def evaluate_sample(self, task: Task) -> EvalSample:
         """Override to create sample-specific output directories for pass@k."""
-        assert isinstance(action.task_context, TerminalBenchTaskContext)
-        ctx = action.task_context
-        sample_idx = int(ctx.id.rsplit("_", 1)[1]) if "_" in ctx.id else 0
+        assert isinstance(task.context, TerminalBenchTaskContext)
+        ctx = task.context
+        sample_idx = int(task.id.rsplit("_", 1)[1]) if "_" in task.id else 0
         ctx.config["trial_dir"] = str(self.output_path.parent / ctx.config["task_id"] / str(sample_idx))
 
-        sample = await super().evaluate_sample(action)
+        sample = await super().evaluate_sample(task)
 
         # Save agent messages
         agent_dir = Path(ctx.config["trial_dir"]) / "agent"
@@ -149,7 +150,7 @@ class TerminalBench1Evaluator(TerminalBenchEvaluator):
             solution_yaml.rename(solution_yaml.with_suffix(".yaml.bak"))
 
     @override
-    def load_dataset(self) -> list[Action]:
+    def load_dataset(self) -> list[Task]:
         """Load and migrate Terminal Bench-1 tasks to Harbor format."""
         if not self.data_dir.exists():
             self._download_dataset()

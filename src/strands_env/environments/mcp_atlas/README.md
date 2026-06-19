@@ -38,7 +38,7 @@ env = MCPAtlasEnv(
     enabled_tools=["calculator_calculate", "fetch_fetch"],
 )
 await env.reset()       # fetches tools and applies filtering
-result = await env.rollout(action)
+result = await env.rollout(task)
 await env.cleanup()     # clears tools (does NOT close the shared client)
 ```
 
@@ -82,5 +82,5 @@ The `coverage_score` is the mean across claims. Returns binary reward: 1.0 if `c
 ## Lifecycle
 
 - **`reset()`** — POSTs `/list-tools` to the MCP-Atlas server, filters tools by `enabled_tools`, wraps them as `MCPAtlasTool` instances.
-- **`step(action)`** — Runs the Strands agent with MCP tools. Each tool call POSTs to `/call-tool`.
+- **`step(task)`** — Runs the Strands agent with MCP tools. Each tool call POSTs to `/call-tool`.
 - **`cleanup()`** — Clears the tool list. The shared HTTP client is **not** closed (the caller owns its lifecycle).

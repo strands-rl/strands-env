@@ -19,17 +19,17 @@ from .llm_judge_reward import JudgmentFormat, LLMJudgeReward
 from .mcp_tool import MCPToolAdapter
 from .models import ModelFactory
 from .types import (
-    Action,
     Observation,
     RewardFunction,
     RewardResult,
     StepResult,
+    Task,
     TaskContext,
     TerminationReason,
 )
 
 __all__ = [
-    "Action",
+    "Task",
     "AsyncEnvFactory",
     "Environment",
     "EnvironmentConfig",

@@ -26,7 +26,7 @@ import pandas as pd
 from pydantic import BaseModel, Field
 from typing_extensions import override
 
-from strands_env.core import Action, StepResult, TaskContext
+from strands_env.core import StepResult, Task, TaskContext
 from strands_env.core.llm_judge_reward import LLMJudgeReward
 
 from ..evaluator import EvalSample, Evaluator
@@ -75,11 +75,11 @@ class BrowseCompReward(LLMJudgeReward[BrowseCompJudgment]):
     judgment_format = BrowseCompJudgment
 
     @override
-    async def get_judge_prompt(self, action: Action, step_result: StepResult) -> str:
+    async def get_judge_prompt(self, task: Task, step_result: StepResult) -> str:
         """Get judge prompt for BrowseComp benchmark."""
         return GRADER_TEMPLATE.format(
-            query=action.message,
-            ground_truth=action.task_context.ground_truth,
+            query=task.message,
+            ground_truth=task.context.ground_truth,
             model_response=step_result.observation.final_response,
         )
 
@@ -111,13 +111,13 @@ class BrowseCompEvaluator(Evaluator):
         return reward.info.get("status") != "error"
 
     @override
-    def load_dataset(self) -> Iterable[Action]:
+    def load_dataset(self) -> Iterable[Task]:
         """Load BrowseComp dataset from OpenAI's public CSV.
 
         Problems and answers are XOR-encrypted; decrypted here using the canary column.
 
         Yields:
-            Action objects with decrypted question and ground truth answer.
+            Task objects with decrypted question and ground truth answer.
         """
         df = pd.read_csv(DATASET_URL)
 
@@ -136,10 +136,10 @@ class BrowseCompEvaluator(Evaluator):
                 logger.warning("Row %s: decryption failed: %s", i, e)
                 continue
 
-            yield Action(
+            yield Task(
+                id=f"{self.benchmark_name}_{i}",
                 message=decrypted_problem,
-                task_context=TaskContext(
-                    id=f"{self.benchmark_name}_{i}",
+                context=TaskContext(
                     ground_truth=decrypted_answer,
                 ),
             )

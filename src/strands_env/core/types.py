@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Core types for Strands Agents Environments: actions, observations, rewards, model config, and step result."""
+"""Core types for Strands Agents Environments: tasks, observations, rewards, model config, and step result."""
 
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ from strands_sglang import MaxToolCallsReachedError, MaxToolIterationsReachedErr
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Action
+# Task
 # ---------------------------------------------------------------------------
 
 
@@ -42,16 +42,16 @@ class TaskContext(BaseModel):
 
     model_config = ConfigDict(extra="allow")
 
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     ground_truth: Any = None
     conversation_history: Messages = Field(default_factory=list)
 
 
-class Action(BaseModel):
-    """A single task: the message to send and the context needed for reward computation."""
+class Task(BaseModel):
+    """A single task: an `id`, the message to send, and the context needed for reward computation."""
 
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     message: str | Message = Field(..., description="The message/prompt to send to the agent.")
-    task_context: TaskContext = Field(default_factory=TaskContext)
+    context: TaskContext = Field(default_factory=TaskContext)
 
 
 # ---------------------------------------------------------------------------
@@ -102,13 +102,13 @@ class RewardFunction(ABC):
     """Abstract reward function. Subclass and implement `compute`."""
 
     @abstractmethod
-    async def compute(self, action: Action, step_result: StepResult) -> RewardResult:
-        """Return a `RewardResult` given the action and the environment's step result."""
+    async def compute(self, task: Task, step_result: StepResult) -> RewardResult:
+        """Return a `RewardResult` given the task and the environment's step result."""
         ...
 
 
 # ---------------------------------------------------------------------------
-# Step result
+# Termination reason (error classification)
 # ---------------------------------------------------------------------------
 
 
@@ -182,6 +182,11 @@ class TerminationReason(str, Enum):
 
         logger.warning("Step terminated: %s - %s", reason.value, cause)
         return reason
+
+
+# ---------------------------------------------------------------------------
+# Step result
+# ---------------------------------------------------------------------------
 
 
 class StepResult(BaseModel):

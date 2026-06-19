@@ -34,7 +34,7 @@ from pydantic import BaseModel, Field
 from typing_extensions import override
 
 from strands_env.core.llm_judge_reward import LLMJudgeReward
-from strands_env.core.types import Action, RewardResult, StepResult
+from strands_env.core.types import RewardResult, StepResult, Task
 
 logger = logging.getLogger(__name__)
 
@@ -104,7 +104,7 @@ class MCPAtlasReward(LLMJudgeReward[ClaimJudgment]):
     judgment_format = ClaimJudgment
 
     @override
-    async def get_judge_prompt(self, action: Action, step_result: StepResult) -> str:
+    async def get_judge_prompt(self, task: Task, step_result: StepResult) -> str:
         """Format the prompt for the current claim being evaluated."""
         return CLAIM_EVALUATION_PROMPT.format(claim=self._current_claim, response=self._response)
 
@@ -116,9 +116,9 @@ class MCPAtlasReward(LLMJudgeReward[ClaimJudgment]):
         return COVERAGE_SCORES.get(judgment.coverage_outcome, 0.0)
 
     @override
-    async def compute(self, action: Action, step_result: StepResult) -> RewardResult:
+    async def compute(self, task: Task, step_result: StepResult) -> RewardResult:
         """Evaluate each GTFA claim individually and return binary pass/fail reward."""
-        claims: list[str] = action.task_context.gtfa_claims  # type: ignore[attr-defined]
+        claims: list[str] = task.context.gtfa_claims  # type: ignore[attr-defined]
 
         if not claims:
             return RewardResult(reward=self.default_reward, info={"reason": "no_claims"})
@@ -128,7 +128,7 @@ class MCPAtlasReward(LLMJudgeReward[ClaimJudgment]):
         claim_results = []
         for claim in claims:
             self._current_claim = claim
-            result = await super().compute(action, step_result)
+            result = await super().compute(task, step_result)
             if result.info.get("status") == "error":
                 return result
             judgment = result.info["judgment"]

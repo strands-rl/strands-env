@@ -30,7 +30,7 @@ from pydantic import BaseModel
 from tqdm import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
 
-from strands_env.core import Action, AsyncEnvFactory, Observation, StepResult
+from strands_env.core import AsyncEnvFactory, Observation, StepResult, Task
 
 from .metrics import MetricFunction, compute_pass_at_k
 
@@ -43,8 +43,8 @@ logger = logging.getLogger(__name__)
 class EvalSample(BaseModel):
     """Evaluation sample result."""
 
-    action: Action
-    """The action (task) that was evaluated."""
+    task: Task
+    """The task (task) that was evaluated."""
 
     step_result: StepResult
     """The result of the step (observation, reward, termination reason)."""
@@ -102,7 +102,7 @@ class Evaluator:
         # 1000-frame limit busts at ~iter 321 deep inside the OTel tracer's `json.dumps`.
         sys.setrecursionlimit(max(sys.getrecursionlimit(), 10_000))
 
-    def load_dataset(self) -> Iterable[Action]:
+    def load_dataset(self) -> Iterable[Task]:
         """Load dataset. Override in subclasses."""
         raise NotImplementedError("Subclasses must implement load_dataset()")
 
@@ -145,7 +145,7 @@ class Evaluator:
                     n_aborted += 1
                     continue  # Aborted samples are retried on resume
                 self.results[prompt_id].append(sample)
-                self.completed_ids.add(sample.action.task_context.id)
+                self.completed_ids.add(sample.task.id)
 
         total = sum(len(s) for s in self.results.values())
         aborted_msg = f" (skipped {n_aborted} aborted for retry)" if n_aborted else ""
@@ -161,18 +161,18 @@ class Evaluator:
                     data["prompt_id"] = prompt_id
                     f.write(json.dumps(data, ensure_ascii=False) + "\n")
 
-    async def evaluate_sample(self, action: Action) -> EvalSample:
+    async def evaluate_sample(self, task: Task) -> EvalSample:
         """Evaluate a single sample."""
         try:
             # Run evaluation in distributed or local mode
             if self.env_actor_pool is not None:
-                step_result = await self.env_actor_pool.rollout(action)
+                step_result = await self.env_actor_pool.rollout(task)
             else:
                 assert self.env_factory is not None
-                env = await self.env_factory(action)
+                env = await self.env_factory(task)
                 try:
                     await env.reset()
-                    step_result = await env.rollout(action)
+                    step_result = await env.rollout(task)
                 finally:
                     await env.cleanup()
             # Clean up the token-level rollout if not needed to reduce verbosity
@@ -183,46 +183,46 @@ class Evaluator:
             reward_info = step_result.reward.info if step_result.reward else {}
             logger.info(
                 "[%s]: terminated=%s | reward=%s | label=%s | reward_info=%s | metrics=%s",
-                action.task_context.id,
+                task.id,
                 step_result.termination_reason.value,
                 reward_str,
-                action.task_context.ground_truth,
+                task.context.ground_truth,
                 reward_info,
                 step_result.observation.metrics,
             )
             # Return the evaluation sample with aborted flag set
-            sample = EvalSample(action=action, step_result=step_result)
+            sample = EvalSample(task=task, step_result=step_result)
             sample.aborted = not self.validate_sample(sample)
             if sample.aborted:
-                logger.warning("[%s]: sample aborted by validate_sample", action.task_context.id)
+                logger.warning("[%s]: sample aborted by validate_sample", task.id)
             return sample
         except Exception as e:
-            logger.error("[%s]: evaluate_sample failed, aborting: %s", action.task_context.id, e)
-            return EvalSample(action=action, step_result=StepResult(observation=Observation()), aborted=True)
+            logger.error("[%s]: evaluate_sample failed, aborting: %s", task.id, e)
+            return EvalSample(task=task, step_result=StepResult(observation=Observation()), aborted=True)
 
-    async def run(self, actions: Iterable[Action]) -> dict[str, list[EvalSample]]:
+    async def run(self, actions: Iterable[Task]) -> dict[str, list[EvalSample]]:
         """Run evaluation on actions with `n_samples_per_prompt` each."""
         self.load_results()
 
-        # Expand actions to (prompt_id, sample_id, action) tuples
-        to_process: list[tuple[str, str, Action]] = []
-        for action in actions:
-            prompt_id = action.task_context.id
+        # Expand actions to (prompt_id, sample_id, task) tuples
+        to_process: list[tuple[str, str, Task]] = []
+        for task in actions:
+            prompt_id = task.id
             for i in range(self.n_samples_per_prompt):
                 sample_id = f"{prompt_id}_{i}"
                 if sample_id not in self.completed_ids:
-                    expanded = action.model_copy(deep=True)
-                    expanded.task_context.id = sample_id
+                    expanded = task.model_copy(deep=True)
+                    expanded.id = sample_id
                     to_process.append((prompt_id, sample_id, expanded))
 
         semaphore = asyncio.Semaphore(self.max_concurrency)
         save_counter = 0
         total = len(to_process)
 
-        async def process(prompt_id: str, sample_id: str, action: Action, pbar: tqdm) -> None:
+        async def process(prompt_id: str, sample_id: str, task: Task, pbar: tqdm) -> None:
             nonlocal save_counter
             async with semaphore:
-                sample = await self.evaluate_sample(action)
+                sample = await self.evaluate_sample(task)
                 self.results[prompt_id].append(sample)
                 self.completed_ids.add(sample_id)
                 pbar.update(1)

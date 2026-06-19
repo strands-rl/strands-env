@@ -12,7 +12,7 @@ No additional dependencies required beyond `strands-env`.
 from strands_env.environments.calculator import CalculatorEnv
 
 env = CalculatorEnv(model_factory=model_factory)
-result = await env.rollout(action)
+result = await env.rollout(task)
 ```
 
 ## Tools

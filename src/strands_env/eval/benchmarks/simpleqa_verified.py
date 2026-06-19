@@ -24,7 +24,7 @@ from datasets import load_dataset
 from pydantic import BaseModel, Field
 from typing_extensions import override
 
-from strands_env.core import Action, StepResult, TaskContext
+from strands_env.core import StepResult, Task, TaskContext
 from strands_env.core.llm_judge_reward import LLMJudgeReward
 
 from ..evaluator import EvalSample, Evaluator
@@ -127,11 +127,11 @@ class SimpleQAReward(LLMJudgeReward[SimpleQAJudgment]):
     judgment_format = SimpleQAJudgment
 
     @override
-    async def get_judge_prompt(self, action: Action, step_result: StepResult) -> str:
+    async def get_judge_prompt(self, task: Task, step_result: StepResult) -> str:
         """Get judge prompt for SimpleQA-Verified benchmarks."""
         return GRADER_TEMPLATE.format(
-            query=action.message,
-            ground_truth=action.task_context.ground_truth,
+            query=task.message,
+            ground_truth=task.context.ground_truth,
             model_response=step_result.observation.final_response,
         )
 
@@ -159,11 +159,11 @@ class SimpleQAVerifiedEvaluator(Evaluator):
         return reward.info.get("status") != "error"
 
     @override
-    def load_dataset(self) -> Iterable[Action]:
+    def load_dataset(self) -> Iterable[Task]:
         """Load SimpleQA-Verified dataset from HuggingFace (streaming).
 
         Yields:
-            Action objects with problem text and ground truth.
+            Task objects with problem text and ground truth.
         """
         dataset = load_dataset(self.dataset_path, split="eval", streaming=True)
 
@@ -172,10 +172,10 @@ class SimpleQAVerifiedEvaluator(Evaluator):
             if problem is None or answer is None:
                 logger.warning("Row %s: missing problem/answer, skipped", i)
                 continue
-            yield Action(
+            yield Task(
+                id=f"{self.benchmark_name}_{row.get('original_index', i)}",
                 message=str(problem),
-                task_context=TaskContext(
-                    id=f"{self.benchmark_name}_{row.get('original_index', i)}",
+                context=TaskContext(
                     ground_truth=str(answer),
                 ),
             )

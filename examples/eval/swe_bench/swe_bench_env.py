@@ -21,7 +21,7 @@ into each task's config, so this hook just instantiates the generic `HarborEnv`.
 from __future__ import annotations
 
 from strands_env.core.models import build_model_factory
-from strands_env.core.types import Action
+from strands_env.core.types import Task
 from strands_env.environments.harbor import HarborEnv
 
 
@@ -29,9 +29,9 @@ def create_env_factory(model_config: dict, **env_config):
     """Create env_factory for `HarborEnv`."""
     model_factory = build_model_factory(model_config)
 
-    async def env_factory(action: Action) -> HarborEnv:
+    async def env_factory(task: Task) -> HarborEnv:
         """Create a new HarborEnv with its own container/pod."""
-        ctx = action.task_context
+        ctx = task.context
         return HarborEnv(model_factory=model_factory, **ctx.config, **env_config)
 
     return env_factory

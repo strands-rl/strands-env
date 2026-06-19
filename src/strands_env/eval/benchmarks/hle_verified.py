@@ -29,7 +29,7 @@ from pydantic import BaseModel, Field
 from strands.types.content import Message
 from typing_extensions import override
 
-from strands_env.core import Action, StepResult, TaskContext
+from strands_env.core import StepResult, Task, TaskContext
 from strands_env.core.llm_judge_reward import LLMJudgeReward
 
 from ..evaluator import EvalSample, Evaluator
@@ -81,11 +81,11 @@ class HLEReward(LLMJudgeReward[HLEJudgment]):
     judgment_format = HLEJudgment
 
     @override
-    async def get_judge_prompt(self, action: Action, step_result: StepResult) -> str:
+    async def get_judge_prompt(self, task: Task, step_result: StepResult) -> str:
         """Get judge prompt for HLE-Verified benchmark."""
         return GRADER_TEMPLATE.format(
-            query=action.message,
-            ground_truth=action.task_context.ground_truth,
+            query=task.message,
+            ground_truth=task.context.ground_truth,
             model_response=step_result.observation.final_response,
         )
 
@@ -145,12 +145,12 @@ class HLEVerifiedEvaluator(Evaluator):
         return fmt, image_bytes  # type: ignore[return-value]
 
     @override
-    def load_dataset(self) -> Iterable[Action]:
+    def load_dataset(self) -> Iterable[Task]:
         """Load the HLE-Verified Gold subset from HuggingFace (streaming).
 
         Yields:
-            Action objects with question text and ground-truth answer. When a
-            sample has an inline image, the action message is a multimodal
+            Task objects with question text and ground-truth answer. When a
+            sample has an inline image, the task message is a multimodal
             `Message` (text + image content block). When `text_only` is set,
             samples whose nested `json.image` field is non-empty are skipped.
         """
@@ -184,10 +184,10 @@ class HLEVerifiedEvaluator(Evaluator):
                     ],
                 }
 
-            yield Action(
+            yield Task(
+                id=f"{self.benchmark_name}_{row.get('id', i)}",
                 message=message,
-                task_context=TaskContext(
-                    id=f"{self.benchmark_name}_{row.get('id', i)}",
+                context=TaskContext(
                     ground_truth=str(answer),
                     **{
                         "answer_type": meta.get("answer_type"),

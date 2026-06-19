@@ -20,8 +20,8 @@ import pytest
 
 from strands_env.core.environment import Environment
 from strands_env.core.types import (
-    Action,
     RewardResult,
+    Task,
     TaskContext,
     TerminationReason,
 )
@@ -69,11 +69,11 @@ class TestStep:
             messages=conversation_history + [{"role": "assistant", "content": [{"text": "answer"}]}],
         )
 
-        action = Action(
+        task = Task(
             message="What is 2+2?",
-            task_context=TaskContext(conversation_history=conversation_history),
+            context=TaskContext(conversation_history=conversation_history),
         )
-        result = await env.rollout(action)
+        result = await env.rollout(task)
 
         assert result.termination_reason == TerminationReason.TASK_COMPLETE
         assert result.observation.metrics["message_count"] == 1
@@ -86,8 +86,8 @@ class TestStep:
         agent.invoke_async.side_effect = RuntimeError("boom")
         mock_agent_cls.return_value = agent
 
-        action = Action(message="Do something")
-        result = await env.rollout(action)
+        task = Task(message="Do something")
+        result = await env.rollout(task)
 
         assert result.termination_reason == TerminationReason.UNCLASSIFIED_ERROR
 
@@ -102,8 +102,8 @@ class TestStep:
         reward_fn.compute = AsyncMock(return_value=RewardResult(reward=1.0))
         env = Environment(model_factory=model_factory, reward_fn=reward_fn)
 
-        action = Action(message="What is 2+2?", task_context=TaskContext(ground_truth="4"))
-        result = await env.rollout(action)
+        task = Task(message="What is 2+2?", context=TaskContext(ground_truth="4"))
+        result = await env.rollout(task)
 
         reward_fn.compute.assert_awaited_once()
         assert result.reward.reward == 1.0
@@ -115,13 +115,13 @@ class TestStep:
 
     @patch("strands_env.core.environment.Agent")
     async def test_step_with_dict_message(self, mock_agent_cls, env):
-        """Action.message can be a dict with 'content' key."""
+        """Task.message can be a dict with 'content' key."""
         mock_agent_cls.return_value = mock_agent(
             messages=[{"role": "assistant", "content": [{"text": "answer"}]}],
         )
 
-        action = Action(message={"role": "user", "content": [{"text": "hello"}]})
-        result = await env.rollout(action)
+        task = Task(message={"role": "user", "content": [{"text": "hello"}]})
+        result = await env.rollout(task)
 
         assert result.termination_reason == TerminationReason.TASK_COMPLETE
         # Agent.invoke_async should receive the content list, not the full dict
@@ -140,8 +140,8 @@ class TestStep:
         ]
         mock_agent_cls.return_value = mock_agent(messages=history + new_messages)
 
-        action = Action(message="msg2", task_context=TaskContext(conversation_history=history))
-        result = await env.rollout(action)
+        task = Task(message="msg2", context=TaskContext(conversation_history=history))
+        result = await env.rollout(task)
 
         assert result.observation.metrics["message_count"] == 2
         assert result.observation.messages == new_messages
@@ -153,7 +153,7 @@ class TestStep:
             messages=[{"role": "assistant", "content": [{"text": "done"}]}],
         )
 
-        result = await env.rollout(Action(message="test"))
+        result = await env.rollout(Task(message="test"))
 
         assert "tool_iters" in result.observation.metrics
         assert "tool_calls" in result.observation.metrics

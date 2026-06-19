@@ -22,7 +22,7 @@ from collections.abc import Iterable
 from datasets import load_dataset
 from typing_extensions import override
 
-from strands_env.core import Action, TaskContext
+from strands_env.core import Task, TaskContext
 
 from ..evaluator import Evaluator
 from ..registry import register_eval
@@ -37,11 +37,11 @@ class AIMEEvaluator(Evaluator):
     dataset_path: str = ""
 
     @override
-    def load_dataset(self) -> Iterable[Action]:
+    def load_dataset(self) -> Iterable[Task]:
         """Load AIME dataset from HuggingFace (streaming).
 
         Yields:
-            Action objects with problem text and ground truth.
+            Task objects with problem text and ground truth.
         """
         dataset = load_dataset(self.dataset_path, split="train", streaming=True)
 
@@ -50,10 +50,10 @@ class AIMEEvaluator(Evaluator):
             if problem is None or answer is None:
                 logger.warning("Row %s: missing problem/answer, skipped", i)
                 continue
-            yield Action(
+            yield Task(
+                id=f"{self.benchmark_name}_{row.get('id', i)}",
                 message=str(problem),
-                task_context=TaskContext(
-                    id=f"{self.benchmark_name}_{row.get('id', i)}",
+                context=TaskContext(
                     ground_truth=str(answer),
                 ),
             )

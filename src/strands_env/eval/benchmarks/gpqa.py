@@ -26,7 +26,7 @@ from collections.abc import Iterable
 from datasets import load_dataset
 from typing_extensions import override
 
-from strands_env.core import Action, TaskContext
+from strands_env.core import Task, TaskContext
 from strands_env.core.types import RewardFunction, RewardResult, StepResult
 
 from ..evaluator import Evaluator
@@ -59,15 +59,15 @@ class GPQAReward(RewardFunction):
     )
 
     @override
-    async def compute(self, action: Action, step_result: StepResult) -> RewardResult:
+    async def compute(self, task: Task, step_result: StepResult) -> RewardResult:
         """Extract the answer letter and compare with the correct choice."""
         response = step_result.observation.final_response or ""
-        correct_letter: str | None = getattr(action.task_context, "correct_letter", None)
+        correct_letter: str | None = getattr(task.context, "correct_letter", None)
 
         if correct_letter is None:
             return RewardResult(reward=0.0, info={"status": "error", "error": "missing correct_letter in TaskContext"})
 
-        choices: list[str] | None = getattr(action.task_context, "choices", None)
+        choices: list[str] | None = getattr(task.context, "choices", None)
         extracted = self.extract_answer(response, choices)
         is_correct = extracted is not None and extracted.upper() == correct_letter.upper()
 
@@ -137,16 +137,16 @@ class GPQAEvaluator(Evaluator):
         return text
 
     @override
-    def load_dataset(self) -> Iterable[Action]:
+    def load_dataset(self) -> Iterable[Task]:
         """Load GPQA dataset from HuggingFace (streaming).
 
         Answer choices are preprocessed (matching lm-evaluation-harness) and
         shuffled with a per-sample deterministic seed for reproducibility. Each
-        action message contains the question followed by four labeled answer
+        task message contains the question followed by four labeled answer
         choices (A)-(D).
 
         Yields:
-            Action objects with formatted multiple-choice question and ground truth.
+            Task objects with formatted multiple-choice question and ground truth.
         """
         try:
             dataset = load_dataset(
@@ -197,10 +197,10 @@ class GPQAEvaluator(Evaluator):
                 f'Format your response as follows: "The correct answer is (insert answer here)"'
             )
 
-            yield Action(
+            yield Task(
+                id=f"{self.benchmark_name}_{i}",
                 message=formatted_question,
-                task_context=TaskContext(
-                    id=f"{self.benchmark_name}_{i}",
+                context=TaskContext(
                     ground_truth=str(correct_answer),
                     **{
                         "subdomain": row.get("Subdomain", ""),

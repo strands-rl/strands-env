@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 
 from harbor.models.trial.paths import EnvironmentPaths
 
-from strands_env.core.types import Action, RewardFunction, RewardResult, StepResult
+from strands_env.core.types import RewardFunction, RewardResult, StepResult, Task
 
 if TYPE_CHECKING:
     from .env import HarborEnv
@@ -36,7 +36,7 @@ class HarborReward(RewardFunction):
         """Initialize a `HarborReward` instance."""
         self._env = env
 
-    async def compute(self, action: Action, step_result: StepResult) -> RewardResult:
+    async def compute(self, task: Task, step_result: StepResult) -> RewardResult:
         """Run verification tests in Docker and return a binary reward."""
         try:
             reward = await self._run_verification()

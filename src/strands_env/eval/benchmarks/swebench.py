@@ -26,7 +26,7 @@ from pathlib import Path
 
 from typing_extensions import override
 
-from strands_env.core import Action
+from strands_env.core import Task
 from strands_env.environments.harbor import SWE_SYSTEM_PROMPT_PATH
 from strands_env.eval.benchmarks.terminal_bench import TerminalBenchEvaluator
 
@@ -108,8 +108,8 @@ class SWEBenchVerifiedEvaluator(TerminalBenchEvaluator):
             pass
 
     @override
-    def load_dataset(self) -> list[Action]:
-        """Load swebench-verified Harbor tasks (one Action per task directory)."""
+    def load_dataset(self) -> list[Task]:
+        """Load swebench-verified Harbor tasks (one Task per task directory)."""
         # Same as the parent, but be explicit about the README/LICENSE filter:
         # the swebench-verified dir contains task subdirs only after the
         # sparse checkout, so the parent's "skip dotfiles" rule is enough.

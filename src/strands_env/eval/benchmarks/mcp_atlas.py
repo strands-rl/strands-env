@@ -23,7 +23,7 @@ from collections.abc import Iterable
 
 from typing_extensions import override
 
-from strands_env.core import Action, AsyncEnvFactory, TaskContext
+from strands_env.core import AsyncEnvFactory, Task, TaskContext
 from strands_env.eval import EvalSample, Evaluator
 
 from ..registry import register_eval
@@ -89,7 +89,7 @@ class MCPAtlasEvaluator(Evaluator):
         self._available_servers = available_servers
 
     @override
-    async def run(self, actions: Iterable[Action]) -> dict[str, list[EvalSample]]:
+    async def run(self, actions: Iterable[Task]) -> dict[str, list[EvalSample]]:
         """Run evaluation, closing any shared HTTP client at the end."""
         try:
             return await super().run(actions)
@@ -107,7 +107,7 @@ class MCPAtlasEvaluator(Evaluator):
         return reward.info.get("status") != "error"
 
     @override
-    def load_dataset(self) -> Iterable[Action]:
+    def load_dataset(self) -> Iterable[Task]:
         """Load MCP-Atlas tasks from HuggingFace, filter by available servers."""
         from datasets import load_dataset
 
@@ -130,12 +130,11 @@ class MCPAtlasEvaluator(Evaluator):
             gtfa_claims = ast.literal_eval(row["GTFA_CLAIMS"].replace("\n", "\\n"))
 
             ctx = MCPAtlasTaskContext(
-                id=row["TASK"],
                 enabled_tools=enabled_tools,
                 gtfa_claims=gtfa_claims,
                 ground_truth=row["PROMPT"],
             )
-            actions.append(Action(message=row["PROMPT"], task_context=ctx))
+            actions.append(Task(id=row["TASK"], message=row["PROMPT"], context=ctx))
 
         logger.info(
             "MCP-Atlas: loaded %d tasks (%d skipped — require unavailable servers)",

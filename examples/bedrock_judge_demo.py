@@ -33,7 +33,7 @@ import boto3
 import click
 from strands.models.bedrock import BedrockModel
 
-from strands_env.core.types import Action, Observation, StepResult, TaskContext, TerminationReason
+from strands_env.core.types import Observation, StepResult, Task, TaskContext, TerminationReason
 from strands_env.eval.benchmarks.simpleqa_verified import SimpleQAReward
 
 # ---------------------------------------------------------------------------
@@ -78,10 +78,10 @@ async def run_demo(model_id: str) -> None:
         click.echo(f"Response:     {response}")
         click.echo("-" * 60)
 
-        action = Action(message=question, task_context=TaskContext(ground_truth=ground_truth))
+        task = Task(message=question, context=TaskContext(ground_truth=ground_truth))
         step_result = create_mock_step_result(response)
 
-        result = await reward_fn.compute(action, step_result)
+        result = await reward_fn.compute(task, step_result)
 
         click.echo(f"Reward:       {result.reward}")
         if result.info.get("status") == "success":

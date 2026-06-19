@@ -14,7 +14,7 @@
 
 """Tests for MathVerifyReward."""
 
-from strands_env.core.types import Action, Observation, StepResult, TaskContext
+from strands_env.core.types import Observation, StepResult, Task, TaskContext
 from strands_env.environments.calculator.reward import MathVerifyReward
 
 
@@ -23,8 +23,8 @@ def make_step_result(content: str) -> StepResult:
     return StepResult(observation=Observation(messages=[msg]))
 
 
-def make_action(ground_truth: str | None = None) -> Action:
-    return Action(message="test", task_context=TaskContext(ground_truth=ground_truth))
+def make_action(ground_truth: str | None = None) -> Task:
+    return Task(message="test", context=TaskContext(ground_truth=ground_truth))
 
 
 class TestMathRewardFunction:

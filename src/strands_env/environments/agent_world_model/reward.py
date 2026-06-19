@@ -26,7 +26,7 @@ import sqlite3
 import traceback
 from typing import Any
 
-from strands_env.core.types import Action, RewardFunction, RewardResult, StepResult
+from strands_env.core.types import RewardFunction, RewardResult, StepResult, Task
 
 logger = logging.getLogger(__name__)
 
@@ -49,9 +49,9 @@ class AgentWorldModelReward(RewardFunction):
             final_answer=final_answer,
         )
 
-    async def compute(self, action: Action, step_result: StepResult) -> RewardResult:
+    async def compute(self, task: Task, step_result: StepResult) -> RewardResult:
         """Run verification code against the agent's final response."""
-        ctx: Any = action.task_context
+        ctx: Any = task.context
         final_answer = step_result.observation.final_response or ""
 
         try:

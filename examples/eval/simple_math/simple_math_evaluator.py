@@ -23,7 +23,7 @@ The hook file must export `EvaluatorClass` (an Evaluator subclass).
 
 from collections.abc import Iterable
 
-from strands_env.core import Action, TaskContext
+from strands_env.core import Task, TaskContext
 from strands_env.eval import Evaluator
 
 
@@ -32,14 +32,14 @@ class SimpleMathEvaluator(Evaluator):
 
     benchmark_name = "simple-math"
 
-    def load_dataset(self) -> Iterable[Action]:
+    def load_dataset(self) -> Iterable[Task]:
         """Load dataset and yield Actions for evaluation.
 
         Replace this with your actual dataset loading logic.
-        Each Action should have:
+        Each Task should have:
         - message: The problem prompt
-        - task_context.id: Unique problem ID
-        - task_context.ground_truth: Expected answer
+        - context.id: Unique problem ID
+        - context.ground_truth: Expected answer
         """
         # Example problems - replace with your dataset
         problems = [
@@ -53,9 +53,9 @@ class SimpleMathEvaluator(Evaluator):
         ]
 
         for item in problems:
-            yield Action(
+            yield Task(
                 message=item["prompt"],
-                task_context=TaskContext(
+                context=TaskContext(
                     id=item["id"],
                     ground_truth=item["answer"],
                 ),

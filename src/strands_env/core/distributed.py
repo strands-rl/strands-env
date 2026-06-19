@@ -28,7 +28,7 @@ from ray.util.scheduling_strategies import NodeAffinitySchedulingStrategy
 
 from strands_env.utils.loader import load_function
 
-from .types import Action, RewardResult, StepResult
+from .types import RewardResult, StepResult, Task
 
 logger = logging.getLogger(__name__)
 
@@ -55,16 +55,16 @@ class EnvironmentActor:
         """Run one rollout and return the JSON-serialized `StepResult`.
 
         Args:
-            action_json: JSON string from `Action.model_dump_json()`.
+            action_json: JSON string from `Task.model_dump_json()`.
 
         Returns:
             JSON string, reconstruct via `StepResult.model_validate_json()`.
         """
-        action = Action.model_validate_json(action_json)
-        env = await self.env_factory(action)
+        task = Task.model_validate_json(action_json)
+        env = await self.env_factory(task)
         try:
             await env.reset()
-            step_result = await env.rollout(action)
+            step_result = await env.rollout(task)
             return step_result.model_dump_json()
         finally:
             await env.cleanup()
@@ -73,19 +73,19 @@ class EnvironmentActor:
         """Recompute reward for an existing rollout without re-running the agent.
 
         Args:
-            action_json: JSON string from `Action.model_dump_json()`.
+            action_json: JSON string from `Task.model_dump_json()`.
             step_result_json: JSON string from `StepResult.model_dump_json()`.
 
         Returns:
             JSON string, reconstruct via `RewardResult.model_validate_json()`.
         """
-        action = Action.model_validate_json(action_json)
+        task = Task.model_validate_json(action_json)
         step_result = StepResult.model_validate_json(step_result_json)
-        env = await self.env_factory(action)
+        env = await self.env_factory(task)
         try:
             if env.reward_fn is None:
                 raise ValueError("Environment has no reward function configured")
-            reward_result = await env.reward_fn.compute(action=action, step_result=step_result)
+            reward_result = await env.reward_fn.compute(task, step_result)
             return reward_result.model_dump_json()
         finally:
             await env.cleanup()
@@ -135,21 +135,21 @@ class EnvironmentActorPool:
             n_actors_per_node,
         )
 
-    async def rollout(self, action: Action) -> StepResult:
+    async def rollout(self, task: Task) -> StepResult:
         """Run one rollout on the next available actor.
 
         Uses `asyncio.to_thread(ray.get, ...)` to avoid blocking the
         caller's event loop.
         """
         actor = next(self.cycle)
-        obj_ref = actor.rollout.remote(action.model_dump_json())
+        obj_ref = actor.rollout.remote(task.model_dump_json())
         result_json: str = await asyncio.to_thread(ray.get, obj_ref)
         return StepResult.model_validate_json(result_json)
 
-    async def compute_reward(self, action: Action, step_result: StepResult) -> RewardResult:
+    async def compute_reward(self, task: Task, step_result: StepResult) -> RewardResult:
         """Recompute reward for an existing rollout on the next available actor."""
         actor = next(self.cycle)
-        obj_ref = actor.compute_reward.remote(action.model_dump_json(), step_result.model_dump_json())
+        obj_ref = actor.compute_reward.remote(task.model_dump_json(), step_result.model_dump_json())
         result_json: str = await asyncio.to_thread(ray.get, obj_ref)
         return RewardResult.model_validate_json(result_json)
 

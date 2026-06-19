@@ -33,7 +33,7 @@ env = WebSearchEnv(
     summarizer_model_factory=summarizer_factory,
 )
 
-result = await env.rollout(action)
+result = await env.rollout(task)
 await env.cleanup()  # Close HTTP sessions
 ```
 

@@ -27,7 +27,7 @@ from typing import ClassVar, Literal
 
 from typing_extensions import override
 
-from strands_env.core import Action, TaskContext
+from strands_env.core import Task, TaskContext
 from strands_env.environments.tau2_bench import Tau2BenchConfig
 from strands_env.eval import Evaluator
 from strands_env.eval.evaluator import EvalSample
@@ -94,18 +94,18 @@ class Tau2BenchEvaluator(Evaluator):
         )
 
     @override
-    def load_dataset(self) -> list[Action]:
-        """Enumerate tasks for `self.domain` and bundle statics into each Action."""
+    def load_dataset(self) -> list[Task]:
+        """Enumerate tasks for `self.domain` and bundle statics into each Task."""
         if not self.data_dir.exists():
             self._download_dataset()
         domain_mod = importlib.import_module(f"tau2.domains.{self.domain}.environment")
         tasks = [task.model_dump(mode="json") for task in domain_mod.get_tasks(task_split_name="base")]
         user_sim_guidelines = get_global_user_sim_guidelines(use_tools=self.user_has_tools)
         return [
-            Action(
+            Task(
+                id=str(task["id"]),
                 message="",  # set by Tau2BenchEnv.rollout() from env.first_user_msg (after reset)
-                task_context=Tau2BenchTaskContext(
-                    id=str(task["id"]),
+                context=Tau2BenchTaskContext(
                     ground_truth=(task.get("evaluation_criteria") or {}).get("reward_basis"),
                     config=Tau2BenchConfig(
                         domain=self.domain,

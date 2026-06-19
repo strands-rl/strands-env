@@ -22,7 +22,7 @@ from collections.abc import Iterable
 from datasets import load_dataset
 from typing_extensions import override
 
-from strands_env.core import Action, TaskContext
+from strands_env.core import Task, TaskContext
 
 from ..evaluator import EvalSample, Evaluator
 from ..registry import register_eval
@@ -54,11 +54,11 @@ class SealQAEvaluator(Evaluator):
         return reward.info.get("status") != "error"
 
     @override
-    def load_dataset(self) -> Iterable[Action]:
+    def load_dataset(self) -> Iterable[Task]:
         """Load SealQA dataset from HuggingFace.
 
         Yields:
-            Action objects with question text, ground truth, and task metadata.
+            Task objects with question text, ground truth, and task metadata.
         """
         dataset = load_dataset(self.dataset_path, name=self.dataset_config, split="test", streaming=True)
 
@@ -68,10 +68,10 @@ class SealQAEvaluator(Evaluator):
                 logger.warning("Row %s: missing question/answer, skipped", i)
                 continue
 
-            yield Action(
+            yield Task(
+                id=f"{self.benchmark_name}_{i}",
                 message=str(question),
-                task_context=TaskContext(
-                    id=f"{self.benchmark_name}_{i}",
+                context=TaskContext(
                     ground_truth=str(answer),
                     **{
                         "freshness": row.get("freshness"),

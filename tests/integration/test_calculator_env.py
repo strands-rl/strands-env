@@ -20,7 +20,7 @@ Exercises the full step lifecycle: agent invocation → observation
 Requires a running SGLang server (default: http://localhost:30000).
 """
 
-from strands_env.core.types import Action, TaskContext, TerminationReason
+from strands_env.core.types import Task, TaskContext, TerminationReason
 from strands_env.environments.calculator import CalculatorEnv
 from strands_env.environments.calculator.reward import MathVerifyReward
 
@@ -40,7 +40,7 @@ class TestCalculatorEnv:
     async def test_step_produces_complete_observation(self, model_factory):
         """A single step produces a complete observation with messages, token trajectory, and metrics."""
         env = CalculatorEnv(model_factory=model_factory, system_prompt=MATH_SYSTEM_PROMPT)
-        result = await env.rollout(Action(message="What is 17 * 23?"))
+        result = await env.rollout(Task(message="What is 17 * 23?"))
 
         assert_successful_step(result)
         assert_rollout(result)
@@ -57,13 +57,13 @@ class TestCalculatorEnv:
         """Agent uses conversation history from a prior turn to maintain context."""
         env = CalculatorEnv(model_factory=model_factory, system_prompt=MATH_SYSTEM_PROMPT)
 
-        result1 = await env.rollout(Action(message="What is 10 + 5?"))
+        result1 = await env.rollout(Task(message="What is 10 + 5?"))
         assert result1.termination_reason == TerminationReason.TASK_COMPLETE
 
         result2 = await env.rollout(
-            Action(
+            Task(
                 message="Now multiply that result by 3.",
-                task_context=TaskContext(conversation_history=result1.observation.messages),
+                context=TaskContext(conversation_history=result1.observation.messages),
             )
         )
         assert result2.termination_reason == TerminationReason.TASK_COMPLETE
@@ -76,7 +76,7 @@ class TestCalculatorEnv:
             reward_fn=MathVerifyReward(),
         )
         result = await env.rollout(
-            Action(message="What is 6 * 7?", task_context=TaskContext(ground_truth="42")),
+            Task(message="What is 6 * 7?", context=TaskContext(ground_truth="42")),
         )
 
         assert result.reward is not None
@@ -86,7 +86,7 @@ class TestCalculatorEnv:
     async def test_tool_iteration_limit(self, model_factory):
         """max_tool_iters terminates the agent after the specified number of tool rounds."""
         env = CalculatorEnv(model_factory=model_factory, system_prompt=FORCE_TOOL_PROMPT, max_tool_iters=1)
-        result = await env.rollout(Action(message=MANY_STEPS_PROMPT))
+        result = await env.rollout(Task(message=MANY_STEPS_PROMPT))
 
         assert result.termination_reason == TerminationReason.MAX_TOOL_ITERATIONS_REACHED
         assert result.observation.metrics["tool_iters"] <= 1
@@ -94,7 +94,7 @@ class TestCalculatorEnv:
     async def test_max_tool_calls_limit(self, model_factory):
         """max_tool_calls terminates the agent after the specified total tool invocations."""
         env = CalculatorEnv(model_factory=model_factory, system_prompt=FORCE_TOOL_PROMPT, max_tool_calls=1)
-        result = await env.rollout(Action(message=MANY_STEPS_PROMPT))
+        result = await env.rollout(Task(message=MANY_STEPS_PROMPT))
 
         assert result.termination_reason == TerminationReason.MAX_TOOL_CALLS_REACHED
         assert result.observation.metrics["tool_calls"] >= 1

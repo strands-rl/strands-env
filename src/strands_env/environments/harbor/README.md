@@ -48,7 +48,7 @@ env = HarborEnv(
 )
 
 await env.reset()       # Build and start container
-result = await env.rollout(action)  # action.message = task.instruction
+result = await env.rollout(task)  # task.message = task.instruction
 await env.cleanup()     # Stop and delete container
 ```
 

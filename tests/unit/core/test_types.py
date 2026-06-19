@@ -22,10 +22,10 @@ from strands.types.exceptions import (
 from strands_sglang import MaxToolCallsReachedError, MaxToolIterationsReachedError
 
 from strands_env.core.types import (
-    Action,
     Observation,
     RewardResult,
     StepResult,
+    Task,
     TaskContext,
     TerminationReason,
 )
@@ -49,20 +49,20 @@ class TestTaskContext:
 
 
 # ---------------------------------------------------------------------------
-# Action
+# Task
 # ---------------------------------------------------------------------------
 
 
 class TestAction:
     def test_string_message(self):
-        action = Action(message="What is 2+2?")
-        assert action.message == "What is 2+2?"
-        assert action.task_context.ground_truth is None
+        task = Task(message="What is 2+2?")
+        assert task.message == "What is 2+2?"
+        assert task.context.ground_truth is None
 
     def test_with_context(self):
         ctx = TaskContext(ground_truth="4")
-        action = Action(message="What is 2+2?", task_context=ctx)
-        assert action.task_context.ground_truth == "4"
+        task = Task(message="What is 2+2?", context=ctx)
+        assert task.context.ground_truth == "4"
 
 
 # ---------------------------------------------------------------------------

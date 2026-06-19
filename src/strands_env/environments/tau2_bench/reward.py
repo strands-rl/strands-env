@@ -25,7 +25,7 @@ from strands.types.content import Message
 from typing_extensions import override
 
 from strands_env.core.llm_judge_reward import LLMJudgeReward
-from strands_env.core.types import Action, RewardFunction, RewardResult, StepResult
+from strands_env.core.types import RewardFunction, RewardResult, StepResult, Task
 
 if TYPE_CHECKING:
     from .env import Tau2BenchEnv
@@ -85,12 +85,12 @@ class Tau2BenchNLAssertionReward(LLMJudgeReward[NLJudgment]):
         self._env = env
 
     @override
-    async def get_judge_prompt(self, action: Action, step_result: StepResult) -> str:
-        from tau2.data_model.tasks import Task  # type: ignore[import-not-found]
+    async def get_judge_prompt(self, action: Task, step_result: StepResult) -> str:
+        from tau2.data_model.tasks import Task as Tau2Task  # type: ignore[import-not-found]
 
-        task = Task.model_validate(self._env.task)
+        task = Tau2Task.model_validate(self._env.task)
         assertions = list(task.evaluation_criteria.nl_assertions or [])
-        messages = list(action.task_context.conversation_history) + list(step_result.observation.messages)
+        messages = list(action.context.conversation_history) + list(step_result.observation.messages)
         lines = []
         for m in messages:
             for b in m.get("content") or []:
@@ -118,13 +118,14 @@ class Tau2BenchReward(RewardFunction):
         self._nl_judge = Tau2BenchNLAssertionReward(env, judge_model) if judge_model is not None else None
 
     @override
-    async def compute(self, action: Action, step_result: StepResult) -> RewardResult:
-        from tau2.data_model.tasks import RewardType, Task  # type: ignore[import-not-found]
+    async def compute(self, action: Task, step_result: StepResult) -> RewardResult:
+        from tau2.data_model.tasks import RewardType  # type: ignore[import-not-found]
+        from tau2.data_model.tasks import Task as Tau2Task
 
-        task = Task.model_validate(self._env.task)
+        task = Tau2Task.model_validate(self._env.task)
         basis_raw = task.evaluation_criteria.reward_basis
         basis = set(basis_raw) if basis_raw is not None else {RewardType.DB, RewardType.COMMUNICATE}
-        messages = list(action.task_context.conversation_history) + list(step_result.observation.messages)
+        messages = list(action.context.conversation_history) + list(step_result.observation.messages)
 
         sub: dict[str, float] = {}
         nl_judge_info: dict[str, Any] | None = None
@@ -151,7 +152,7 @@ class Tau2BenchReward(RewardFunction):
         return RewardResult(reward=reward, info=info)
 
     async def _nl_assertion_reward(
-        self, action: Action, step_result: StepResult, task: Any
+        self, action: Task, step_result: StepResult, task: Any
     ) -> tuple[float, dict[str, Any] | None]:
         """Return the NL_ASSERTION sub-reward and the judge's `info` (None when not judged).
 
