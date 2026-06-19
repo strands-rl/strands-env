@@ -35,7 +35,7 @@ OUTCOME_AGENT_FAILED = "AGENT_FAILED"
 OUTCOME_VERIFY_ERROR = "VERIFY_ERROR"
 
 
-class AgentWorldModelRewardFunction(RewardFunction):
+class AgentWorldModelReward(RewardFunction):
     """Binary reward via execution-based verification."""
 
     @staticmethod

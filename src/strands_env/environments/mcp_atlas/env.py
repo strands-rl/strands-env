@@ -33,13 +33,13 @@ logger = logging.getLogger(__name__)
 
 
 class MCPAtlasConfig(EnvironmentConfig):
-    """Serializable configuration for `MCPAtlasEnvironment`."""
+    """Serializable configuration for `MCPAtlasEnv`."""
 
     enabled_tools: list[str]
     tool_timeout: int
 
 
-class MCPAtlasEnvironment(Environment):
+class MCPAtlasEnv(Environment):
     """MCP-Atlas benchmark environment backed by a Docker container.
 
     Notes:
@@ -63,7 +63,7 @@ class MCPAtlasEnvironment(Environment):
         cached_tools: list[dict] | None = None,
         **config: Unpack[MCPAtlasConfig],
     ):
-        """Initialize a `MCPAtlasEnvironment` instance."""
+        """Initialize a `MCPAtlasEnv` instance."""
         super().__init__(
             model_factory=model_factory,
             reward_fn=reward_fn,

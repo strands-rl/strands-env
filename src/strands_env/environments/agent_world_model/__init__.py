@@ -14,13 +14,13 @@
 
 """AgentWorldModel MCP environment — synthetic FastAPI + SQLite tasks exposed via MCP."""
 
-from .env import AgentWorldModelConfig, AgentWorldModelEnvironment
-from .reward import AgentWorldModelRewardFunction
-from .tool import AgentWorldModelMCPTool
+from .env import AgentWorldModelConfig, AgentWorldModelEnv
+from .reward import AgentWorldModelReward
+from .tool import AgentWorldModelTool
 
 __all__ = [
     "AgentWorldModelConfig",
-    "AgentWorldModelEnvironment",
-    "AgentWorldModelMCPTool",
-    "AgentWorldModelRewardFunction",
+    "AgentWorldModelEnv",
+    "AgentWorldModelTool",
+    "AgentWorldModelReward",
 ]

@@ -80,7 +80,7 @@ class MCPAtlasEvaluator(Evaluator):
         """Initialize a `MCPAtlasEvaluator` instance.
 
         Args:
-            env_factory: Async factory that creates a fresh `MCPAtlasEnvironment` per sample.
+            env_factory: Async factory that creates a fresh `MCPAtlasEnv` per sample.
             available_servers: Servers available in the container. Tasks requiring
                 servers outside this set are skipped. None disables filtering.
             **kwargs: Forwarded to `Evaluator.__init__`.

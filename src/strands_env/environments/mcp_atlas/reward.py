@@ -93,7 +93,7 @@ class ClaimJudgment(BaseModel):
     confidence_level: float = Field(ge=0.0, le=1.0)
 
 
-class MCPAtlasRewardFunction(LLMJudgeReward[ClaimJudgment]):
+class MCPAtlasReward(LLMJudgeReward[ClaimJudgment]):
     """Per-claim LLM-as-judge reward for MCP-Atlas benchmark.
 
     Overrides ``compute()`` to evaluate multiple claims per step via

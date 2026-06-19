@@ -34,15 +34,15 @@ from strands_env.core.environment import Environment, EnvironmentConfig
 from strands_env.core.models import ModelFactory
 from strands_env.core.types import RewardFunction
 
-from .reward import AgentWorldModelRewardFunction
+from .reward import AgentWorldModelReward
 from .server import kill_server, start_server
-from .tool import AgentWorldModelMCPTool
+from .tool import AgentWorldModelTool
 
 logger = logging.getLogger(__name__)
 
 
 class AgentWorldModelConfig(EnvironmentConfig):
-    """Serializable configuration for `AgentWorldModelEnvironment`."""
+    """Serializable configuration for `AgentWorldModelEnv`."""
 
     scenario: str
     envs_path: str
@@ -52,7 +52,7 @@ class AgentWorldModelConfig(EnvironmentConfig):
     tool_call_timeout: NotRequired[int]
 
 
-class AgentWorldModelEnvironment(Environment):
+class AgentWorldModelEnv(Environment):
     """MCP environment backed by an AgentWorldModel FastAPI server subprocess.
 
     Notes:
@@ -72,10 +72,10 @@ class AgentWorldModelEnvironment(Environment):
         http_client: httpx.AsyncClient | None = None,
         **config: Unpack[AgentWorldModelConfig],
     ):
-        """Initialize an `AgentWorldModelEnvironment` instance."""
+        """Initialize an `AgentWorldModelEnv` instance."""
         super().__init__(
             model_factory=model_factory,
-            reward_fn=reward_fn or AgentWorldModelRewardFunction(),
+            reward_fn=reward_fn or AgentWorldModelReward(),
             **config,  # type: ignore[misc]
         )
         self._http_client = http_client
@@ -86,7 +86,7 @@ class AgentWorldModelEnvironment(Environment):
         self._temp_dir = Path(str(self.config["temp_dir"]))
         self._server_proc: subprocess.Popen | None = None
         self._exit_stack: contextlib.AsyncExitStack | None = None
-        self._tools: list[AgentWorldModelMCPTool] = []
+        self._tools: list[AgentWorldModelTool] = []
 
     @override
     async def reset(self) -> None:
@@ -113,7 +113,7 @@ class AgentWorldModelEnvironment(Environment):
 
             result = await session.list_tools()
             self._tools = [
-                AgentWorldModelMCPTool(
+                AgentWorldModelTool(
                     tool,
                     session,
                     server_proc=self._server_proc,

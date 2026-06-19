@@ -29,7 +29,7 @@ from typing_extensions import override
 from strands_env.core.mcp_tool import MCPToolAdapter
 
 
-class AgentWorldModelMCPTool(MCPToolAdapter):
+class AgentWorldModelTool(MCPToolAdapter):
     """MCP tool backed by a `ClientSession` (single-server, direct connection).
 
     If `server_proc` is provided, polls the process before each call
@@ -44,7 +44,7 @@ class AgentWorldModelMCPTool(MCPToolAdapter):
         server_proc: subprocess.Popen | None = None,
         timeout: timedelta | None = None,
     ):
-        """Initialize an `AgentWorldModelMCPTool` instance."""
+        """Initialize an `AgentWorldModelTool` instance."""
         super().__init__(mcp_tool, timeout=timeout)
         self._session = session
         self._server_proc = server_proc

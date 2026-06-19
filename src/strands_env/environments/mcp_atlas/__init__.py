@@ -14,8 +14,8 @@
 
 """MCP-Atlas benchmark environment — Docker container with 36 MCP servers."""
 
-from .env import MCPAtlasConfig, MCPAtlasEnvironment
-from .reward import MCPAtlasRewardFunction
+from .env import MCPAtlasConfig, MCPAtlasEnv
+from .reward import MCPAtlasReward
 from .tool import MCPAtlasTool
 
-__all__ = ["MCPAtlasTool", "MCPAtlasConfig", "MCPAtlasEnvironment", "MCPAtlasRewardFunction"]
+__all__ = ["MCPAtlasTool", "MCPAtlasConfig", "MCPAtlasEnv", "MCPAtlasReward"]
