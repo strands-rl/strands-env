@@ -32,9 +32,8 @@ from typing_extensions import TypedDict, Unpack
 
 from .models import ModelFactory
 from .types import (
-    Observation,
     RewardFunction,
-    StepResult,
+    RolloutResult,
     Task,
     TerminationReason,
 )
@@ -102,7 +101,7 @@ class Environment:
         """
         pass
 
-    async def rollout(self, task: Task) -> StepResult:
+    async def rollout(self, task: Task) -> RolloutResult:
         """Run one agent episode and return observation + reward + termination."""
         # 1. Build inputs and the agent.
         conversation_history = task.context.conversation_history
@@ -132,27 +131,28 @@ class Environment:
             error = e
         termination_reason = TerminationReason.from_error(error)
 
-        # 3. Build the observation.
-        step_messages = list(agent.messages)[len(conversation_history) :]
+        # 3. Build the result.
+        new_messages = list(agent.messages)[len(conversation_history) :]
         rollout = getattr(agent.model, "rollout", None)
         tool_parse_errors = getattr(agent.model, "tool_parse_errors", None)
         metrics = {
-            "message_count": len(step_messages),
+            "message_count": len(new_messages),
             "tool_iters": tool_limiter.tool_iter_count,
             "tool_calls": tool_limiter.tool_call_count,
             "cancelled_tool_calls": tool_limiter.cancelled_tool_call_count,
             **self.compute_metrics(agent.event_loop_metrics, tool_parse_errors=tool_parse_errors),
         }
-        observation = Observation(messages=step_messages, rollout=rollout, metrics=metrics)
-        step_result = StepResult(observation=observation, termination_reason=termination_reason)
+        result = RolloutResult(
+            messages=new_messages, rollout=rollout, metrics=metrics, termination_reason=termination_reason
+        )
 
         # 4. Compute and time the reward (if any).
         if self.reward_fn:
             reward_t0 = time.perf_counter()
-            step_result.reward = await self.reward_fn.compute(task, step_result)
-            observation.metrics["reward_latency_s"] = round(time.perf_counter() - reward_t0, 4)
+            result.reward = await self.reward_fn.compute(task, result)
+            result.metrics["reward_latency_s"] = round(time.perf_counter() - reward_t0, 4)
 
-        return step_result
+        return result
 
     async def cleanup(self) -> None:
         """Release resources. Override in subclasses."""

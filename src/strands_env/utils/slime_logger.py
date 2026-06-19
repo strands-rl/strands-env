@@ -36,7 +36,7 @@ from slime.rollout.sglang_rollout import GenerateState  # type: ignore
 from slime.utils.metric_utils import compute_rollout_step, compute_statistics, dict_add_prefix  # type: ignore
 from slime.utils.types import Sample  # type: ignore
 
-from strands_env.core.types import StepResult
+from strands_env.core.types import RolloutResult
 
 if TYPE_CHECKING:
     from weave.trace.refs import ObjectRef
@@ -93,8 +93,8 @@ class RolloutLogger:
         """
         # Check if step results are attached to samples
         for sample in samples:
-            if not getattr(sample, "step_result", None):
-                logger.warning("Skip custom rollout logging for rollout %d: missing `step_result`", rollout_id)
+            if not getattr(sample, "result", None):
+                logger.warning("Skip custom rollout logging for rollout %d: missing `result`", rollout_id)
                 return False
 
         self.log_rollout_metrics(samples=samples, rollout_extra_metrics=rollout_extra_metrics)
@@ -103,10 +103,10 @@ class RolloutLogger:
         return False
 
     def log_rollout_metrics(self, samples: list[Sample], rollout_extra_metrics: dict | None) -> None:
-        """Aggregate `StepResult.observation.metrics` across samples into `rollout_extra_metrics`.
+        """Aggregate `RolloutResult.metrics` across samples into `rollout_extra_metrics`.
 
         Note:
-            - Need to set `sample.metrics = step_result.observation.metrics` in `generate()`
+            - Need to set `sample.metrics = result.metrics` in `generate()`
             - Overrides for more custom rollout logging metrics can be added here
         """
         per_sample: dict[str, list[float]] = {
@@ -129,7 +129,7 @@ class RolloutLogger:
 
         total_executed_tool_calls = 0
         for sample in samples:
-            metrics: dict[str, Any] = sample.step_result.observation.metrics
+            metrics: dict[str, Any] = sample.result.metrics
             if not metrics:
                 continue
 
@@ -181,9 +181,8 @@ class RolloutLogger:
         n_saved = min(len(samples), self.n_rollouts_per_step)
         rows = []
         for s in random.sample(samples, k=n_saved):
-            step_result: StepResult = s.step_result
-            obs = step_result.observation
-            rollout = obs.rollout
+            result: RolloutResult = s.result
+            rollout = result.rollout
             if not rollout:
                 logger.warning("rollout %d missing token rollout", rollout_id)
                 continue
@@ -197,10 +196,10 @@ class RolloutLogger:
                     "index": s.index,
                     "prompt": tokenizer.decode(rollout.token_ids[:prompt_len], skip_special_tokens=False),
                     "response": tokenizer.decode(rollout.token_ids[prompt_len:], skip_special_tokens=False),
-                    "termination_reason": step_result.termination_reason.value,
-                    "reward": step_result.reward.reward if step_result.reward else None,
-                    "reward_info": step_result.reward.info if step_result.reward else None,
-                    "metrics": obs.metrics,
+                    "termination_reason": result.termination_reason.value,
+                    "reward": result.reward.reward if result.reward else None,
+                    "reward_info": result.reward.info if result.reward else None,
+                    "metrics": result.metrics,
                 }
             )
         return rows

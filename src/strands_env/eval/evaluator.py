@@ -30,7 +30,7 @@ from pydantic import BaseModel
 from tqdm import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
 
-from strands_env.core import AsyncEnvFactory, Observation, StepResult, Task
+from strands_env.core import AsyncEnvFactory, RolloutResult, Task
 
 from .metrics import MetricFunction, compute_pass_at_k
 
@@ -46,7 +46,7 @@ class EvalSample(BaseModel):
     task: Task
     """The task (task) that was evaluated."""
 
-    step_result: StepResult
+    result: RolloutResult
     """The result of the step (observation, reward, termination reason)."""
 
     aborted: bool = False
@@ -166,39 +166,39 @@ class Evaluator:
         try:
             # Run evaluation in distributed or local mode
             if self.env_actor_pool is not None:
-                step_result = await self.env_actor_pool.rollout(task)
+                result = await self.env_actor_pool.rollout(task)
             else:
                 assert self.env_factory is not None
                 env = await self.env_factory(task)
                 try:
                     await env.reset()
-                    step_result = await env.rollout(task)
+                    result = await env.rollout(task)
                 finally:
                     await env.cleanup()
             # Clean up the token-level rollout if not needed to reduce verbosity
             if not self.keep_rollout:
-                step_result.observation.rollout = None
+                result.rollout = None
             # Runtime logging for debugging
-            reward_str = f"{step_result.reward.reward:.2f}" if step_result.reward else "N/A"
-            reward_info = step_result.reward.info if step_result.reward else {}
+            reward_str = f"{result.reward.reward:.2f}" if result.reward else "N/A"
+            reward_info = result.reward.info if result.reward else {}
             logger.info(
                 "[%s]: terminated=%s | reward=%s | label=%s | reward_info=%s | metrics=%s",
                 task.id,
-                step_result.termination_reason.value,
+                result.termination_reason.value,
                 reward_str,
                 task.context.ground_truth,
                 reward_info,
-                step_result.observation.metrics,
+                result.metrics,
             )
             # Return the evaluation sample with aborted flag set
-            sample = EvalSample(task=task, step_result=step_result)
+            sample = EvalSample(task=task, result=result)
             sample.aborted = not self.validate_sample(sample)
             if sample.aborted:
                 logger.warning("[%s]: sample aborted by validate_sample", task.id)
             return sample
         except Exception as e:
             logger.error("[%s]: evaluate_sample failed, aborting: %s", task.id, e)
-            return EvalSample(task=task, step_result=StepResult(observation=Observation()), aborted=True)
+            return EvalSample(task=task, result=RolloutResult(), aborted=True)
 
     async def run(self, actions: Iterable[Task]) -> dict[str, list[EvalSample]]:
         """Run evaluation on actions with `n_samples_per_prompt` each."""

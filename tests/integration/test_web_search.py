@@ -45,7 +45,7 @@ class TestSerperWebSearchEnv:
             result = await env.rollout(Task(message="What is the capital of France?"))
 
             assert_successful_step(result)
-            assert result.observation.metrics["model_calls"] >= 1
+            assert result.metrics["model_calls"] >= 1
         finally:
             await env.cleanup()
 

@@ -79,9 +79,9 @@ async def run_demo(
 
         result = await env.rollout(Task(message=QUESTION))
 
-        click.echo(f"\nMessages:    {result.observation.messages}")
+        click.echo(f"\nMessages:    {result.messages}")
         click.echo(f"\nTermination: {result.termination_reason.value}")
-        click.echo(f"Metrics:     {result.observation.metrics}")
+        click.echo(f"Metrics:     {result.metrics}")
     finally:
         await env.cleanup()
 

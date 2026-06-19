@@ -20,7 +20,7 @@ from pydantic import BaseModel
 from strands.types.exceptions import ModelThrottledException
 
 from strands_env.core.llm_judge_reward import LLMJudgeReward
-from strands_env.core.types import Observation, StepResult, Task, TaskContext
+from strands_env.core.types import RolloutResult, Task, TaskContext
 
 # ---------------------------------------------------------------------------
 # Concrete subclass for testing
@@ -34,8 +34,8 @@ class _FakeJudgment(BaseModel):
 class _StructuredJudge(LLMJudgeReward[_FakeJudgment]):
     judgment_format = _FakeJudgment
 
-    async def get_judge_prompt(self, task, step_result):
-        return f"Grade this: {step_result.observation.final_response}"
+    async def get_judge_prompt(self, task, result):
+        return f"Grade this: {result.final_response}"
 
     async def get_reward(self, judgment):
         return 1.0 if judgment.grade == "correct" else 0.0
@@ -44,7 +44,7 @@ class _StructuredJudge(LLMJudgeReward[_FakeJudgment]):
 class _TextJudge(LLMJudgeReward):
     judgment_format = None
 
-    async def get_judge_prompt(self, task, step_result):
+    async def get_judge_prompt(self, task, result):
         return "Grade this"
 
     async def get_reward(self, judgment):
@@ -58,10 +58,10 @@ class _TextJudge(LLMJudgeReward):
 
 def _action_and_step():
     task = Task(message="What is 2+2?", context=TaskContext(ground_truth="4"))
-    step_result = StepResult(
-        observation=Observation(messages=[{"role": "assistant", "content": [{"text": "4"}]}]),
+    result = RolloutResult(
+        messages=[{"role": "assistant", "content": [{"text": "4"}]}],
     )
-    return task, step_result
+    return task, result
 
 
 # ---------------------------------------------------------------------------
@@ -76,15 +76,15 @@ class TestErrorRecovery:
         class _FailingPrompt(LLMJudgeReward):
             judgment_format = None
 
-            async def get_judge_prompt(self, task, step_result):
+            async def get_judge_prompt(self, task, result):
                 raise ValueError("bad template")
 
             async def get_reward(self, judgment):
                 return 1.0
 
         judge = _FailingPrompt(judge_model=MagicMock(), default_reward=0.0)
-        task, step_result = _action_and_step()
-        result = await judge.compute(task, step_result)
+        task, result = _action_and_step()
+        result = await judge.compute(task, result)
 
         assert result.reward == 0.0
         assert result.info["error_type"] == "prompt_error"
@@ -97,8 +97,8 @@ class TestErrorRecovery:
         mock_agent_cls.return_value = mock_agent_instance
 
         judge = _TextJudge(judge_model=MagicMock(), default_reward=0.5)
-        task, step_result = _action_and_step()
-        result = await judge.compute(task, step_result)
+        task, result = _action_and_step()
+        result = await judge.compute(task, result)
 
         assert result.reward == 0.5
         assert result.info["error_type"] == "judge_error"
@@ -115,15 +115,15 @@ class TestErrorRecovery:
         class _FailingReward(LLMJudgeReward):
             judgment_format = None
 
-            async def get_judge_prompt(self, task, step_result):
+            async def get_judge_prompt(self, task, result):
                 return "prompt"
 
             async def get_reward(self, judgment):
                 raise KeyError("unexpected grade")
 
         judge = _FailingReward(judge_model=MagicMock(), default_reward=0.0)
-        task, step_result = _action_and_step()
-        result = await judge.compute(task, step_result)
+        task, result = _action_and_step()
+        result = await judge.compute(task, result)
 
         assert result.reward == 0.0
         assert result.info["error_type"] == "reward_error"
@@ -145,8 +145,8 @@ class TestHappyPath:
         mock_agent_cls.return_value = mock_agent_instance
 
         judge = _StructuredJudge(judge_model=MagicMock())
-        task, step_result = _action_and_step()
-        result = await judge.compute(task, step_result)
+        task, result = _action_and_step()
+        result = await judge.compute(task, result)
 
         assert result.reward == 1.0
         assert result.info["status"] == "success"
@@ -162,8 +162,8 @@ class TestHappyPath:
         mock_agent_cls.return_value = mock_agent_instance
 
         judge = _TextJudge(judge_model=MagicMock())
-        task, step_result = _action_and_step()
-        result = await judge.compute(task, step_result)
+        task, result = _action_and_step()
+        result = await judge.compute(task, result)
 
         assert result.reward == 1.0
         assert result.info["status"] == "success"

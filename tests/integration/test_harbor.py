@@ -103,7 +103,7 @@ class TestHarborEnv:
         assert_successful_step(result)
         assert_rollout(result)
         assert_token_usage(result)
-        assert result.observation.metrics["per_tool_metrics"]["execute_command"]["calls"] >= 1
+        assert result.metrics["per_tool_metrics"]["execute_command"]["calls"] >= 1
 
         # Reward: test.sh always writes 1 to reward.txt, validating the full pipeline
         # (upload tests → run test.sh → download results → parse reward)
@@ -118,7 +118,7 @@ class TestHarborEnv:
         result2 = await harbor_env.rollout(
             Task(
                 message="Now run 'echo world'.",
-                context=TaskContext(conversation_history=result1.observation.messages),
+                context=TaskContext(conversation_history=result1.messages),
             ),
         )
         assert result2.termination_reason == TerminationReason.TASK_COMPLETE
@@ -138,7 +138,7 @@ class TestHarborEnv:
             result = await env.rollout(Task(message=MANY_STEPS_PROMPT))
 
             assert result.termination_reason == TerminationReason.MAX_TOOL_ITERATIONS_REACHED
-            assert result.observation.metrics["tool_iters"] <= 1
+            assert result.metrics["tool_iters"] <= 1
         finally:
             await env.cleanup()
 
@@ -157,6 +157,6 @@ class TestHarborEnv:
             result = await env.rollout(Task(message=MANY_STEPS_PROMPT))
 
             assert result.termination_reason == TerminationReason.MAX_TOOL_CALLS_REACHED
-            assert result.observation.metrics["tool_calls"] >= 1
+            assert result.metrics["tool_calls"] >= 1
         finally:
             await env.cleanup()

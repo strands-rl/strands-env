@@ -46,7 +46,7 @@ def compute_pass_at_k(
         return {f"pass@{k}": 0.0 for k in k_values}
 
     def is_correct(s: EvalSample) -> bool:
-        r = s.step_result.reward
+        r = s.result.reward
         return r is not None and r.reward >= reward_threshold
 
     def pass_at_k_single(n: int, c: int, k: int) -> float:

@@ -34,7 +34,7 @@ from pydantic import BaseModel, Field
 from typing_extensions import override
 
 from strands_env.core.llm_judge_reward import LLMJudgeReward
-from strands_env.core.types import RewardResult, StepResult, Task
+from strands_env.core.types import RewardResult, RolloutResult, Task
 
 logger = logging.getLogger(__name__)
 
@@ -104,7 +104,7 @@ class MCPAtlasReward(LLMJudgeReward[ClaimJudgment]):
     judgment_format = ClaimJudgment
 
     @override
-    async def get_judge_prompt(self, task: Task, step_result: StepResult) -> str:
+    async def get_judge_prompt(self, task: Task, result: RolloutResult) -> str:
         """Format the prompt for the current claim being evaluated."""
         return CLAIM_EVALUATION_PROMPT.format(claim=self._current_claim, response=self._response)
 
@@ -116,27 +116,27 @@ class MCPAtlasReward(LLMJudgeReward[ClaimJudgment]):
         return COVERAGE_SCORES.get(judgment.coverage_outcome, 0.0)
 
     @override
-    async def compute(self, task: Task, step_result: StepResult) -> RewardResult:
+    async def compute(self, task: Task, result: RolloutResult) -> RewardResult:
         """Evaluate each GTFA claim individually and return binary pass/fail reward."""
         claims: list[str] = task.context.gtfa_claims  # type: ignore[attr-defined]
 
         if not claims:
             return RewardResult(reward=self.default_reward, info={"reason": "no_claims"})
 
-        self._response = step_result.observation.final_response or ""
+        self._response = result.final_response or ""
 
         claim_results = []
         for claim in claims:
             self._current_claim = claim
-            result = await super().compute(task, step_result)
-            if result.info.get("status") == "error":
-                return result
-            judgment = result.info["judgment"]
+            claim_result = await super().compute(task, result)
+            if claim_result.info.get("status") == "error":
+                return claim_result
+            judgment = claim_result.info["judgment"]
             claim_results.append(
                 {
                     "claim": claim,
                     "coverage_outcome": judgment["coverage_outcome"],
-                    "score": result.reward,
+                    "score": claim_result.reward,
                     "justification": judgment["justification"],
                     "confidence": judgment["confidence_level"],
                 }

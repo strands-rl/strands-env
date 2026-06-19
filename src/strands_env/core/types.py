@@ -55,38 +55,6 @@ class Task(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Observation
-# ---------------------------------------------------------------------------
-
-
-class Observation(BaseModel):
-    """Step observation: messages produced, optional token data, and metrics."""
-
-    messages: Messages = Field(default_factory=list)
-    rollout: Rollout | None = None
-    metrics: dict[str, Any] = Field(default_factory=dict)
-
-    @property
-    def final_response(self) -> str | None:
-        """Return text from the last assistant message, or None."""
-        if not self.messages or self.messages[-1].get("role") != "assistant":
-            return None
-        content = self.messages[-1].get("content", [])
-        # Take the last text block — the final textual output.
-        text = next(
-            (block["text"] for block in reversed(content) if isinstance(block, dict) and "text" in block),
-            None,
-        )
-        if text is None:
-            return None
-        # Strip think block if any
-        think_end = text.rfind("</think>")  # find the last </think> tag
-        if think_end != -1:
-            text = text[think_end + len("</think>") :].lstrip()
-        return text or None
-
-
-# ---------------------------------------------------------------------------
 # Reward
 # ---------------------------------------------------------------------------
 
@@ -102,8 +70,8 @@ class RewardFunction(ABC):
     """Abstract reward function. Subclass and implement `compute`."""
 
     @abstractmethod
-    async def compute(self, task: Task, step_result: StepResult) -> RewardResult:
-        """Return a `RewardResult` given the task and the environment's step result."""
+    async def compute(self, task: Task, result: RolloutResult) -> RewardResult:
+        """Return a `RewardResult` given the task and the rollout result."""
         ...
 
 
@@ -185,13 +153,34 @@ class TerminationReason(str, Enum):
 
 
 # ---------------------------------------------------------------------------
-# Step result
+# Rollout result
 # ---------------------------------------------------------------------------
 
 
-class StepResult(BaseModel):
-    """Result of a single `Environment.rollout` call."""
+class RolloutResult(BaseModel):
+    """Result of a single `Environment.rollout` call: trajectory, reward, and termination."""
 
-    observation: Observation
+    messages: Messages = Field(default_factory=list)
+    rollout: Rollout | None = None
+    metrics: dict[str, Any] = Field(default_factory=dict)
     reward: RewardResult | None = None
     termination_reason: TerminationReason = TerminationReason.NOT_TERMINATED
+
+    @property
+    def final_response(self) -> str | None:
+        """Return text from the last assistant message, or None."""
+        if not self.messages or self.messages[-1].get("role") != "assistant":
+            return None
+        content = self.messages[-1].get("content", [])
+        # Take the last text block — the final textual output.
+        text = next(
+            (block["text"] for block in reversed(content) if isinstance(block, dict) and "text" in block),
+            None,
+        )
+        if text is None:
+            return None
+        # Strip think block if any
+        think_end = text.rfind("</think>")  # find the last </think> tag
+        if think_end != -1:
+            text = text[think_end + len("</think>") :].lstrip()
+        return text or None

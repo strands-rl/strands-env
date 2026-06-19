@@ -29,23 +29,23 @@ from strands_sglang.tool_parsers import get_tool_parser
 from transformers import AutoTokenizer
 
 from strands_env.core.models import DEFAULT_SAMPLING_PARAMS, check_server_health, get_model_id, sglang_model_factory
-from strands_env.core.types import StepResult, TerminationReason
+from strands_env.core.types import RolloutResult, TerminationReason
 
 # ---------------------------------------------------------------------------
 # Assertion helpers
 # ---------------------------------------------------------------------------
 
 
-def assert_successful_step(result: StepResult) -> None:
+def assert_successful_step(result: RolloutResult) -> None:
     """Assert that a step completed successfully with messages and a text response."""
     assert result.termination_reason == TerminationReason.TASK_COMPLETE
-    assert result.observation.messages
-    assert result.observation.final_response
+    assert result.messages
+    assert result.final_response
 
 
-def assert_rollout(result: StepResult) -> None:
+def assert_rollout(result: RolloutResult) -> None:
     """Assert that the token-level rollout has valid structure."""
-    rollout = result.observation.rollout
+    rollout = result.rollout
     assert rollout is not None
     prompt_len = rollout.initial_prompt_length
     assert prompt_len > 0
@@ -55,9 +55,9 @@ def assert_rollout(result: StepResult) -> None:
     assert any(lp is not None for lp in rollout.logprobs[prompt_len:])
 
 
-def assert_token_usage(result: StepResult) -> None:
+def assert_token_usage(result: RolloutResult) -> None:
     """Assert that input/output token usage dicts have expected structure."""
-    metrics = result.observation.metrics
+    metrics = result.metrics
     assert metrics["model_calls"] >= 1
     for key in ("input_tokens", "output_tokens"):
         for subkey in ("total", "max", "mean", "min"):

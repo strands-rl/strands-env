@@ -27,7 +27,7 @@ from strands.models import Model
 from strands.types.exceptions import ModelThrottledException
 from typing_extensions import override
 
-from .types import RewardFunction, RewardResult, StepResult, Task
+from .types import RewardFunction, RewardResult, RolloutResult, Task
 
 logger = logging.getLogger(__name__)
 
@@ -58,8 +58,8 @@ class LLMJudgeReward(RewardFunction, Generic[JudgmentFormat]):
         class SimpleQAReward(LLMJudgeReward[SimpleQAJudgment]):
             judgment_format = SimpleQAJudgment
 
-            async def get_judge_prompt(self, task: Task, step_result: StepResult) -> str:
-                return f"Question: {task.message}\\nAnswer: {step_result.observation.final_response}"
+            async def get_judge_prompt(self, task: Task, result: RolloutResult) -> str:
+                return f"Question: {task.message}\\nAnswer: {result.final_response}"
 
             async def get_reward(self, judgment: SimpleQAJudgment | str) -> float:
                 return {"correct": 1.0, "incorrect": 0.0, "not_attempted": 0.0}[judgment.grade]
@@ -83,7 +83,7 @@ class LLMJudgeReward(RewardFunction, Generic[JudgmentFormat]):
         self.max_model_retries = max_model_retries
 
     @abstractmethod
-    async def get_judge_prompt(self, task: Task, step_result: StepResult) -> str:
+    async def get_judge_prompt(self, task: Task, result: RolloutResult) -> str:
         """Format the prompt for the judge model."""
         raise NotImplementedError("Subclasses must implement this method.")
 
@@ -93,9 +93,9 @@ class LLMJudgeReward(RewardFunction, Generic[JudgmentFormat]):
         raise NotImplementedError("Subclasses must implement this method.")
 
     @override
-    async def compute(self, task: Task, step_result: StepResult) -> RewardResult:
+    async def compute(self, task: Task, result: RolloutResult) -> RewardResult:
         try:
-            prompt = await self.get_judge_prompt(task, step_result)
+            prompt = await self.get_judge_prompt(task, result)
         except Exception as e:
             logger.error("Judge prompt rendering failed: %s", e)
             return RewardResult(
@@ -111,8 +111,8 @@ class LLMJudgeReward(RewardFunction, Generic[JudgmentFormat]):
                         output_model=self.judgment_format, prompt=prompt
                     )
                 else:
-                    result = await agent.invoke_async(prompt)
-                    judgment = result.message.get("content", [{}])[0].get("text", "")
+                    judge_result = await agent.invoke_async(prompt)
+                    judgment = judge_result.message.get("content", [{}])[0].get("text", "")
                 break
             except Exception as e:
                 if isinstance(e, ModelThrottledException) and attempt < self.max_model_retries - 1:

@@ -19,10 +19,9 @@ from .llm_judge_reward import JudgmentFormat, LLMJudgeReward
 from .mcp_tool import MCPToolAdapter
 from .models import ModelFactory
 from .types import (
-    Observation,
     RewardFunction,
     RewardResult,
-    StepResult,
+    RolloutResult,
     Task,
     TaskContext,
     TerminationReason,
@@ -37,10 +36,9 @@ __all__ = [
     "LLMJudgeReward",
     "MCPToolAdapter",
     "ModelFactory",
-    "Observation",
     "RewardFunction",
     "RewardResult",
-    "StepResult",
+    "RolloutResult",
     "TaskContext",
     "TerminationReason",
 ]

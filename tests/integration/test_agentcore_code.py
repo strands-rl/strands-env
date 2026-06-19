@@ -21,7 +21,7 @@ Requires:
 
 import pytest
 
-from strands_env.core.types import RewardResult, StepResult, Task, TaskContext, TerminationReason
+from strands_env.core.types import RewardResult, RolloutResult, Task, TaskContext, TerminationReason
 from strands_env.environments.agentcore_code import AgentCoreCodeEnv
 from strands_env.utils.aws import check_credentials, get_client, get_session
 
@@ -70,8 +70,8 @@ class TestAgentCoreCodeEnv:
         assert_rollout(result)
         assert_token_usage(result)
 
-        assert result.observation.metrics["per_tool_metrics"]["execute_code"]["calls"] >= 1
-        assert result.observation.metrics["per_tool_metrics"]["execute_code"]["successes"] >= 1
+        assert result.metrics["per_tool_metrics"]["execute_code"]["calls"] >= 1
+        assert result.metrics["per_tool_metrics"]["execute_code"]["successes"] >= 1
 
     async def test_terminal_mode(self, model_factory, agentcore_client):
         """TERMINAL mode: agent executes shell commands."""
@@ -97,8 +97,8 @@ class TestAgentCoreCodeEnv:
         """Multi-turn conversation with reward function exercising the full lifecycle."""
 
         class ContainsReward:
-            async def compute(self, task: Task, step_result: StepResult) -> RewardResult:
-                response = step_result.observation.final_response or ""
+            async def compute(self, task: Task, result: RolloutResult) -> RewardResult:
+                response = result.final_response or ""
                 expected = str(task.context.ground_truth)
                 return RewardResult(reward=1.0 if expected in response else 0.0)
 
@@ -115,7 +115,7 @@ class TestAgentCoreCodeEnv:
             result2 = await env.rollout(
                 Task(
                     message="Now use code to compute x * 2 and give me the final number.",
-                    context=TaskContext(conversation_history=result1.observation.messages, ground_truth=84),
+                    context=TaskContext(conversation_history=result1.messages, ground_truth=84),
                 ),
             )
             assert result2.termination_reason == TerminationReason.TASK_COMPLETE
@@ -137,7 +137,7 @@ class TestAgentCoreCodeEnv:
             result = await env.rollout(Task(message=MANY_STEPS_PROMPT))
 
             assert result.termination_reason == TerminationReason.MAX_TOOL_ITERATIONS_REACHED
-            assert result.observation.metrics["tool_iters"] <= 1
+            assert result.metrics["tool_iters"] <= 1
         finally:
             await env.cleanup()
 
@@ -154,6 +154,6 @@ class TestAgentCoreCodeEnv:
             result = await env.rollout(Task(message=MANY_STEPS_PROMPT))
 
             assert result.termination_reason == TerminationReason.MAX_TOOL_CALLS_REACHED
-            assert result.observation.metrics["tool_calls"] >= 1
+            assert result.metrics["tool_calls"] >= 1
         finally:
             await env.cleanup()

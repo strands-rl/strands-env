@@ -92,7 +92,7 @@ class TerminalBenchEvaluator(Evaluator):
     @override
     def validate_sample(self, sample: EvalSample) -> bool:
         """Abort samples where reward is missing or verification failed, so they are retried on resume."""
-        reward = sample.step_result.reward
+        reward = sample.result.reward
         if reward is None:
             return False
         return reward.info.get("status") != "error"
@@ -110,9 +110,7 @@ class TerminalBenchEvaluator(Evaluator):
         # Save agent messages
         agent_dir = Path(ctx.config["trial_dir"]) / "agent"
         agent_dir.mkdir(parents=True, exist_ok=True)
-        (agent_dir / "messages.json").write_text(
-            json.dumps(sample.step_result.observation.messages, indent=2, default=str)
-        )
+        (agent_dir / "messages.json").write_text(json.dumps(sample.result.messages, indent=2, default=str))
         return sample
 
 

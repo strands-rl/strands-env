@@ -25,7 +25,7 @@ from lm_eval.tasks.ifeval.utils import process_results
 from typing_extensions import override
 
 from strands_env.core import Task, TaskContext
-from strands_env.core.types import RewardFunction, RewardResult, StepResult
+from strands_env.core.types import RewardFunction, RewardResult, RolloutResult
 
 from ..evaluator import Evaluator
 from ..registry import register_eval
@@ -72,9 +72,9 @@ class IFEvalReward(RewardFunction):
         return (sum(value) / len(value)) if value else 0.0
 
     @override
-    async def compute(self, task: Task, step_result: StepResult) -> RewardResult:
+    async def compute(self, task: Task, result: RolloutResult) -> RewardResult:
         """Run the IFEval grader on the final response and return a `RewardResult`."""
-        response = step_result.observation.final_response or ""
+        response = result.final_response or ""
         ctx = task.context
 
         # `process_results` expects a `doc` dict mirroring the original IFEval JSONL row.

@@ -22,9 +22,8 @@ from strands.types.exceptions import (
 from strands_sglang import MaxToolCallsReachedError, MaxToolIterationsReachedError
 
 from strands_env.core.types import (
-    Observation,
     RewardResult,
-    StepResult,
+    RolloutResult,
     Task,
     TaskContext,
     TerminationReason,
@@ -66,17 +65,17 @@ class TestAction:
 
 
 # ---------------------------------------------------------------------------
-# Observation
+# RolloutResult
 # ---------------------------------------------------------------------------
 
 
-class TestObservation:
+class TestRolloutResult:
     def test_final_response_from_assistant(self):
         messages = [
             {"role": "user", "content": [{"text": "hi"}]},
             {"role": "assistant", "content": [{"text": "hello"}, {"text": "world"}]},
         ]
-        obs = Observation(messages=messages)
+        obs = RolloutResult(messages=messages)
         assert obs.final_response == "world"
 
     def test_final_response_strips_think_tags(self):
@@ -86,7 +85,7 @@ class TestObservation:
                 "content": [{"text": "<think>reasoning here</think>The actual answer"}],
             },
         ]
-        obs = Observation(messages=messages)
+        obs = RolloutResult(messages=messages)
         assert obs.final_response == "The actual answer"
 
     def test_final_response_strips_nested_think_tags(self):
@@ -96,16 +95,16 @@ class TestObservation:
                 "content": [{"text": "<think>first</think>middle<think>second</think>final answer"}],
             },
         ]
-        obs = Observation(messages=messages)
+        obs = RolloutResult(messages=messages)
         assert obs.final_response == "final answer"
 
     def test_final_response_no_assistant(self):
         messages = [{"role": "user", "content": [{"text": "hi"}]}]
-        obs = Observation(messages=messages)
+        obs = RolloutResult(messages=messages)
         assert obs.final_response is None
 
     def test_final_response_empty(self):
-        obs = Observation()
+        obs = RolloutResult()
         assert obs.final_response is None
 
     def test_final_response_skips_non_text_blocks(self):
@@ -118,7 +117,7 @@ class TestObservation:
                 ],
             },
         ]
-        obs = Observation(messages=messages)
+        obs = RolloutResult(messages=messages)
         assert obs.final_response == "result is 4"
 
 
@@ -207,20 +206,20 @@ class TestTerminationReason:
 
 
 # ---------------------------------------------------------------------------
-# StepResult
+# RolloutResult
 # ---------------------------------------------------------------------------
 
 
 class TestStepResult:
     def test_defaults(self):
-        obs = Observation()
-        result = StepResult(observation=obs)
+        obs = RolloutResult()
+        result = RolloutResult(observation=obs)
         assert result.reward is None
         assert result.termination_reason == TerminationReason.NOT_TERMINATED
 
     def test_with_reward(self):
-        obs = Observation()
+        obs = RolloutResult()
         reward = RewardResult(reward=1.0, info={"exact_match": True})
-        result = StepResult(observation=obs, reward=reward)
+        result = RolloutResult(observation=obs, reward=reward)
         assert result.reward.reward == 1.0
         assert result.reward.info["exact_match"] is True

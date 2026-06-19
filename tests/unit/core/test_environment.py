@@ -76,7 +76,7 @@ class TestStep:
         result = await env.rollout(task)
 
         assert result.termination_reason == TerminationReason.TASK_COMPLETE
-        assert result.observation.metrics["message_count"] == 1
+        assert result.metrics["message_count"] == 1
         assert result.reward is None
 
     @patch("strands_env.core.environment.Agent")
@@ -109,9 +109,9 @@ class TestStep:
         assert result.reward.reward == 1.0
         # Regression: timing must be written via `observation.metrics`, not the
         # local `metrics` dict — Pydantic v2 rebuilds the dict at validation, so
-        # the local var is decoupled from the model after `Observation(...)`.
-        assert "reward_latency_s" in result.observation.metrics
-        assert result.observation.metrics["reward_latency_s"] >= 0.0
+        # the local var is decoupled from the model after `RolloutResult(...)`.
+        assert "reward_latency_s" in result.metrics
+        assert result.metrics["reward_latency_s"] >= 0.0
 
     @patch("strands_env.core.environment.Agent")
     async def test_step_with_dict_message(self, mock_agent_cls, env):
@@ -143,8 +143,8 @@ class TestStep:
         task = Task(message="msg2", context=TaskContext(conversation_history=history))
         result = await env.rollout(task)
 
-        assert result.observation.metrics["message_count"] == 2
-        assert result.observation.messages == new_messages
+        assert result.metrics["message_count"] == 2
+        assert result.messages == new_messages
 
     @patch("strands_env.core.environment.Agent")
     async def test_step_records_tool_limiter_counts(self, mock_agent_cls, env):
@@ -155,9 +155,9 @@ class TestStep:
 
         result = await env.rollout(Task(message="test"))
 
-        assert "tool_iters" in result.observation.metrics
-        assert "tool_calls" in result.observation.metrics
-        assert "cancelled_tool_calls" in result.observation.metrics
+        assert "tool_iters" in result.metrics
+        assert "tool_calls" in result.metrics
+        assert "cancelled_tool_calls" in result.metrics
 
 
 # ---------------------------------------------------------------------------

@@ -27,7 +27,7 @@ from datasets import load_dataset
 from typing_extensions import override
 
 from strands_env.core import Task, TaskContext
-from strands_env.core.types import RewardFunction, RewardResult, StepResult
+from strands_env.core.types import RewardFunction, RewardResult, RolloutResult
 
 from ..evaluator import Evaluator
 from ..registry import register_eval
@@ -59,9 +59,9 @@ class GPQAReward(RewardFunction):
     )
 
     @override
-    async def compute(self, task: Task, step_result: StepResult) -> RewardResult:
+    async def compute(self, task: Task, result: RolloutResult) -> RewardResult:
         """Extract the answer letter and compare with the correct choice."""
-        response = step_result.observation.final_response or ""
+        response = result.final_response or ""
         correct_letter: str | None = getattr(task.context, "correct_letter", None)
 
         if correct_letter is None:

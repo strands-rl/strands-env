@@ -90,10 +90,10 @@ async def generate_and_rm(args, sample: Sample, sampling_params) -> Sample:
             conversation_history=[],
         ),
     )
-    step_result = await env.rollout(task)
+    result = await env.rollout(task)
 
     # Extract token data from the rollout
-    rollout = step_result.observation.rollout
+    rollout = result.rollout
     prompt_len = rollout.initial_prompt_length
     sample.tokens = rollout.token_ids
     sample.loss_mask = rollout.loss_mask[prompt_len:]
@@ -102,21 +102,21 @@ async def generate_and_rm(args, sample: Sample, sampling_params) -> Sample:
     sample.response = state.tokenizer.decode(rollout.token_ids[prompt_len:], skip_special_tokens=False)
 
     # Set status
-    if step_result.termination_reason.value == "task_complete":
+    if result.termination_reason.value == "task_complete":
         sample.status = Sample.Status.COMPLETED
     else:
         sample.status = Sample.Status.TRUNCATED
 
     # Attach step result (for custom rollout logging) and env metrics (for the reward below)
-    sample.step_result = step_result
-    sample.metrics = step_result.observation.metrics
+    sample.result = result
+    sample.metrics = result.metrics
 
     await env.cleanup()
 
     # Compute retool reward
-    if step_result.reward.reward == 0.0:
+    if result.reward.reward == 0.0:
         sample.reward = min(-0.6, -1 + (sample.metrics.get("tool_iters", 0) - 2) / 2 * 0.1)
     else:
-        sample.reward = step_result.reward.reward
+        sample.reward = result.reward.reward
 
     return sample

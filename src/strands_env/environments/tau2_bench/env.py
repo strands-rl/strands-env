@@ -37,7 +37,7 @@ from typing_extensions import NotRequired, Unpack, override
 
 from strands_env.core import Environment, ModelFactory, Task
 from strands_env.core.environment import EnvironmentConfig
-from strands_env.core.types import RewardFunction, StepResult
+from strands_env.core.types import RewardFunction, RolloutResult
 
 from .reward import Tau2BenchReward
 from .tool import Tau2BenchTool
@@ -201,7 +201,7 @@ class Tau2BenchEnv(Environment):
         self.user_sim_hook = Tau2BenchUserSimHook(self.user_sim, self.max_turns)
 
     @override
-    async def rollout(self, task: Task) -> StepResult:
+    async def rollout(self, task: Task) -> RolloutResult:
         """Inject `first_user_msg` and the canned greeting history into the task."""
         task.message = self.first_user_msg
         task.context.conversation_history = [{"role": "assistant", "content": [{"text": DEFAULT_FIRST_AGENT_MESSAGE}]}]

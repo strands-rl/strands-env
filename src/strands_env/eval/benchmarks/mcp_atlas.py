@@ -101,7 +101,7 @@ class MCPAtlasEvaluator(Evaluator):
     @override
     def validate_sample(self, sample: EvalSample) -> bool:
         """Abort samples where reward is missing or judge failed, so they are retried on resume."""
-        reward = sample.step_result.reward
+        reward = sample.result.reward
         if reward is None:
             return False
         return reward.info.get("status") != "error"

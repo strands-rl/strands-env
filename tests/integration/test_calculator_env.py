@@ -47,7 +47,7 @@ class TestCalculatorEnv:
         assert_token_usage(result)
 
         # Per-tool breakdown for calculator
-        per_tool = result.observation.metrics["per_tool_metrics"]
+        per_tool = result.metrics["per_tool_metrics"]
         assert per_tool is not None
         assert per_tool["calculator"]["calls"] >= 1
         assert per_tool["calculator"]["successes"] >= 1
@@ -63,7 +63,7 @@ class TestCalculatorEnv:
         result2 = await env.rollout(
             Task(
                 message="Now multiply that result by 3.",
-                context=TaskContext(conversation_history=result1.observation.messages),
+                context=TaskContext(conversation_history=result1.messages),
             )
         )
         assert result2.termination_reason == TerminationReason.TASK_COMPLETE
@@ -89,7 +89,7 @@ class TestCalculatorEnv:
         result = await env.rollout(Task(message=MANY_STEPS_PROMPT))
 
         assert result.termination_reason == TerminationReason.MAX_TOOL_ITERATIONS_REACHED
-        assert result.observation.metrics["tool_iters"] <= 1
+        assert result.metrics["tool_iters"] <= 1
 
     async def test_max_tool_calls_limit(self, model_factory):
         """max_tool_calls terminates the agent after the specified total tool invocations."""
@@ -97,4 +97,4 @@ class TestCalculatorEnv:
         result = await env.rollout(Task(message=MANY_STEPS_PROMPT))
 
         assert result.termination_reason == TerminationReason.MAX_TOOL_CALLS_REACHED
-        assert result.observation.metrics["tool_calls"] >= 1
+        assert result.metrics["tool_calls"] >= 1

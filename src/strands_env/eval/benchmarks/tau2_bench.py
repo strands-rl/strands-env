@@ -52,7 +52,7 @@ def compute_pass_caret_k(
     """Consistency metric ``pass^k = C(c, k) / C(n, k)`` averaged across prompts."""
 
     def is_correct(s: EvalSample) -> bool:
-        r = s.step_result.reward
+        r = s.result.reward
         return r is not None and r.reward >= reward_threshold
 
     metrics = {}
@@ -120,13 +120,13 @@ class Tau2BenchEvaluator(Evaluator):
     @override
     def validate_sample(self, sample: EvalSample) -> bool:
         """Abort samples with missing reward, NL judge error, or `tau2_termination == "aborted"` (all retryable)."""
-        reward = sample.step_result.reward
+        reward = sample.result.reward
         if reward is None:
             return False
         nl_judge = reward.info.get("nl_judge")
         if nl_judge and nl_judge.get("status") == "error":
             return False
-        if (sample.step_result.observation.metrics or {}).get("tau2_termination") == "aborted":
+        if (sample.result.metrics or {}).get("tau2_termination") == "aborted":
             return False
         return True
 

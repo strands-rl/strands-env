@@ -20,7 +20,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from strands_sglang import Rollout
 
-from strands_env.core import Observation, RewardResult, StepResult, Task, TaskContext
+from strands_env.core import RewardResult, RolloutResult, Task, TaskContext
 from strands_env.eval import EvalSample, Evaluator
 from strands_env.eval.metrics import compute_pass_at_k
 
@@ -34,7 +34,7 @@ from ..conftest import make_sample
 class TestEvaluator:
     async def test_factory_mode(self, mock_env, tmp_path):
         """Factory mode: reset/step/cleanup called for each sample."""
-        mock_env.rollout.return_value = StepResult(observation=Observation())
+        mock_env.rollout.return_value = RolloutResult()
 
         async def factory(task):
             return mock_env
@@ -52,7 +52,7 @@ class TestEvaluator:
 
     async def test_n_samples_per_prompt_duplication(self, mock_env, tmp_path):
         """Each task is duplicated n_samples_per_prompt times."""
-        mock_env.rollout.return_value = StepResult(observation=Observation())
+        mock_env.rollout.return_value = RolloutResult()
 
         async def factory(task):
             return mock_env
@@ -78,7 +78,7 @@ class TestEvaluator:
             received_actions.append(task)
             env = MagicMock()
             env.reset = AsyncMock()
-            env.rollout = AsyncMock(return_value=StepResult(observation=Observation()))
+            env.rollout = AsyncMock(return_value=RolloutResult())
             env.cleanup = AsyncMock()
             return env
 
@@ -103,7 +103,7 @@ class TestEvaluator:
             max_concurrent = max(max_concurrent, concurrent_count)
             await asyncio.sleep(0.01)
             concurrent_count -= 1
-            return StepResult(observation=Observation())
+            return RolloutResult()
 
         async def factory(task):
             env = MagicMock()
@@ -141,7 +141,7 @@ class TestEvaluator:
             env = MagicMock()
             env.reset = AsyncMock()
             env.rollout = AsyncMock(
-                return_value=StepResult(observation=Observation(rollout=rollout)),
+                return_value=RolloutResult(rollout=rollout),
             )
             env.cleanup = AsyncMock()
             return env
@@ -149,7 +149,7 @@ class TestEvaluator:
         evaluator = Evaluator(env_factory=factory, output_path=tmp_path / "results.jsonl")
         results = await evaluator.run([Task(id="p1", message="q", context=TaskContext())])
 
-        assert results["p1"][0].step_result.observation.rollout is None
+        assert results["p1"][0].result.rollout is None
 
     async def test_cleanup_called_on_step_error(self, tmp_path):
         """env.cleanup() is called even when env.rollout() raises."""
@@ -182,7 +182,7 @@ class TestEvaluator:
 class TestCheckpoint:
     async def test_saves_checkpoint(self, mock_env, tmp_path):
         """Results saved to output_path."""
-        mock_env.rollout.return_value = StepResult(observation=Observation())
+        mock_env.rollout.return_value = RolloutResult()
         output_path = tmp_path / "results.jsonl"
 
         async def factory(task):
@@ -197,7 +197,7 @@ class TestCheckpoint:
 
     async def test_resumes_from_checkpoint(self, mock_env, tmp_path):
         """Skips already-completed samples on resume."""
-        mock_env.rollout.return_value = StepResult(observation=Observation())
+        mock_env.rollout.return_value = RolloutResult()
         output_path = tmp_path / "results.jsonl"
 
         async def factory(task):
@@ -259,7 +259,7 @@ class TestValidateSample:
             step_count += 1
             env = MagicMock()
             env.reset = AsyncMock()
-            env.rollout = AsyncMock(return_value=StepResult(observation=Observation()))
+            env.rollout = AsyncMock(return_value=RolloutResult())
             env.cleanup = AsyncMock()
             return env
 
@@ -300,7 +300,7 @@ class TestValidateSample:
 
         class RewardCheckEvaluator(Evaluator):
             def validate_sample(self, sample):
-                return sample.step_result.reward is not None
+                return sample.result.reward is not None
 
         call_count = 0
 
@@ -310,7 +310,7 @@ class TestValidateSample:
             reward = RewardResult(reward=1.0) if call_count == 2 else None
             env = MagicMock()
             env.reset = AsyncMock()
-            env.rollout = AsyncMock(return_value=StepResult(observation=Observation(), reward=reward))
+            env.rollout = AsyncMock(return_value=RolloutResult(reward=reward))
             env.cleanup = AsyncMock()
             return env
 
@@ -327,7 +327,7 @@ class TestValidateSample:
         valid = [s for s in results["p1"] if not s.aborted]
         assert len(aborted) == 1
         assert len(valid) == 1
-        assert valid[0].step_result.reward.reward == 1.0
+        assert valid[0].result.reward.reward == 1.0
 
 
 # ---------------------------------------------------------------------------
@@ -343,8 +343,7 @@ class TestComputeMetrics:
             env = MagicMock()
             env.reset = AsyncMock()
             env.rollout = AsyncMock(
-                return_value=StepResult(
-                    observation=Observation(),
+                return_value=RolloutResult(
                     reward=RewardResult(reward=1.0),
                 )
             )
@@ -411,7 +410,7 @@ class TestPassAtK:
         """Samples with None reward are treated as incorrect."""
         sample = EvalSample(
             task=Task(id="p1_0", message="q", context=TaskContext()),
-            step_result=StepResult(observation=Observation(), reward=None),
+            result=RolloutResult(reward=None),
         )
         result = compute_pass_at_k({"p1": [sample]}, k_values=[1])
         assert result["pass@1"] == 0.0
@@ -437,7 +436,7 @@ class TestDistributedEvaluation:
     async def test_pool_step_called(self, tmp_path):
         """When env_actor_pool is provided, pool.rollout is used instead of env_factory."""
         mock_pool = MagicMock()
-        mock_pool.rollout = AsyncMock(return_value=StepResult(observation=Observation()))
+        mock_pool.rollout = AsyncMock(return_value=RolloutResult())
 
         evaluator = Evaluator(env_actor_pool=mock_pool, output_path=tmp_path / "results.jsonl")
         results = await evaluator.run([Task(id="p1", message="q", context=TaskContext())])
@@ -448,7 +447,7 @@ class TestDistributedEvaluation:
     async def test_env_factory_not_called_when_pool_set(self, tmp_path):
         """env_factory is not called when env_actor_pool is provided."""
         mock_pool = MagicMock()
-        mock_pool.rollout = AsyncMock(return_value=StepResult(observation=Observation()))
+        mock_pool.rollout = AsyncMock(return_value=RolloutResult())
         factory_called = False
 
         async def factory(task):
@@ -476,12 +475,12 @@ class TestDistributedEvaluation:
         rollout.add_prompt([1])
         rollout.add_response([2, 3], logprobs=[-0.5, -0.3])
         mock_pool = MagicMock()
-        mock_pool.rollout = AsyncMock(return_value=StepResult(observation=Observation(rollout=rollout)))
+        mock_pool.rollout = AsyncMock(return_value=RolloutResult(rollout=rollout))
 
         evaluator = Evaluator(env_actor_pool=mock_pool, output_path=tmp_path / "results.jsonl")
         results = await evaluator.run([Task(id="p1", message="q", context=TaskContext())])
 
-        assert results["p1"][0].step_result.observation.rollout is None
+        assert results["p1"][0].result.rollout is None
 
     async def test_init_requires_factory_or_pool(self, tmp_path):
         """ValueError raised when neither env_factory nor env_actor_pool is provided."""

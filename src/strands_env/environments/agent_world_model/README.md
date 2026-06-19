@@ -64,7 +64,7 @@ The evaluator/trainer must prepare these fields on `TaskContext` before creating
 `AgentWorldModelReward` runs the per-task `verify_task_completion(initial_db_path, final_db_path, final_answer)` function via `exec()`. Each scenario has a unique verification function (from `gen_verifier.pure_code.jsonl`) that checks:
 
 - **DB state changes** — compares initial vs final SQLite database (e.g. "was the item added to cart?")
-- **Agent's final answer** — extracts the last assistant message via `Observation.get_final_response()` and validates it (e.g. "is the reported total correct?")
+- **Agent's final answer** — extracts the last assistant message via `RolloutResult.final_response` and validates it (e.g. "is the reported total correct?")
 
 Returns 1.0 if `result["result"] == "complete"`, 0.0 otherwise.
 

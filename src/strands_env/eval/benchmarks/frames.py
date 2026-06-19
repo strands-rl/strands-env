@@ -24,7 +24,7 @@ from datasets import load_dataset
 from pydantic import BaseModel, Field
 from typing_extensions import override
 
-from strands_env.core import StepResult, Task, TaskContext
+from strands_env.core import RolloutResult, Task, TaskContext
 from strands_env.core.llm_judge_reward import LLMJudgeReward
 
 from ..evaluator import EvalSample, Evaluator
@@ -68,12 +68,12 @@ class FramesReward(LLMJudgeReward[FramesJudgment]):
     judgment_format = FramesJudgment
 
     @override
-    async def get_judge_prompt(self, task: Task, step_result: StepResult) -> str:
+    async def get_judge_prompt(self, task: Task, result: RolloutResult) -> str:
         """Get judge prompt for FRAMES benchmark."""
         return GRADER_TEMPLATE.format(
             query=task.message,
             ground_truth=task.context.ground_truth,
-            model_response=step_result.observation.final_response,
+            model_response=result.final_response,
         )
 
     @override
@@ -94,7 +94,7 @@ class FramesEvaluator(Evaluator):
     @override
     def validate_sample(self, sample: EvalSample) -> bool:
         """Abort samples where the judge failed (e.g. throttling), so they are retried on resume."""
-        reward = sample.step_result.reward
+        reward = sample.result.reward
         if reward is None:
             return True
         return reward.info.get("status") != "error"

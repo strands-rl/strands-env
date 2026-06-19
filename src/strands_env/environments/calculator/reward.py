@@ -22,7 +22,7 @@ from typing import Any
 from math_verify import ExprExtractionConfig, LatexExtractionConfig, parse, verify
 from typing_extensions import override
 
-from strands_env.core.types import RewardFunction, RewardResult, StepResult, Task
+from strands_env.core.types import RewardFunction, RewardResult, RolloutResult, Task
 from strands_env.utils.decorators import with_timeout
 
 logger = logging.getLogger(__name__)
@@ -104,12 +104,12 @@ class MathVerifyReward(RewardFunction):
         return _verify()
 
     @override
-    async def compute(self, task: Task, step_result: StepResult) -> RewardResult:
+    async def compute(self, task: Task, result: RolloutResult) -> RewardResult:
         ground_truth = task.context.ground_truth
         if not isinstance(ground_truth, str) or not ground_truth.strip():
             return RewardResult(reward=0.0, info={"reason": "invalid_ground_truth"})
 
-        content = step_result.observation.final_response
+        content = result.final_response
         if content is None:
             return RewardResult(reward=0.0, info={"reason": "no_final_response"})
 

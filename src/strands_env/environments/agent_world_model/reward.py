@@ -26,7 +26,7 @@ import sqlite3
 import traceback
 from typing import Any
 
-from strands_env.core.types import RewardFunction, RewardResult, StepResult, Task
+from strands_env.core.types import RewardFunction, RewardResult, RolloutResult, Task
 
 logger = logging.getLogger(__name__)
 
@@ -49,13 +49,13 @@ class AgentWorldModelReward(RewardFunction):
             final_answer=final_answer,
         )
 
-    async def compute(self, task: Task, step_result: StepResult) -> RewardResult:
+    async def compute(self, task: Task, result: RolloutResult) -> RewardResult:
         """Run verification code against the agent's final response."""
         ctx: Any = task.context
-        final_answer = step_result.observation.final_response or ""
+        final_answer = result.final_response or ""
 
         try:
-            result = await asyncio.to_thread(
+            verification = await asyncio.to_thread(
                 self._run_verification,
                 ctx.verify_code,
                 ctx.initial_db_path,
@@ -74,9 +74,9 @@ class AgentWorldModelReward(RewardFunction):
                 },
             )
 
-        is_complete = isinstance(result, dict) and result.get("result") == "complete"
+        is_complete = isinstance(verification, dict) and verification.get("result") == "complete"
         outcome = OUTCOME_COMPLETED if is_complete else OUTCOME_AGENT_FAILED
-        logger.info("Verification %s task %d: %s (outcome=%s)", ctx.scenario, ctx.task_idx, result, outcome)
+        logger.info("Verification %s task %d: %s (outcome=%s)", ctx.scenario, ctx.task_idx, verification, outcome)
         return RewardResult(
-            reward=1.0 if is_complete else 0.0, info={"outcome": outcome, "verification_result": result}
+            reward=1.0 if is_complete else 0.0, info={"outcome": outcome, "verification_result": verification}
         )

@@ -14,13 +14,13 @@
 
 """Tests for MathVerifyReward."""
 
-from strands_env.core.types import Observation, StepResult, Task, TaskContext
+from strands_env.core.types import RolloutResult, Task, TaskContext
 from strands_env.environments.calculator.reward import MathVerifyReward
 
 
-def make_step_result(content: str) -> StepResult:
+def make_step_result(content: str) -> RolloutResult:
     msg = {"role": "assistant", "content": [{"text": content}]}
-    return StepResult(observation=Observation(messages=[msg]))
+    return RolloutResult(messages=[msg])
 
 
 def make_action(ground_truth: str | None = None) -> Task:
@@ -95,7 +95,7 @@ class TestEdgeCases:
 
     async def test_no_final_response(self):
         fn = MathVerifyReward()
-        step = StepResult(observation=Observation(messages=[{"role": "user", "content": [{"text": "hi"}]}]))
+        step = RolloutResult(messages=[{"role": "user", "content": [{"text": "hi"}]}])
         result = await fn.compute(make_action("4"), step)
         assert result.reward == 0.0
         assert result.info["reason"] == "no_final_response"

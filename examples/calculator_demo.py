@@ -80,9 +80,9 @@ async def run_demo(
         result = await env.rollout(task)
 
         click.echo(f"Termination: {result.termination_reason.value}")
-        click.echo(f"Response:    {result.observation.final_response}")
+        click.echo(f"Response:    {result.final_response}")
         click.echo(f"Reward:      {result.reward.reward if result.reward else None}")
-        click.echo(f"Metrics:     {result.observation.metrics}")
+        click.echo(f"Metrics:     {result.metrics}")
 
 
 @click.command()
