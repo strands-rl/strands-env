@@ -11,7 +11,7 @@ A framework for building agent environments for RL training and evaluation with 
 
 ## Features
 
-This package treats each `env.step()` as a **full agent loop** `(prompt → (tool_call, tool_response)* → response)`, not a single model call.
+This package treats each `env.rollout()` as a **full agent loop** `(prompt → (tool_call, tool_response)* → response)`, not a single model call.
 
 - **Define Environments** — Subclass `Environment`, add `@tool` functions, plug in `RewardFunction`
 - **RL Training** — Token-level observations for on-policy training with [strands-sglang](https://github.com/horizon-rl/strands-sglang)
@@ -54,10 +54,10 @@ class MathEnv(Environment):
 
 ```python
 env = MathEnv(model_factory=factory, reward_fn=reward_fn)
-result = await env.step(Action(message="What is 2^10?", task_context=TaskContext(ground_truth="1024")))
+result = await env.rollout(Task(message="What is 2^10?", context=TaskContext(ground_truth="1024")))
 
-result.observation.final_response   # "The answer is 1024"
-result.reward.reward                # 1.0
+result.final_response   # "The answer is 1024"
+result.reward.reward    # 1.0
 result.termination_reason           # TerminationReason.TASK_COMPLETE
 ```
 
