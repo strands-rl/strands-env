@@ -24,8 +24,8 @@ from strands.models import Model
 from strands.types.content import Message
 from typing_extensions import override
 
+from strands_env.core.llm_judge_reward import LLMJudgeReward
 from strands_env.core.types import Action, RewardFunction, RewardResult, StepResult
-from strands_env.rewards.llm_judge_reward import LLMJudgeReward
 
 if TYPE_CHECKING:
     from .env import Tau2BenchEnv
