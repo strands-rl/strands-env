@@ -7,7 +7,7 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/horizon-rl/strands-env)
 
-A unified framework for building RL training and evaluation environments with Strands Agents.
+A unified framework for building agentic RL training and evaluation environments with Strands Agents.
 
 ## Features
 
