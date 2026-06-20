@@ -33,7 +33,7 @@ from ..conftest import make_sample
 
 class TestEvaluator:
     async def test_factory_mode(self, mock_env, tmp_path):
-        """Factory mode: reset/step/cleanup called for each sample."""
+        """Factory mode: reset/rollout/cleanup called for each sample."""
         mock_env.rollout.return_value = RolloutResult()
 
         async def factory(task):
@@ -159,7 +159,7 @@ class TestEvaluator:
             nonlocal cleanup_called
             env = MagicMock()
             env.reset = AsyncMock()
-            env.rollout = AsyncMock(side_effect=RuntimeError("step failed"))
+            env.rollout = AsyncMock(side_effect=RuntimeError("rollout failed"))
 
             async def track_cleanup():
                 nonlocal cleanup_called
@@ -248,15 +248,15 @@ class TestValidateSample:
 
     async def test_aborted_samples_retried_on_resume(self, tmp_path):
         """Aborted samples are retried on resume (not added to completed_ids)."""
-        step_count = 0
+        rollout_count = 0
 
         class AbortingEvaluator(Evaluator):
             def validate_sample(self, sample):
                 return False
 
         async def factory(task):
-            nonlocal step_count
-            step_count += 1
+            nonlocal rollout_count
+            rollout_count += 1
             env = MagicMock()
             env.reset = AsyncMock()
             env.rollout = AsyncMock(return_value=RolloutResult())
@@ -268,14 +268,14 @@ class TestValidateSample:
         # First run
         eval1 = AbortingEvaluator(env_factory=factory, output_path=output_path, save_interval=1)
         results1 = await eval1.run([Task(id="s1", message="q1", context=TaskContext())])
-        assert step_count == 1
+        assert rollout_count == 1
         assert results1["s1"][0].aborted is True
 
         # Second run — s1 retried
-        step_count = 0
+        rollout_count = 0
         eval2 = AbortingEvaluator(env_factory=factory, output_path=output_path, save_interval=1)
         results2 = await eval2.run([Task(id="s1", message="q1", context=TaskContext())])
-        assert step_count == 1
+        assert rollout_count == 1
         assert results2["s1"][0].aborted is True
 
     async def test_aborted_count_in_log(self, tmp_path, caplog):

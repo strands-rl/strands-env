@@ -129,7 +129,7 @@ class TestRollout:
 
     @patch("strands_env.core.environment.Agent")
     async def test_rollout_messages_sliced(self, mock_agent_cls, env):
-        """step_messages only contains messages added during the step."""
+        """result.messages only contains messages added during the rollout."""
         history = [
             {"role": "user", "content": [{"text": "msg1"}]},
             {"role": "assistant", "content": [{"text": "resp1"}]},

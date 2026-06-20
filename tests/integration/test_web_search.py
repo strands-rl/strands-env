@@ -27,7 +27,7 @@ import pytest
 from strands_env.core.types import Task, TerminationReason
 from strands_env.environments.web_search import WebSearchEnv
 
-from .conftest import assert_successful_step
+from .conftest import assert_successful_rollout
 
 serper_available = pytest.mark.skipif(not os.getenv("SERPER_API_KEY"), reason="SERPER_API_KEY not set")
 google_available = pytest.mark.skipif(
@@ -44,7 +44,7 @@ class TestSerperWebSearchEnv:
         try:
             result = await env.rollout(Task(message="What is the capital of France?"))
 
-            assert_successful_step(result)
+            assert_successful_rollout(result)
             assert result.metrics["model_calls"] >= 1
         finally:
             await env.cleanup()
@@ -54,7 +54,7 @@ class TestSerperWebSearchEnv:
         env = WebSearchEnv(model_factory=model_factory, scrape_enabled=True)
         try:
             result = await env.rollout(Task(message="What is the population of Tokyo?"))
-            assert_successful_step(result)
+            assert_successful_rollout(result)
         finally:
             await env.cleanup()
 
@@ -85,6 +85,6 @@ class TestGoogleWebSearchEnv:
         env = WebSearchEnv(model_factory=model_factory, search_provider="google")
         try:
             result = await env.rollout(Task(message="What is the speed of light?"))
-            assert_successful_step(result)
+            assert_successful_rollout(result)
         finally:
             await env.cleanup()

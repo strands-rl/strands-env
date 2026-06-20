@@ -240,7 +240,7 @@ async def run_evaluation():
 For distributed eval, build an `EnvironmentActorPool` with the dotted hook path and a serializable config dict, then pass it as `env_actor_pool` instead of `env_factory`:
 
 ```python
-from strands_env.utils.ray import EnvironmentActorPool
+from strands_env.core.distributed import EnvironmentActorPool
 
 env_actor_pool = EnvironmentActorPool(
     env_hook_path="examples.eval.simple_math.calculator_env.create_env_factory",

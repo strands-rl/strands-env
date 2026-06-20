@@ -86,7 +86,7 @@ async def run_demo(model_id: str) -> None:
             judgment = reward.info["judgment"]
             click.echo(f"Grade:        {judgment.get('grade', 'N/A')}")
         else:
-            click.echo(f"Error:        {result.info.get('error_type')}: {result.info.get('error')}")
+            click.echo(f"Error:        {reward.info.get('error_type')}: {reward.info.get('error')}")
 
 
 @click.command()

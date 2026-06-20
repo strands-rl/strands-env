@@ -25,7 +25,7 @@ from strands_env.core.types import RewardResult, RolloutResult, Task, TaskContex
 from strands_env.environments.agentcore_code import AgentCoreCodeEnv
 from strands_env.utils.aws import check_credentials, get_client, get_session
 
-from .conftest import assert_rollout, assert_successful_step, assert_token_usage
+from .conftest import assert_rollout, assert_successful_rollout, assert_token_usage
 
 FORCE_TOOL_PROMPT = (
     "You are a coding assistant. Always use the execute_code tool. "
@@ -66,7 +66,7 @@ class TestAgentCoreCodeEnv:
         """CODE mode: agent executes Python, produces a complete result with token trajectory and metrics."""
         result = await code_env.rollout(Task(message="Use code to compute 2 ** 10 and tell me the result."))
 
-        assert_successful_step(result)
+        assert_successful_rollout(result)
         assert_rollout(result)
         assert_token_usage(result)
 
@@ -78,7 +78,7 @@ class TestAgentCoreCodeEnv:
         env = AgentCoreCodeEnv(model_factory=model_factory, client=agentcore_client, mode="terminal")
         try:
             result = await env.rollout(Task(message="Use a shell command to print 'hello' with echo."))
-            assert_successful_step(result)
+            assert_successful_rollout(result)
         finally:
             await env.cleanup()
 
@@ -89,7 +89,7 @@ class TestAgentCoreCodeEnv:
             result = await env.rollout(
                 Task(message="Use code to compute 2 + 2, then use a shell command to echo the result."),
             )
-            assert_successful_step(result)
+            assert_successful_rollout(result)
         finally:
             await env.cleanup()
 

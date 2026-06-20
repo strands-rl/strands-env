@@ -30,7 +30,7 @@ pytest.importorskip("harbor", reason="harbor>=0.1.43 required for harbor env int
 from strands_env.core.types import Task, TaskContext, TerminationReason
 from strands_env.environments.harbor import HarborEnv
 
-from .conftest import assert_rollout, assert_successful_step, assert_token_usage
+from .conftest import assert_rollout, assert_successful_rollout, assert_token_usage
 
 FORCE_TOOL_PROMPT = (
     "You are a terminal assistant. Always use execute_command. "
@@ -100,7 +100,7 @@ class TestHarborEnv:
         """Full pipeline: agent runs command in Docker, result is complete, reward comes from test.sh."""
         result = await harbor_env.rollout(Task(message="Run 'echo hello world' in the terminal."))
 
-        assert_successful_step(result)
+        assert_successful_rollout(result)
         assert_rollout(result)
         assert_token_usage(result)
         assert result.metrics["per_tool_metrics"]["execute_command"]["calls"] >= 1

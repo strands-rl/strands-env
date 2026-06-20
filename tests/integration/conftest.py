@@ -36,8 +36,8 @@ from strands_env.core.types import RolloutResult, TerminationReason
 # ---------------------------------------------------------------------------
 
 
-def assert_successful_step(result: RolloutResult) -> None:
-    """Assert that a step completed successfully with messages and a text response."""
+def assert_successful_rollout(result: RolloutResult) -> None:
+    """Assert that a rollout completed successfully with messages and a text response."""
     assert result.termination_reason == TerminationReason.TASK_COMPLETE
     assert result.messages
     assert result.final_response

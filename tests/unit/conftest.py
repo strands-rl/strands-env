@@ -43,7 +43,7 @@ def make_sample(reward: float, idx: int = 0, aborted: bool = False) -> EvalSampl
 
 @pytest.fixture
 def mock_env():
-    """Mock Environment with async reset/step/cleanup."""
+    """Mock Environment with async reset/rollout/cleanup."""
     env = MagicMock(spec=Environment)
     env.reset = AsyncMock()
     env.rollout = AsyncMock()
