@@ -215,7 +215,7 @@ class RolloutLogger:
                 raise ValueError(f"Unknown logging backend {self.backend!r} (expected 'wandb' or 'mlflow')")
 
     def _log_samples_wandb(self, rollout_id: int, args: Any, samples: list[Sample]) -> None:
-        """Publish sampled rollout step_results to a single W&B Weave dataset per run."""
+        """Publish sampled rollout results to a single W&B Weave dataset per run."""
         import wandb
         import weave
 

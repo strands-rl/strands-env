@@ -96,8 +96,8 @@ async def harbor_env(model_factory, task_dir, tmp_path):
 
 
 class TestHarborEnv:
-    async def test_step_with_docker_reward(self, harbor_env):
-        """Full pipeline: agent runs command in Docker, observation is complete, reward comes from test.sh."""
+    async def test_rollout_with_docker_reward(self, harbor_env):
+        """Full pipeline: agent runs command in Docker, result is complete, reward comes from test.sh."""
         result = await harbor_env.rollout(Task(message="Run 'echo hello world' in the terminal."))
 
         assert_successful_step(result)

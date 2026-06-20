@@ -60,9 +60,9 @@ class TestEnvironmentInit:
 # ---------------------------------------------------------------------------
 
 
-class TestStep:
+class TestRollout:
     @patch("strands_env.core.environment.Agent")
-    async def test_successful_step(self, mock_agent_cls, env):
+    async def test_successful_rollout(self, mock_agent_cls, env):
         """A successful agent invocation returns TASK_COMPLETE."""
         conversation_history = [{"role": "user", "content": [{"text": "earlier"}]}]
         mock_agent_cls.return_value = mock_agent(
@@ -80,7 +80,7 @@ class TestStep:
         assert result.reward is None
 
     @patch("strands_env.core.environment.Agent")
-    async def test_step_with_agent_error(self, mock_agent_cls, env):
+    async def test_rollout_with_agent_error(self, mock_agent_cls, env):
         """An unrecognized exception maps to UNCLASSIFIED_ERROR."""
         agent = mock_agent()
         agent.invoke_async.side_effect = RuntimeError("boom")
@@ -92,7 +92,7 @@ class TestStep:
         assert result.termination_reason == TerminationReason.UNCLASSIFIED_ERROR
 
     @patch("strands_env.core.environment.Agent")
-    async def test_step_with_reward_fn(self, mock_agent_cls, model_factory):
+    async def test_rollout_with_reward_fn(self, mock_agent_cls, model_factory):
         """Reward function is called when provided."""
         mock_agent_cls.return_value = mock_agent(
             messages=[{"role": "assistant", "content": [{"text": "4"}]}],
@@ -107,14 +107,14 @@ class TestStep:
 
         reward_fn.compute.assert_awaited_once()
         assert result.reward.reward == 1.0
-        # Regression: timing must be written via `observation.metrics`, not the
+        # Regression: timing must be written via `result.metrics`, not the
         # local `metrics` dict — Pydantic v2 rebuilds the dict at validation, so
         # the local var is decoupled from the model after `RolloutResult(...)`.
         assert "reward_latency_s" in result.metrics
         assert result.metrics["reward_latency_s"] >= 0.0
 
     @patch("strands_env.core.environment.Agent")
-    async def test_step_with_dict_message(self, mock_agent_cls, env):
+    async def test_rollout_with_dict_message(self, mock_agent_cls, env):
         """Task.message can be a dict with 'content' key."""
         mock_agent_cls.return_value = mock_agent(
             messages=[{"role": "assistant", "content": [{"text": "answer"}]}],
@@ -128,7 +128,7 @@ class TestStep:
         mock_agent_cls.return_value.invoke_async.assert_awaited_once_with([{"text": "hello"}])
 
     @patch("strands_env.core.environment.Agent")
-    async def test_step_messages_sliced(self, mock_agent_cls, env):
+    async def test_rollout_messages_sliced(self, mock_agent_cls, env):
         """step_messages only contains messages added during the step."""
         history = [
             {"role": "user", "content": [{"text": "msg1"}]},
@@ -147,7 +147,7 @@ class TestStep:
         assert result.messages == new_messages
 
     @patch("strands_env.core.environment.Agent")
-    async def test_step_records_tool_limiter_counts(self, mock_agent_cls, env):
+    async def test_rollout_records_tool_limiter_counts(self, mock_agent_cls, env):
         """Tool limiter iteration/call/cancelled counts appear in metrics."""
         mock_agent_cls.return_value = mock_agent(
             messages=[{"role": "assistant", "content": [{"text": "done"}]}],

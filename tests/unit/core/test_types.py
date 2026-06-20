@@ -52,7 +52,7 @@ class TestTaskContext:
 # ---------------------------------------------------------------------------
 
 
-class TestAction:
+class TestTask:
     def test_string_message(self):
         task = Task(message="What is 2+2?")
         assert task.message == "What is 2+2?"
@@ -75,8 +75,8 @@ class TestRolloutResult:
             {"role": "user", "content": [{"text": "hi"}]},
             {"role": "assistant", "content": [{"text": "hello"}, {"text": "world"}]},
         ]
-        obs = RolloutResult(messages=messages)
-        assert obs.final_response == "world"
+        result = RolloutResult(messages=messages)
+        assert result.final_response == "world"
 
     def test_final_response_strips_think_tags(self):
         messages = [
@@ -85,8 +85,8 @@ class TestRolloutResult:
                 "content": [{"text": "<think>reasoning here</think>The actual answer"}],
             },
         ]
-        obs = RolloutResult(messages=messages)
-        assert obs.final_response == "The actual answer"
+        result = RolloutResult(messages=messages)
+        assert result.final_response == "The actual answer"
 
     def test_final_response_strips_nested_think_tags(self):
         messages = [
@@ -95,17 +95,17 @@ class TestRolloutResult:
                 "content": [{"text": "<think>first</think>middle<think>second</think>final answer"}],
             },
         ]
-        obs = RolloutResult(messages=messages)
-        assert obs.final_response == "final answer"
+        result = RolloutResult(messages=messages)
+        assert result.final_response == "final answer"
 
     def test_final_response_no_assistant(self):
         messages = [{"role": "user", "content": [{"text": "hi"}]}]
-        obs = RolloutResult(messages=messages)
-        assert obs.final_response is None
+        result = RolloutResult(messages=messages)
+        assert result.final_response is None
 
     def test_final_response_empty(self):
-        obs = RolloutResult()
-        assert obs.final_response is None
+        result = RolloutResult()
+        assert result.final_response is None
 
     def test_final_response_skips_non_text_blocks(self):
         messages = [
@@ -117,8 +117,19 @@ class TestRolloutResult:
                 ],
             },
         ]
-        obs = RolloutResult(messages=messages)
-        assert obs.final_response == "result is 4"
+        result = RolloutResult(messages=messages)
+        assert result.final_response == "result is 4"
+
+    def test_defaults(self):
+        result = RolloutResult()
+        assert result.reward is None
+        assert result.termination_reason == TerminationReason.NOT_TERMINATED
+
+    def test_with_reward(self):
+        reward = RewardResult(reward=1.0, info={"exact_match": True})
+        result = RolloutResult(reward=reward)
+        assert result.reward.reward == 1.0
+        assert result.reward.info["exact_match"] is True
 
 
 # ---------------------------------------------------------------------------
@@ -203,23 +214,3 @@ class TestTerminationReason:
     def test_non_event_loop_exception(self):
         error = RuntimeError("direct error")
         assert TerminationReason.from_error(error) == TerminationReason.UNCLASSIFIED_ERROR
-
-
-# ---------------------------------------------------------------------------
-# RolloutResult
-# ---------------------------------------------------------------------------
-
-
-class TestStepResult:
-    def test_defaults(self):
-        obs = RolloutResult()
-        result = RolloutResult(observation=obs)
-        assert result.reward is None
-        assert result.termination_reason == TerminationReason.NOT_TERMINATED
-
-    def test_with_reward(self):
-        obs = RolloutResult()
-        reward = RewardResult(reward=1.0, info={"exact_match": True})
-        result = RolloutResult(observation=obs, reward=reward)
-        assert result.reward.reward == 1.0
-        assert result.reward.info["exact_match"] is True

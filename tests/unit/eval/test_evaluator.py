@@ -39,10 +39,10 @@ class TestEvaluator:
         async def factory(task):
             return mock_env
 
-        actions = [Task(id=f"p{i}", message=f"q{i}", context=TaskContext()) for i in range(3)]
+        tasks = [Task(id=f"p{i}", message=f"q{i}", context=TaskContext()) for i in range(3)]
 
         evaluator = Evaluator(env_factory=factory, output_path=tmp_path / "results.jsonl")
-        results = await evaluator.run(actions)
+        results = await evaluator.run(tasks)
 
         assert mock_env.reset.await_count == 3
         assert mock_env.rollout.await_count == 3
@@ -57,10 +57,10 @@ class TestEvaluator:
         async def factory(task):
             return mock_env
 
-        actions = [Task(id="p1", message="q", context=TaskContext())]
+        tasks = [Task(id="p1", message="q", context=TaskContext())]
 
         evaluator = Evaluator(env_factory=factory, n_samples_per_prompt=5, output_path=tmp_path / "results.jsonl")
-        results = await evaluator.run(actions)
+        results = await evaluator.run(tasks)
 
         assert mock_env.rollout.await_count == 5
         assert len(results) == 1
@@ -70,7 +70,7 @@ class TestEvaluator:
         sample_ids = [s.task.id for s in results["p1"]]
         assert len(set(sample_ids)) == 5
 
-    async def test_factory_receives_action(self, tmp_path):
+    async def test_factory_receives_task(self, tmp_path):
         """Factory receives the task for per-sample configuration."""
         received_actions = []
 
@@ -82,9 +82,9 @@ class TestEvaluator:
             env.cleanup = AsyncMock()
             return env
 
-        actions = [Task(message="q1"), Task(message="q2")]
+        tasks = [Task(message="q1"), Task(message="q2")]
         evaluator = Evaluator(env_factory=factory, output_path=tmp_path / "results.jsonl")
-        await evaluator.run(actions)
+        await evaluator.run(tasks)
 
         assert len(received_actions) == 2
         assert received_actions[0].message == "q1"
@@ -97,7 +97,7 @@ class TestEvaluator:
         concurrent_count = 0
         max_concurrent = 0
 
-        async def mock_step(task):
+        async def mock_rollout(task):
             nonlocal concurrent_count, max_concurrent
             concurrent_count += 1
             max_concurrent = max(max_concurrent, concurrent_count)
@@ -108,19 +108,19 @@ class TestEvaluator:
         async def factory(task):
             env = MagicMock()
             env.reset = AsyncMock()
-            env.rollout = mock_step
+            env.rollout = mock_rollout
             env.cleanup = AsyncMock()
             return env
 
-        actions = [Task(message=f"q{i}") for i in range(10)]
+        tasks = [Task(message=f"q{i}") for i in range(10)]
 
         evaluator = Evaluator(env_factory=factory, max_concurrency=3, output_path=tmp_path / "results.jsonl")
-        await evaluator.run(actions)
+        await evaluator.run(tasks)
 
         assert max_concurrent <= 3
 
-    async def test_empty_actions(self, mock_env, tmp_path):
-        """Empty actions produces empty results."""
+    async def test_empty_tasks(self, mock_env, tmp_path):
+        """Empty tasks produces empty results."""
 
         async def factory(task):
             return mock_env
@@ -151,7 +151,7 @@ class TestEvaluator:
 
         assert results["p1"][0].result.rollout is None
 
-    async def test_cleanup_called_on_step_error(self, tmp_path):
+    async def test_cleanup_called_on_rollout_error(self, tmp_path):
         """env.cleanup() is called even when env.rollout() raises."""
         cleanup_called = False
 
@@ -433,7 +433,7 @@ class TestPassAtK:
 
 
 class TestDistributedEvaluation:
-    async def test_pool_step_called(self, tmp_path):
+    async def test_pool_rollout_called(self, tmp_path):
         """When env_actor_pool is provided, pool.rollout is used instead of env_factory."""
         mock_pool = MagicMock()
         mock_pool.rollout = AsyncMock(return_value=RolloutResult())

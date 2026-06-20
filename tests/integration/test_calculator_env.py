@@ -14,7 +14,7 @@
 
 """Integration tests for CalculatorEnv.
 
-Exercises the full step lifecycle: agent invocation → observation
+Exercises the full rollout lifecycle: agent invocation → result
 (messages, tokens, metrics) → optional reward — against a real SGLang model.
 
 Requires a running SGLang server (default: http://localhost:30000).
@@ -37,8 +37,8 @@ MANY_STEPS_PROMPT = "Compute 1+1, then 2+2, then 3+3, then 4+4, then 5+5 one at 
 
 
 class TestCalculatorEnv:
-    async def test_step_produces_complete_observation(self, model_factory):
-        """A single step produces a complete observation with messages, token trajectory, and metrics."""
+    async def test_rollout_produces_complete_result(self, model_factory):
+        """A single rollout produces a complete result with messages, token trajectory, and metrics."""
         env = CalculatorEnv(model_factory=model_factory, system_prompt=MATH_SYSTEM_PROMPT)
         result = await env.rollout(Task(message="What is 17 * 23?"))
 

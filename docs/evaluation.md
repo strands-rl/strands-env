@@ -205,7 +205,7 @@ class MyEvaluator(Evaluator):
     benchmark_name = "my-benchmark"
 
     def load_dataset(self) -> Iterable[Task]:
-        """Load dataset and return Actions for evaluation."""
+        """Load dataset and return Tasks for evaluation."""
         for item in load_my_data():
             yield Task(
                 message=item["prompt"],
@@ -231,8 +231,8 @@ async def run_evaluation():
         keep_rollout=False,
     )
 
-    actions = evaluator.load_dataset()
-    results = await evaluator.run(actions)
+    tasks = evaluator.load_dataset()
+    results = await evaluator.run(tasks)
     metrics = evaluator.compute_metrics(results)
     # {"pass@1": 0.75, "pass@8": 0.95, ...}
 ```

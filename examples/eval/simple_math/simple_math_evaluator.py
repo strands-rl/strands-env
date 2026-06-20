@@ -33,7 +33,7 @@ class SimpleMathEvaluator(Evaluator):
     benchmark_name = "simple-math"
 
     def load_dataset(self) -> Iterable[Task]:
-        """Load dataset and yield Actions for evaluation.
+        """Load dataset and yield Tasks for evaluation.
 
         Replace this with your actual dataset loading logic.
         Each Task should have:

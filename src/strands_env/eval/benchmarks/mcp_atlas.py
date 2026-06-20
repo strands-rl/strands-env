@@ -89,10 +89,10 @@ class MCPAtlasEvaluator(Evaluator):
         self._available_servers = available_servers
 
     @override
-    async def run(self, actions: Iterable[Task]) -> dict[str, list[EvalSample]]:
+    async def run(self, tasks: Iterable[Task]) -> dict[str, list[EvalSample]]:
         """Run evaluation, closing any shared HTTP client at the end."""
         try:
-            return await super().run(actions)
+            return await super().run(tasks)
         finally:
             http_client = getattr(self.env_factory, "http_client", None)
             if http_client is not None:
@@ -113,7 +113,7 @@ class MCPAtlasEvaluator(Evaluator):
 
         ds = load_dataset("ScaleAI/MCP-Atlas", split="train")
 
-        actions = []
+        tasks = []
         skipped = 0
         for row in ds:
             # ENABLED_TOOLS items are plain strings or dicts with a "name" key.
@@ -134,11 +134,11 @@ class MCPAtlasEvaluator(Evaluator):
                 gtfa_claims=gtfa_claims,
                 ground_truth=row["PROMPT"],
             )
-            actions.append(Task(id=row["TASK"], message=row["PROMPT"], context=ctx))
+            tasks.append(Task(id=row["TASK"], message=row["PROMPT"], context=ctx))
 
         logger.info(
             "MCP-Atlas: loaded %d tasks (%d skipped — require unavailable servers)",
-            len(actions),
+            len(tasks),
             skipped,
         )
-        return actions
+        return tasks

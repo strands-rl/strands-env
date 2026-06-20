@@ -268,7 +268,7 @@ def eval_cmd(
         keep_rollout=keep_rollout,
         env_actor_pool=env_actor_pool,
     )
-    actions = list(evaluator.load_dataset())[:max_samples]
+    tasks = list(evaluator.load_dataset())[:max_samples]
 
     # Save config for reproducibility
     config_data = {
@@ -285,11 +285,11 @@ def eval_cmd(
     mode = f"distributed ({n_actors_per_node} actors/node)" if env_actor_pool else "local"
     click.echo(
         f"Running {benchmark_name} | {backend} | {model_id or '(auto)'} | "
-        f"{len(actions)} samples | n={n_samples_per_prompt} | concurrency={max_concurrency} | {mode} | {output_dir}"
+        f"{len(tasks)} samples | n={n_samples_per_prompt} | concurrency={max_concurrency} | {mode} | {output_dir}"
     )
 
     # Run and save metrics
-    results = asyncio.run(evaluator.run(actions))
+    results = asyncio.run(evaluator.run(tasks))
     metrics = evaluator.compute_metrics(results)
     with open(output_dir / "metrics.json", "w", encoding="utf-8") as f:
         json.dump(metrics, f, indent=2)

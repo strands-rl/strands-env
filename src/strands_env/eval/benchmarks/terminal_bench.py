@@ -60,15 +60,15 @@ class TerminalBenchEvaluator(Evaluator):
 
     @override
     def load_dataset(self) -> list[Task]:
-        """Load Harbor-format tasks and create Actions."""
+        """Load Harbor-format tasks."""
         if not self.data_dir.exists():
             self._download_dataset()
 
-        actions = []
+        tasks = []
         for task_dir in sorted((self.data_dir / self.tasks_subdir).iterdir()):
             if task_dir.is_dir() and not task_dir.name.startswith("."):
-                actions.append(self._load_single_task(task_dir))
-        return actions
+                tasks.append(self._load_single_task(task_dir))
+        return tasks
 
     def _load_single_task(self, task_dir: Path) -> Task:
         """Load a single task from a directory."""
@@ -162,8 +162,8 @@ class TerminalBench1Evaluator(TerminalBenchEvaluator):
             self._rename_solution_yaml_files(tasks_dir)
             TerminalBenchMapper().map(tasks_dir, migrated_dir)
 
-        actions = []
+        tasks = []
         for task_dir in sorted(migrated_dir.iterdir()):
             if task_dir.is_dir() and not task_dir.name.startswith("."):
-                actions.append(self._load_single_task(task_dir))
-        return actions
+                tasks.append(self._load_single_task(task_dir))
+        return tasks

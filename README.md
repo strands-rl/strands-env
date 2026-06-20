@@ -104,7 +104,7 @@ Ready-to-use environments under `src/strands_env/environments/`. Each ships with
 ## Documentation
 
 - [Evaluation Guide](docs/evaluation.md) — CLI reference, hook files, custom evaluators
-- [RL Training Integration](docs/rl-training.md) — slime integration, token observations
+- [RL Training Integration](docs/rl-training.md) — integration with the slime RL training framework
 
 ## Development
 

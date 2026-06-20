@@ -63,7 +63,7 @@ async def code_env(model_factory, agentcore_client):
 
 class TestAgentCoreCodeEnv:
     async def test_code_mode(self, code_env):
-        """CODE mode: agent executes Python, produces complete observation with token trajectory and metrics."""
+        """CODE mode: agent executes Python, produces a complete result with token trajectory and metrics."""
         result = await code_env.rollout(Task(message="Use code to compute 2 ** 10 and tell me the result."))
 
         assert_successful_step(result)

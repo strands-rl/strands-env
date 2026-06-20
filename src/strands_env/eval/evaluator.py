@@ -200,13 +200,13 @@ class Evaluator:
             logger.error("[%s]: evaluate_sample failed, aborting: %s", task.id, e)
             return EvalSample(task=task, result=RolloutResult(), aborted=True)
 
-    async def run(self, actions: Iterable[Task]) -> dict[str, list[EvalSample]]:
-        """Run evaluation on actions with `n_samples_per_prompt` each."""
+    async def run(self, tasks: Iterable[Task]) -> dict[str, list[EvalSample]]:
+        """Run evaluation on tasks with `n_samples_per_prompt` each."""
         self.load_results()
 
-        # Expand actions to (prompt_id, sample_id, task) tuples
+        # Expand tasks to (prompt_id, sample_id, task) tuples
         to_process: list[tuple[str, str, Task]] = []
-        for task in actions:
+        for task in tasks:
             prompt_id = task.id
             for i in range(self.n_samples_per_prompt):
                 sample_id = f"{prompt_id}_{i}"
