@@ -24,7 +24,7 @@ def create_env_factory(model_config: dict, **env_config):
     model_factory = build_model_factory(model_config)
     reward_fn = MathVerifyReward()
 
-    async def env_factory(_action):
+    async def env_factory(_task):
         return CalculatorEnv(model_factory=model_factory, reward_fn=reward_fn, **env_config)
 
     return env_factory

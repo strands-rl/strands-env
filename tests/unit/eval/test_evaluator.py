@@ -72,10 +72,10 @@ class TestEvaluator:
 
     async def test_factory_receives_task(self, tmp_path):
         """Factory receives the task for per-sample configuration."""
-        received_actions = []
+        received_tasks = []
 
         async def factory(task):
-            received_actions.append(task)
+            received_tasks.append(task)
             env = MagicMock()
             env.reset = AsyncMock()
             env.rollout = AsyncMock(return_value=RolloutResult())
@@ -86,9 +86,9 @@ class TestEvaluator:
         evaluator = Evaluator(env_factory=factory, output_path=tmp_path / "results.jsonl")
         await evaluator.run(tasks)
 
-        assert len(received_actions) == 2
-        assert received_actions[0].message == "q1"
-        assert received_actions[1].message == "q2"
+        assert len(received_tasks) == 2
+        assert received_tasks[0].message == "q1"
+        assert received_tasks[1].message == "q2"
 
     async def test_max_concurrency(self, tmp_path):
         """max_concurrency limits concurrent env calls."""

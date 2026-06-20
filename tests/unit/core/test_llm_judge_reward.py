@@ -56,7 +56,7 @@ class _TextJudge(LLMJudgeReward):
 # ---------------------------------------------------------------------------
 
 
-def _action_and_step():
+def _task_and_result():
     task = Task(message="What is 2+2?", context=TaskContext(ground_truth="4"))
     result = RolloutResult(
         messages=[{"role": "assistant", "content": [{"text": "4"}]}],
@@ -83,7 +83,7 @@ class TestErrorRecovery:
                 return 1.0
 
         judge = _FailingPrompt(judge_model=MagicMock(), default_reward=0.0)
-        task, result = _action_and_step()
+        task, result = _task_and_result()
         result = await judge.compute(task, result)
 
         assert result.reward == 0.0
@@ -97,7 +97,7 @@ class TestErrorRecovery:
         mock_agent_cls.return_value = mock_agent_instance
 
         judge = _TextJudge(judge_model=MagicMock(), default_reward=0.5)
-        task, result = _action_and_step()
+        task, result = _task_and_result()
         result = await judge.compute(task, result)
 
         assert result.reward == 0.5
@@ -122,7 +122,7 @@ class TestErrorRecovery:
                 raise KeyError("unexpected grade")
 
         judge = _FailingReward(judge_model=MagicMock(), default_reward=0.0)
-        task, result = _action_and_step()
+        task, result = _task_and_result()
         result = await judge.compute(task, result)
 
         assert result.reward == 0.0
@@ -145,7 +145,7 @@ class TestHappyPath:
         mock_agent_cls.return_value = mock_agent_instance
 
         judge = _StructuredJudge(judge_model=MagicMock())
-        task, result = _action_and_step()
+        task, result = _task_and_result()
         result = await judge.compute(task, result)
 
         assert result.reward == 1.0
@@ -162,7 +162,7 @@ class TestHappyPath:
         mock_agent_cls.return_value = mock_agent_instance
 
         judge = _TextJudge(judge_model=MagicMock())
-        task, result = _action_and_step()
+        task, result = _task_and_result()
         result = await judge.compute(task, result)
 
         assert result.reward == 1.0
@@ -180,7 +180,7 @@ class TestHappyPath:
 
         model_a, model_b = MagicMock(), MagicMock()
         judge = _TextJudge(judge_model=[model_a, model_b], max_model_retries=2)
-        result = await judge.compute(*_action_and_step())
+        result = await judge.compute(*_task_and_result())
 
         assert result.reward == 1.0
         assert mock_agent_cls.call_args_list[0][1]["model"] is model_a
@@ -193,7 +193,7 @@ class TestHappyPath:
         mock_agent_cls.return_value = throttled
 
         judge = _TextJudge(judge_model=MagicMock(), max_model_retries=2, default_reward=0.0)
-        result = await judge.compute(*_action_and_step())
+        result = await judge.compute(*_task_and_result())
 
         assert result.reward == 0.0
         assert result.info["error_type"] == "judge_error"
