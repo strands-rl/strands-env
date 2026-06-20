@@ -82,5 +82,5 @@ The `coverage_score` is the mean across claims. Returns binary reward: 1.0 if `c
 ## Lifecycle
 
 - **`reset()`** — POSTs `/list-tools` to the MCP-Atlas server, filters tools by `enabled_tools`, wraps them as `MCPAtlasTool` instances.
-- **`step(task)`** — Runs the Strands agent with MCP tools. Each tool call POSTs to `/call-tool`.
+- **`rollout(task)`** — Runs the Strands agent with MCP tools. Each tool call POSTs to `/call-tool`.
 - **`cleanup()`** — Clears the tool list. The shared HTTP client is **not** closed (the caller owns its lifecycle).

@@ -17,7 +17,7 @@
 This example demonstrates:
 - Creating a model factory
 - Instantiating an environment with tools
-- Running steps and inspecting results
+- Running rollouts and inspecting results
 
 Usage:
     # SGLang backend (requires a running SGLang server)

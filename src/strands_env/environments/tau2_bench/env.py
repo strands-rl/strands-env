@@ -122,7 +122,7 @@ class Tau2BenchUserSimHook(HookProvider):
             return
         if USER_STOP_RE.search(user_text):
             self.termination = "user_stop"
-            # Append the terminating user msg so it shows up in `observation.messages`.
+            # Append the terminating user msg so it shows up in `result.messages`.
             event.agent.messages.append({"role": "user", "content": [{"text": user_text}]})
             return
         event.resume = user_text
@@ -192,7 +192,7 @@ class Tau2BenchEnv(Environment):
                 instructions=str(task_obj.user_scenario),
             ),
             conversation_manager=NullConversationManager(),
-            # Mirror base `step()`'s callback handling; default `None` silences user-sim stream.
+            # Mirror base `rollout()`'s callback handling; default `None` silences user-sim stream.
             callback_handler=PrintingCallbackHandler() if self.verbose else None,
         )
         # User-sim's reply to the canned greeting seeds the agent's first invoke;

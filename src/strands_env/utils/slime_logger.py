@@ -91,7 +91,7 @@ class RolloutLogger:
 
         Returns `False` so slime's default logging still runs.
         """
-        # Check if step results are attached to samples
+        # Check if rollout results are attached to samples
         for sample in samples:
             if not getattr(sample, "result", None):
                 logger.warning("Skip custom rollout logging for rollout %d: missing `result`", rollout_id)
@@ -253,7 +253,7 @@ class RolloutLogger:
         logger.info("Published %d new samples to Weave (rollout %d, step %d)", len(rows), rollout_id, step)
 
     def _log_samples_mlflow(self, rollout_id: int, args: Any, samples: list[Sample]) -> None:
-        """Publish sampled rollout step_results to MLflow as a per-step JSON artifact."""
+        """Publish sampled rollout results to MLflow as a per-step JSON artifact."""
         import mlflow
 
         step = compute_rollout_step(args, rollout_id)

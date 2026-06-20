@@ -51,16 +51,16 @@ class EnvironmentActor:
         env_hook = load_function(env_hook_path)
         self.env_factory = env_hook(**env_hook_config)
 
-    async def rollout(self, action_json: str) -> str:
+    async def rollout(self, task_json: str) -> str:
         """Run one rollout and return the JSON-serialized `RolloutResult`.
 
         Args:
-            action_json: JSON string from `Task.model_dump_json()`.
+            task_json: JSON string from `Task.model_dump_json()`.
 
         Returns:
             JSON string, reconstruct via `RolloutResult.model_validate_json()`.
         """
-        task = Task.model_validate_json(action_json)
+        task = Task.model_validate_json(task_json)
         env = await self.env_factory(task)
         try:
             await env.reset()
@@ -69,18 +69,18 @@ class EnvironmentActor:
         finally:
             await env.cleanup()
 
-    async def compute_reward(self, action_json: str, step_result_json: str) -> str:
+    async def compute_reward(self, task_json: str, result_json: str) -> str:
         """Recompute reward for an existing rollout without re-running the agent.
 
         Args:
-            action_json: JSON string from `Task.model_dump_json()`.
-            step_result_json: JSON string from `RolloutResult.model_dump_json()`.
+            task_json: JSON string from `Task.model_dump_json()`.
+            result_json: JSON string from `RolloutResult.model_dump_json()`.
 
         Returns:
             JSON string, reconstruct via `RewardResult.model_validate_json()`.
         """
-        task = Task.model_validate_json(action_json)
-        result = RolloutResult.model_validate_json(step_result_json)
+        task = Task.model_validate_json(task_json)
+        result = RolloutResult.model_validate_json(result_json)
         env = await self.env_factory(task)
         try:
             if env.reward_fn is None:

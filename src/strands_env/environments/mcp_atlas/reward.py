@@ -96,7 +96,7 @@ class ClaimJudgment(BaseModel):
 class MCPAtlasReward(LLMJudgeReward[ClaimJudgment]):
     """Per-claim LLM-as-judge reward for MCP-Atlas benchmark.
 
-    Overrides ``compute()`` to evaluate multiple claims per step via
+    Overrides ``compute()`` to evaluate multiple claims per rollout via
     ``super().compute()`` and aggregate into a binary reward based on
     the 0.75 pass threshold.
     """

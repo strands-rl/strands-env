@@ -102,7 +102,7 @@ class Environment:
         pass
 
     async def rollout(self, task: Task) -> RolloutResult:
-        """Run one agent episode and return observation + reward + termination."""
+        """Run one agent rollout and return its trajectory, reward, and termination reason."""
         # 1. Build inputs and the agent.
         conversation_history = task.context.conversation_history
         tool_limiter = ToolLimiter(

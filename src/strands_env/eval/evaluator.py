@@ -44,10 +44,10 @@ class EvalSample(BaseModel):
     """Evaluation sample result."""
 
     task: Task
-    """The task (task) that was evaluated."""
+    """The task that was evaluated."""
 
     result: RolloutResult
-    """The result of the step (observation, reward, termination reason)."""
+    """The result of the rollout (trajectory, reward, termination reason)."""
 
     aborted: bool = False
     """Whether this sample was aborted (excluded from metrics, retried on resume)."""

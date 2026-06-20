@@ -16,7 +16,7 @@
 
 This example demonstrates:
 - Creating a WebSearchEnv with search + scrape tools
-- Running steps and inspecting results
+- Running rollouts and inspecting results
 - Cleaning up HTTP sessions
 
 Requires SERPER_API_KEY (or GOOGLE_API_KEY + GOOGLE_CSE_ID) env var.

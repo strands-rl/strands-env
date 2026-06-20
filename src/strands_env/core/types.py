@@ -148,7 +148,7 @@ class TerminationReason(str, Enum):
             case _:
                 reason = cls.UNCLASSIFIED_ERROR
 
-        logger.warning("Step terminated: %s - %s", reason.value, cause)
+        logger.warning("Rollout terminated: %s - %s", reason.value, cause)
         return reason
 
 

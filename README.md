@@ -11,10 +11,10 @@ A framework for building agent environments for RL training and evaluation with 
 
 ## Features
 
-This package treats each `env.rollout()` as a **full agent loop** `(prompt → (tool_call, tool_response)* → response)`, not a single model call.
+An **agent environment** takes a task and runs the agent to completion over multiple turns, producing a **rollout result** — the trajectory, reward, and termination reason for that task. With `strands-env`, you can:
 
 - **Define Environments** — Subclass `Environment`, add `@tool` functions, plug in `RewardFunction`
-- **RL Training** — Token-level observations for on-policy training with [strands-sglang](https://github.com/horizon-rl/strands-sglang)
+- **RL Training** — Token-level trajectories (TITO) for on-policy training with [strands-sglang](https://github.com/horizon-rl/strands-sglang)
 - **Benchmarking** — CLI and `Evaluator` with checkpointing, resume, and custom metrics
 
 ## Install
@@ -37,45 +37,56 @@ pip install -e ".[dev]"
 Subclass `Environment` and add tools as `@tool`-decorated functions:
 
 ```python
+import subprocess
+import sys
+
 from strands import tool
 from strands_env.core import Environment
 
 @tool
-def calculator(expression: str) -> str:
-    """Evaluate a math expression."""
-    return str(eval(expression))
+def run_python(code: str) -> str:
+    """Run a Python snippet and return its output."""
+    proc = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=10)
+    return proc.stdout + proc.stderr
 
-class MathEnv(Environment):
+class CodingEnv(Environment):
     def get_tools(self):
-        return [calculator]
+        return [run_python]
 ```
 
 ### Run It
 
 ```python
-env = MathEnv(model_factory=factory, reward_fn=reward_fn)
-result = await env.rollout(Task(message="What is 2^10?", context=TaskContext(ground_truth="1024")))
+from strands_env.core import Task, TaskContext
 
-result.final_response   # "The answer is 1024"
-result.reward.reward    # 1.0
-result.termination_reason           # TerminationReason.TASK_COMPLETE
+env = CodingEnv(model_factory=factory, reward_fn=reward_fn)
+result = await env.rollout(Task(
+    message="Write Python to compute the 10th Fibonacci number, then run it.",
+    context=TaskContext(ground_truth="55"),
+))
+
+result.final_response       # "The 10th Fibonacci number is 55"
+result.reward               # {"reward": 1.0, "info": ...}
+result.termination_reason   # TerminationReason.TASK_COMPLETE
 ```
 
-See [`examples/calculator_demo.py`](examples/calculator_demo.py) for a complete example.
+See the [`examples/`](examples/) directory for complete, runnable demos.
 
 ### Run Evaluations
 
 ```bash
 python -m strands_env.eval \
-    --benchmark aime-2026 \
-    --env examples.eval.simple_math.calculator_env \
+    --benchmark terminal-bench-2 \
+    --env examples.eval.terminal_bench.terminal_bench_env \
     --backend sglang \
     --base-url http://localhost:30000 \
-    --n-samples-per-prompt 8 \
-    --max-concurrency 30
+    --n-samples-per-prompt 4 \
+    --max-concurrency 8
 ```
 
-> **Tip:** For a non-agentic benchmark (no tool use), simply don't override `get_tools()` in your environment — the base class returns `[]` by default.
+> Raise `--n-samples-per-prompt` for more stable pass@k, and `--max-concurrency` if you're using a hosted sandbox service.
+
+> **Tip:** For a non-agentic benchmark (no tool use), don't override `get_tools()` — the base class returns `[]` by default.
 
 ## Built-in Environments
 

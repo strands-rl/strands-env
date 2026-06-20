@@ -107,7 +107,7 @@ async def generate_and_rm(args, sample: Sample, sampling_params) -> Sample:
     else:
         sample.status = Sample.Status.TRUNCATED
 
-    # Attach step result (for custom rollout logging) and env metrics (for the reward below)
+    # Attach rollout result (for custom rollout logging) and env metrics (for the reward below)
     sample.result = result
     sample.metrics = result.metrics
 

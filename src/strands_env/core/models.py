@@ -58,7 +58,7 @@ from transformers import PreTrainedTokenizerBase
 from strands_env.utils.aws import get_session
 from strands_env.utils.decorators import requires_env
 
-#: Factory that produces a fresh `Model` per step (for concurrent step isolation).
+#: Factory that produces a fresh `Model` per rollout (for concurrent rollout isolation).
 ModelFactory = Callable[[], Model]
 
 # Other parameters like temperature and top_p will be set to model's default values if provided

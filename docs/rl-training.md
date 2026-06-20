@@ -4,7 +4,7 @@ This guide covers integrating `strands-env` with RL training frameworks, specifi
 
 ## Overview
 
-`strands-env` captures token-level observations (TITO) during agent rollouts, which are essential for on-policy RL training. `RolloutResult.rollout` is a `Rollout` (from `strands-sglang`) containing:
+`strands-env` captures token-level trajectories (TITO) during agent rollouts, which are essential for on-policy RL training. `RolloutResult.rollout` is a `Rollout` (from `strands-sglang`) containing:
 - `token_ids` - All tokens (prompt + response)
 - `loss_mask` - Per-token mask (1 for model output, 0 for prompt/tool tokens)
 - `logprobs` - Per-token log probabilities (None for non-output tokens)
@@ -75,7 +75,7 @@ A complete worked example lives at `examples/slime/retool/generate_with_agentcor
 ## Key Points
 
 - **Connection pooling**: `get_client_from_slime_args(args)` provides `lru_cache`-backed connection pooling across rollouts for efficient GPU utilization
-- **Token observations**: `RolloutResult.rollout` (a `Rollout`) contains token IDs, a loss mask, and logprobs for on-policy training (SGLang backend only)
-- **Model factory pattern**: Each `step()` creates a fresh model instance for clean token tracking state
+- **Token trajectories**: `RolloutResult.rollout` (a `Rollout`) contains token IDs, a loss mask, and logprobs for on-policy training (SGLang backend only)
+- **Model factory pattern**: Each `rollout()` creates a fresh model instance for clean token tracking state
 - **Cleanup**: Call `await env.cleanup()` at the end of each rollout for envs that hold external resources (e.g. `AgentCoreCodeEnv`, `MCPEnvironment`, `HarborEnv`)
 - **Custom rollout logging**: Attach `result` to the sample and use `strands_env.utils.slime_logger.RolloutLogger` (see the retool example) to log per-step metrics via slime's `--custom-rollout-log-function-path`
