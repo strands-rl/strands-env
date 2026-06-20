@@ -37,7 +37,7 @@ from strands_env.utils.aws import get_client
 from strands_env.utils.slime_logger import RolloutLogger
 
 # export for slime's --custom-rollout-log-function-path
-log_rollout_metrics = RolloutLogger(backend="wandb", n_rollouts_per_step=3, log_per_tool_metrics=False).log_rollouts
+log_rollouts = RolloutLogger(backend="wandb", n_rollouts_per_step=3, log_per_tool_metrics=False).log_rollouts
 
 logger = logging.getLogger(__name__)
 
