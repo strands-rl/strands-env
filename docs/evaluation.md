@@ -109,7 +109,7 @@ def create_env_factory(model_config: dict, **env_config):
     """Create an async environment factory."""
     model_factory = build_model_factory(model_config)
 
-    async def env_factory(action):
+    async def env_factory(task):
         return YourEnvironment(model_factory=model_factory, **env_config)
 
     return env_factory
@@ -163,17 +163,17 @@ Create a Python file that exports `EvaluatorClass`:
 # my_evaluator.py
 from collections.abc import Iterable
 
-from strands_env.core import Action, TaskContext
+from strands_env.core import Task, TaskContext
 from strands_env.eval import Evaluator
 
 class MyEvaluator(Evaluator):
     benchmark_name = "my-benchmark"
 
-    def load_dataset(self) -> Iterable[Action]:
+    def load_dataset(self) -> Iterable[Task]:
         for item in load_my_data():
-            yield Action(
+            yield Task(
                 message=item["prompt"],
-                task_context=TaskContext(
+                context=TaskContext(
                     id=item["id"],
                     ground_truth=item["answer"],
                 ),
@@ -195,7 +195,7 @@ To add a built-in benchmark, create a module in `src/strands_env/eval/benchmarks
 # src/strands_env/eval/benchmarks/my_benchmark.py
 from collections.abc import Iterable
 
-from strands_env.core import Action, TaskContext
+from strands_env.core import Task, TaskContext
 
 from ..evaluator import Evaluator
 from ..registry import register_eval
@@ -204,12 +204,12 @@ from ..registry import register_eval
 class MyEvaluator(Evaluator):
     benchmark_name = "my-benchmark"
 
-    def load_dataset(self) -> Iterable[Action]:
+    def load_dataset(self) -> Iterable[Task]:
         """Load dataset and return Actions for evaluation."""
         for item in load_my_data():
-            yield Action(
+            yield Task(
                 message=item["prompt"],
-                task_context=TaskContext(
+                context=TaskContext(
                     id=item["id"],
                     ground_truth=item["answer"],
                 ),
@@ -296,7 +296,7 @@ Evaluation results are saved to the output directory:
 ```
 {benchmark}_eval/
 ├── config.json      # CLI configuration for reproducibility
-├── results.jsonl    # Per-sample results (action, step_result, reward)
+├── results.jsonl    # Per-sample results (task, result, reward)
 └── metrics.json     # Aggregated metrics (pass@k, etc.)
 ```
 

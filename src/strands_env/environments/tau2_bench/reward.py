@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Reward for tau2-bench: product of sub-rewards selected by `task.reward_basis`."""
+"""Reward for tau2-bench: product of sub-rewards selected by `tau2_task.reward_basis`."""
 
 from __future__ import annotations
 
@@ -85,12 +85,12 @@ class Tau2BenchNLAssertionReward(LLMJudgeReward[NLJudgment]):
         self._env = env
 
     @override
-    async def get_judge_prompt(self, action: Task, result: RolloutResult) -> str:
+    async def get_judge_prompt(self, task: Task, result: RolloutResult) -> str:
         from tau2.data_model.tasks import Task as Tau2Task  # type: ignore[import-not-found]
 
-        task = Tau2Task.model_validate(self._env.task)
-        assertions = list(task.evaluation_criteria.nl_assertions or [])
-        messages = list(action.context.conversation_history) + list(result.messages)
+        tau2_task = Tau2Task.model_validate(self._env.task)
+        assertions = list(tau2_task.evaluation_criteria.nl_assertions or [])
+        messages = list(task.context.conversation_history) + list(result.messages)
         lines = []
         for m in messages:
             for b in m.get("content") or []:
@@ -110,7 +110,7 @@ class Tau2BenchNLAssertionReward(LLMJudgeReward[NLJudgment]):
 
 
 class Tau2BenchReward(RewardFunction):
-    """Final reward = product of sub-rewards selected by `task.reward_basis`."""
+    """Final reward = product of sub-rewards selected by `tau2_task.reward_basis`."""
 
     def __init__(self, env: Tau2BenchEnv, judge_model: Model | list[Model] | None = None) -> None:
         """Initialize a `Tau2BenchReward` instance."""
@@ -118,27 +118,27 @@ class Tau2BenchReward(RewardFunction):
         self._nl_judge = Tau2BenchNLAssertionReward(env, judge_model) if judge_model is not None else None
 
     @override
-    async def compute(self, action: Task, result: RolloutResult) -> RewardResult:
-        from tau2.data_model.tasks import RewardType  # type: ignore[import-not-found]
-        from tau2.data_model.tasks import Task as Tau2Task
+    async def compute(self, task: Task, result: RolloutResult) -> RewardResult:
+        from tau2.data_model.tasks import RewardType  # type: ignore
+        from tau2.data_model.tasks import Task as Tau2Task  # type: ignore
 
-        task = Tau2Task.model_validate(self._env.task)
-        basis_raw = task.evaluation_criteria.reward_basis
+        tau2_task = Tau2Task.model_validate(self._env.task)
+        basis_raw = tau2_task.evaluation_criteria.reward_basis
         basis = set(basis_raw) if basis_raw is not None else {RewardType.DB, RewardType.COMMUNICATE}
-        messages = list(action.context.conversation_history) + list(result.messages)
+        messages = list(task.context.conversation_history) + list(result.messages)
 
         sub: dict[str, float] = {}
         nl_judge_info: dict[str, Any] | None = None
         if RewardType.DB in basis:
-            sub["db"] = _db_reward(self._env, task)
+            sub["db"] = _db_reward(self._env, tau2_task)
         if RewardType.ENV_ASSERTION in basis:
-            sub["env_assertion"] = _env_assertion_reward(self._env, task)
+            sub["env_assertion"] = _env_assertion_reward(self._env, tau2_task)
         if RewardType.ACTION in basis:
-            sub["action"] = _action_reward(self._env, messages, task)
+            sub["action"] = _action_reward(self._env, messages, tau2_task)
         if RewardType.COMMUNICATE in basis:
-            sub["communicate"] = _communicate_reward(messages, task)
+            sub["communicate"] = _communicate_reward(messages, tau2_task)
         if RewardType.NL_ASSERTION in basis:
-            sub["nl_assertion"], nl_judge_info = await self._nl_assertion_reward(action, result, task)
+            sub["nl_assertion"], nl_judge_info = await self._nl_assertion_reward(task, result, tau2_task)
 
         reward = 1.0
         for v in sub.values():
@@ -152,27 +152,27 @@ class Tau2BenchReward(RewardFunction):
         return RewardResult(reward=reward, info=info)
 
     async def _nl_assertion_reward(
-        self, action: Task, result: RolloutResult, task: Any
+        self, task: Task, result: RolloutResult, tau2_task: Any
     ) -> tuple[float, dict[str, Any] | None]:
         """Return the NL_ASSERTION sub-reward and the judge's `info` (None when not judged).
 
         Defaults to 1.0 with no `info` when there are no assertions or no judge_model.
         """
-        if not (task.evaluation_criteria.nl_assertions or []):
+        if not (tau2_task.evaluation_criteria.nl_assertions or []):
             return 1.0, None
         if self._nl_judge is None:
             logger.warning("NL_ASSERTION required but no judge_model; defaulting to 1.0")
             return 1.0, None
-        nl_result = await self._nl_judge.compute(action, result)
+        nl_result = await self._nl_judge.compute(task, result)
         return nl_result.reward, nl_result.info
 
 
-def _db_reward(env: Tau2BenchEnv, task: Any) -> float:
-    """Return 1.0 iff the agent+user DB hashes match a golden env built by replaying `task.actions` on a fresh DB."""
+def _db_reward(env: Tau2BenchEnv, tau2_task: Any) -> float:
+    """Return 1.0 iff the agent+user DB hashes match a golden env built by replaying `tau2_task.actions` on a fresh DB."""
     from .env import build_tau2_env
 
-    gold = build_tau2_env(env.domain, env.initial_db, task)
-    for act in task.evaluation_criteria.actions or []:
+    gold = build_tau2_env(env.domain, env.initial_db, tau2_task)
+    for act in tau2_task.evaluation_criteria.actions or []:
         try:
             gold.make_tool_call(tool_name=act.name, requestor=act.requestor, **act.arguments)
         except Exception as e:
@@ -182,21 +182,21 @@ def _db_reward(env: Tau2BenchEnv, task: Any) -> float:
     )
 
 
-def _env_assertion_reward(env: Tau2BenchEnv, task: Any) -> float:
-    """Return 1.0 iff every `task.env_assertions` holds against the live post-episode env (telecom only)."""
+def _env_assertion_reward(env: Tau2BenchEnv, tau2_task: Any) -> float:
+    """Return 1.0 iff every `tau2_task.env_assertions` holds against the live post-episode env (telecom only)."""
     return float(
         all(
             env.tau2_env.run_env_assertion(a, raise_assertion_error=False)
-            for a in task.evaluation_criteria.env_assertions or []
+            for a in tau2_task.evaluation_criteria.env_assertions or []
         )
     )
 
 
-def _action_reward(env: Tau2BenchEnv, messages: list[Message], task: Any) -> float:
+def _action_reward(env: Tau2BenchEnv, messages: list[Message], tau2_task: Any) -> float:
     """Return 1.0 iff every golden action is matched by some tool_use across agent + user-sim messages."""
     from tau2.data_model.message import ToolCall  # type: ignore[import-not-found]
 
-    golden = task.evaluation_criteria.actions or []
+    golden = tau2_task.evaluation_criteria.actions or []
     if not golden:
         return 1.0
     all_messages = messages + (env.user_sim.messages if env.user_sim is not None else [])
@@ -210,9 +210,9 @@ def _action_reward(env: Tau2BenchEnv, messages: list[Message], task: Any) -> flo
     return float(all(any(g.compare_with_tool_call(tc) for tc in tool_calls) for g in golden))
 
 
-def _communicate_reward(messages: list[Message], task: Any) -> float:
+def _communicate_reward(messages: list[Message], tau2_task: Any) -> float:
     """Return 1.0 iff each required info string appears in some assistant message (per-message search)."""
-    required = task.evaluation_criteria.communicate_info or []
+    required = tau2_task.evaluation_criteria.communicate_info or []
     if not required:
         return 1.0
     assistant_texts = [

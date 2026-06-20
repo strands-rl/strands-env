@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Core types for Strands Agents Environments: tasks, observations, rewards, model config, and step result."""
+"""Core types for Strands Agents Environments: tasks, rewards, model config, and rollout results."""
 
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ from strands_sglang import MaxToolCallsReachedError, MaxToolIterationsReachedErr
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Task
+# Task (input to a rollout)
 # ---------------------------------------------------------------------------
 
 
@@ -55,7 +55,7 @@ class Task(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Reward
+# Reward (for a rollout)
 # ---------------------------------------------------------------------------
 
 
@@ -76,7 +76,7 @@ class RewardFunction(ABC):
 
 
 # ---------------------------------------------------------------------------
-# Termination reason (error classification)
+# Termination reason (why a rollout ended)
 # ---------------------------------------------------------------------------
 
 
@@ -153,7 +153,7 @@ class TerminationReason(str, Enum):
 
 
 # ---------------------------------------------------------------------------
-# Rollout result
+# Rollout result (output of a rollout)
 # ---------------------------------------------------------------------------
 
 
