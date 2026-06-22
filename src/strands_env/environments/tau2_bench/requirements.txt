@@ -1,4 +1,4 @@
-# tau2-bench is not on PyPI, so it is installed straight from GitHub. 
-# Pinned to commit 6899b47: it is not the v1.0.0 tag commit, and later revisions 
+# tau2-bench is not on PyPI, so it is installed straight from GitHub.
+# Pinned to commit 6899b47: it is not the v1.0.0 tag commit, and later revisions
 # eagerly import the voice chain (pyaudio + portaudio) the text-only domains never use.
 tau2 @ git+https://github.com/sierra-research/tau2-bench.git@6899b47c910d38750d23d363460f67938d8c3dfc
