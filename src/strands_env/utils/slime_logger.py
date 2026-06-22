@@ -197,8 +197,8 @@ class RolloutLogger:
                     "prompt": tokenizer.decode(rollout.token_ids[:prompt_len], skip_special_tokens=False),
                     "response": tokenizer.decode(rollout.token_ids[prompt_len:], skip_special_tokens=False),
                     "termination_reason": result.termination_reason.value,
-                    "reward": result.reward.reward if result.reward else None,
-                    "reward_info": result.reward.info if result.reward else None,
+                    "reward": result.reward_result.reward if result.reward_result else None,
+                    "reward_info": result.reward_result.info if result.reward_result else None,
                     "metrics": result.metrics,
                 }
             )

@@ -300,7 +300,7 @@ class TestValidateSample:
 
         class RewardCheckEvaluator(Evaluator):
             def validate_sample(self, sample):
-                return sample.result.reward is not None
+                return sample.result.reward_result is not None
 
         call_count = 0
 
@@ -310,7 +310,7 @@ class TestValidateSample:
             reward = RewardResult(reward=1.0) if call_count == 2 else None
             env = MagicMock()
             env.reset = AsyncMock()
-            env.rollout = AsyncMock(return_value=RolloutResult(reward=reward))
+            env.rollout = AsyncMock(return_value=RolloutResult(reward_result=reward))
             env.cleanup = AsyncMock()
             return env
 
@@ -327,7 +327,7 @@ class TestValidateSample:
         valid = [s for s in results["p1"] if not s.aborted]
         assert len(aborted) == 1
         assert len(valid) == 1
-        assert valid[0].result.reward.reward == 1.0
+        assert valid[0].result.reward_result.reward == 1.0
 
 
 # ---------------------------------------------------------------------------
@@ -344,7 +344,7 @@ class TestComputeMetrics:
             env.reset = AsyncMock()
             env.rollout = AsyncMock(
                 return_value=RolloutResult(
-                    reward=RewardResult(reward=1.0),
+                    reward_result=RewardResult(reward=1.0),
                 )
             )
             env.cleanup = AsyncMock()
@@ -410,7 +410,7 @@ class TestPassAtK:
         """Samples with None reward are treated as incorrect."""
         sample = EvalSample(
             task=Task(id="p1_0", message="q", context=TaskContext()),
-            result=RolloutResult(reward=None),
+            result=RolloutResult(reward_result=None),
         )
         result = compute_pass_at_k({"p1": [sample]}, k_values=[1])
         assert result["pass@1"] == 0.0

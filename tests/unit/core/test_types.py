@@ -122,14 +122,14 @@ class TestRolloutResult:
 
     def test_defaults(self):
         result = RolloutResult()
-        assert result.reward is None
+        assert result.reward_result is None
         assert result.termination_reason == TerminationReason.NOT_TERMINATED
 
     def test_with_reward(self):
         reward = RewardResult(reward=1.0, info={"exact_match": True})
-        result = RolloutResult(reward=reward)
-        assert result.reward.reward == 1.0
-        assert result.reward.info["exact_match"] is True
+        result = RolloutResult(reward_result=reward)
+        assert result.reward_result.reward == 1.0
+        assert result.reward_result.info["exact_match"] is True
 
 
 # ---------------------------------------------------------------------------

@@ -149,7 +149,7 @@ class Environment:
         # 4. Compute and time the reward (if any).
         if self.reward_fn:
             reward_t0 = time.perf_counter()
-            result.reward = await self.reward_fn.compute(task, result)
+            result.reward_result = await self.reward_fn.compute(task, result)
             result.metrics["reward_latency_s"] = round(time.perf_counter() - reward_t0, 4)
 
         return result

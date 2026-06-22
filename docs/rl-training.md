@@ -54,7 +54,7 @@ async def generate_and_rm(args, sample: Sample, sampling_params) -> Sample:
         if result.termination_reason.value == "task_complete"
         else Sample.Status.TRUNCATED
     )
-    sample.reward = result.reward.reward
+    sample.reward = result.reward_result.reward
     sample.result = result  # for custom rollout logging
 
     await env.cleanup()

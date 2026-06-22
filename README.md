@@ -66,7 +66,7 @@ result = await env.rollout(Task(
 ))
 
 result.final_response       # "The 10th Fibonacci number is 55"
-result.reward               # {"reward": 1.0, "info": ...}
+result.reward_result        # {"reward": 1.0, "info": ...}
 result.termination_reason   # TerminationReason.TASK_COMPLETE
 ```
 

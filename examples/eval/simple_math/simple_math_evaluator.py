@@ -74,8 +74,8 @@ class SimpleMathEvaluator(Evaluator):
         count = 0
         for samples in results.values():
             for sample in samples:
-                if sample.result.reward:
-                    total_reward += sample.result.reward.reward
+                if sample.result.reward_result:
+                    total_reward += sample.result.reward_result.reward
                     count += 1
         avg = total_reward / count if count > 0 else 0.0
         return {"avg_reward": avg}

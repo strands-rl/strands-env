@@ -114,9 +114,9 @@ async def generate_and_rm(args, sample: Sample, sampling_params) -> Sample:
     await env.cleanup()
 
     # Compute retool reward
-    if result.reward.reward == 0.0:
+    if result.reward_result.reward == 0.0:
         sample.reward = min(-0.6, -1 + (sample.metrics.get("tool_iters", 0) - 2) / 2 * 0.1)
     else:
-        sample.reward = result.reward.reward
+        sample.reward = result.reward_result.reward
 
     return sample

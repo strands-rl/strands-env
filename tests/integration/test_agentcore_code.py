@@ -119,8 +119,8 @@ class TestAgentCoreCodeEnv:
                 ),
             )
             assert result2.termination_reason == TerminationReason.TASK_COMPLETE
-            assert result2.reward is not None
-            assert isinstance(result2.reward.reward, float)
+            assert result2.reward_result is not None
+            assert isinstance(result2.reward_result.reward, float)
         finally:
             await env.cleanup()
 

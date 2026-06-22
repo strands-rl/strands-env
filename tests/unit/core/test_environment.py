@@ -77,7 +77,7 @@ class TestRollout:
 
         assert result.termination_reason == TerminationReason.TASK_COMPLETE
         assert result.metrics["message_count"] == 1
-        assert result.reward is None
+        assert result.reward_result is None
 
     @patch("strands_env.core.environment.Agent")
     async def test_rollout_with_agent_error(self, mock_agent_cls, env):
@@ -106,7 +106,7 @@ class TestRollout:
         result = await env.rollout(task)
 
         reward_fn.compute.assert_awaited_once()
-        assert result.reward.reward == 1.0
+        assert result.reward_result.reward == 1.0
         # Regression: timing must be written via `result.metrics`, not the
         # local `metrics` dict — Pydantic v2 rebuilds the dict at validation, so
         # the local var is decoupled from the model after `RolloutResult(...)`.

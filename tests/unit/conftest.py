@@ -31,7 +31,7 @@ def make_sample(reward: float, idx: int = 0, aborted: bool = False) -> EvalSampl
     """Create an EvalSample with the given reward and optional abort flag."""
     return EvalSample(
         task=Task(id=f"sample_{idx}", message="q", context=TaskContext()),
-        result=RolloutResult(reward=RewardResult(reward=reward)),
+        result=RolloutResult(reward_result=RewardResult(reward=reward)),
         aborted=aborted,
     )
 

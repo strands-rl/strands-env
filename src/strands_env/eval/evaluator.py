@@ -179,8 +179,8 @@ class Evaluator:
             if not self.keep_rollout:
                 result.rollout = None
             # Runtime logging for debugging
-            reward_str = f"{result.reward.reward:.2f}" if result.reward else "N/A"
-            reward_info = result.reward.info if result.reward else {}
+            reward_str = f"{result.reward_result.reward:.2f}" if result.reward_result else "N/A"
+            reward_info = result.reward_result.info if result.reward_result else {}
             logger.info(
                 "[%s]: terminated=%s | reward=%s | label=%s | reward_info=%s | metrics=%s",
                 task.id,

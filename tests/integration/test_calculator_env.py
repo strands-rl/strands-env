@@ -79,9 +79,9 @@ class TestCalculatorEnv:
             Task(message="What is 6 * 7?", context=TaskContext(ground_truth="42")),
         )
 
-        assert result.reward is not None
-        assert isinstance(result.reward.reward, float)
-        assert "matched" in result.reward.info or "reason" in result.reward.info
+        assert result.reward_result is not None
+        assert isinstance(result.reward_result.reward, float)
+        assert "matched" in result.reward_result.info or "reason" in result.reward_result.info
 
     async def test_tool_iteration_limit(self, model_factory):
         """max_tool_iters terminates the agent after the specified number of tool rounds."""

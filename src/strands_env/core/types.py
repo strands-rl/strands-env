@@ -163,7 +163,7 @@ class RolloutResult(BaseModel):
     messages: Messages = Field(default_factory=list)
     rollout: Rollout | None = None
     metrics: dict[str, Any] = Field(default_factory=dict)
-    reward: RewardResult | None = None
+    reward_result: RewardResult | None = None
     termination_reason: TerminationReason = TerminationReason.NOT_TERMINATED
 
     @property

@@ -81,7 +81,7 @@ async def run_demo(
 
         click.echo(f"Termination: {result.termination_reason.value}")
         click.echo(f"Response:    {result.final_response}")
-        click.echo(f"Reward:      {result.reward.reward if result.reward else None}")
+        click.echo(f"Reward:      {result.reward_result.reward if result.reward_result else None}")
         click.echo(f"Metrics:     {result.metrics}")
 
 

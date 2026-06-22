@@ -107,8 +107,8 @@ class TestHarborEnv:
 
         # Reward: test.sh always writes 1 to reward.txt, validating the full pipeline
         # (upload tests → run test.sh → download results → parse reward)
-        assert result.reward is not None
-        assert result.reward.reward == 1.0
+        assert result.reward_result is not None
+        assert result.reward_result.reward == 1.0
 
     async def test_multi_turn_conversation(self, harbor_env):
         """Agent uses conversation history from a prior turn to maintain context."""
