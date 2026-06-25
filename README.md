@@ -65,6 +65,7 @@ result = await env.rollout(Task(
     context=TaskContext(ground_truth="55"),
 ))
 
+result.rollout              # Rollout(token_ids=..., loss_mask=..., ...); token-level rollout if using SGLang backend
 result.final_response       # "The 10th Fibonacci number is 55"
 result.reward_result        # {"reward": 1.0, "info": ...}
 result.termination_reason   # TerminationReason.TASK_COMPLETE
