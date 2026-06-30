@@ -27,12 +27,11 @@ disable the judge with `null`) and set `max_turns` via ``--env-config``:
 
 from __future__ import annotations
 
-import importlib
 from typing import Any
 
 from strands_env.core.models import build_model_factory
 from strands_env.core.types import Task
-from strands_env.environments.tau2_bench import Tau2BenchEnv
+from strands_env.environments.tau2_bench import Tau2BenchEnv, _tau2
 
 #: Default model for the user-simulator and NL-assertion judge (override via ``--env-config``).
 DEFAULT_USER_JUDGE_MODEL_CONFIG = {"backend": "bedrock", "model_id": "us.anthropic.claude-sonnet-4-5-20250929-v1:0"}
@@ -51,8 +50,7 @@ def create_env_factory(model_config: dict, **env_config: Any):
         config = dict(task.context.config)  # type: ignore[attr-defined]
         domain = config["domain"]
         if domain not in initial_db_cache:
-            domain_mod = importlib.import_module(f"tau2.domains.{domain}.environment")
-            initial_db_cache[domain] = domain_mod.get_environment(db=None).tools.db
+            initial_db_cache[domain] = _tau2.build_environment(domain).tools.db
         return Tau2BenchEnv(
             agent_model_factory=agent_model_factory,
             user_model_factory=user_model_factory,

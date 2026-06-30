@@ -21,7 +21,6 @@ by `Tau2BenchUserSimHook` via `AfterInvocationEvent.resume` (strands-agents >= 1
 
 from __future__ import annotations
 
-import importlib
 import logging
 import re
 from copy import deepcopy
@@ -39,6 +38,7 @@ from strands_env.core import Environment, ModelFactory, Task
 from strands_env.core.environment import EnvironmentConfig
 from strands_env.core.types import RewardFunction, RolloutResult
 
+from . import _tau2
 from .reward import Tau2BenchReward
 from .tool import Tau2BenchTool
 
@@ -80,8 +80,7 @@ def _extract_text(agent_result: AgentResult | None) -> str:
 
 def build_tau2_env(domain: str, initial_db: Any, task: Any) -> Any:
     """Build a fresh tau2 domain `Environment` from `initial_db`, applying `task.initial_state` if set."""
-    domain_mod = importlib.import_module(f"tau2.domains.{domain}.environment")
-    tau2_env = domain_mod.get_environment(db=deepcopy(initial_db))
+    tau2_env = _tau2.build_environment(domain, db=deepcopy(initial_db))
     if task.initial_state is not None:
         tau2_env.set_state(
             task.initial_state.initialization_data,
@@ -165,9 +164,7 @@ class Tau2BenchEnv(Environment):
     @override
     async def reset(self) -> None:
         """Build per-episode tau2 environment and prime the user-sim."""
-        from tau2.data_model.tasks import Task as Tau2Task  # type: ignore[import-not-found]
-
-        task_obj = Tau2Task.model_validate(self.task)
+        task_obj = _tau2.Tau2Task.model_validate(self.task)
         tau2_env = build_tau2_env(self.domain, self.initial_db, task_obj)
         self.tau2_env = tau2_env
         self.agent_tools = [Tau2BenchTool(t, tau2_env, "assistant") for t in tau2_env.tools.get_tools().values()]

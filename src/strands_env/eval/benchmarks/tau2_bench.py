@@ -16,9 +16,7 @@
 
 from __future__ import annotations
 
-import importlib
 import logging
-import math
 import os
 import subprocess
 from functools import partial
@@ -28,10 +26,10 @@ from typing import ClassVar, Literal
 from typing_extensions import override
 
 from strands_env.core import Task, TaskContext
-from strands_env.environments.tau2_bench import Tau2BenchConfig
+from strands_env.environments.tau2_bench import Tau2BenchConfig, _tau2
 from strands_env.eval import Evaluator
 from strands_env.eval.evaluator import EvalSample
-from strands_env.eval.metrics import MetricFunction, compute_pass_at_k
+from strands_env.eval.metrics import MetricFunction, compute_pass_at_k, compute_pass_power_k
 
 from ..registry import register_eval
 
@@ -39,33 +37,7 @@ from ..registry import register_eval
 DATA_DIR = Path("./data/tau2-bench")
 os.environ.setdefault("TAU2_DATA_DIR", str((DATA_DIR / "data").resolve()))
 
-from tau2.user.user_simulator import get_global_user_sim_guidelines  # type: ignore[import-not-found]  # noqa: E402
-
 logger = logging.getLogger(__name__)
-
-
-def compute_pass_caret_k(
-    results: dict[str, list[EvalSample]],
-    k_values: list[int],
-    reward_threshold: float = 1.0,
-) -> dict[str, float]:
-    """Consistency metric ``pass^k = C(c, k) / C(n, k)`` averaged across prompts."""
-
-    def is_correct(s: EvalSample) -> bool:
-        r = s.result.reward_result
-        return r is not None and r.reward >= reward_threshold
-
-    metrics = {}
-    for k in k_values:
-        scores = []
-        for samples in results.values():
-            n = len(samples)
-            c = sum(1 for s in samples if is_correct(s))
-            if k > n:  # keep: math.comb(n, k) would be 0 here and divide by zero
-                continue
-            scores.append(math.comb(c, k) / math.comb(n, k))
-        metrics[f"pass^{k}"] = sum(scores) / len(scores) if scores else 0.0
-    return metrics
 
 
 class Tau2BenchTaskContext(TaskContext):
@@ -98,9 +70,8 @@ class Tau2BenchEvaluator(Evaluator):
         """Enumerate tasks for `self.domain` and bundle statics into each Task."""
         if not self.data_dir.exists():
             self._download_dataset()
-        domain_mod = importlib.import_module(f"tau2.domains.{self.domain}.environment")
-        tasks = [task.model_dump(mode="json") for task in domain_mod.get_tasks(task_split_name="base")]
-        user_sim_guidelines = get_global_user_sim_guidelines(use_tools=self.user_has_tools)
+        tasks = [task.model_dump(mode="json") for task in _tau2.get_tasks(self.domain)]
+        user_sim_guidelines = _tau2.user_sim_guidelines(use_tools=self.user_has_tools)
         return [
             Task(
                 id=str(task["id"]),
@@ -136,7 +107,7 @@ class Tau2BenchEvaluator(Evaluator):
         k_values = list(range(1, self.n_samples_per_prompt + 1))
         return [
             partial(compute_pass_at_k, k_values=k_values, reward_threshold=1.0),
-            partial(compute_pass_caret_k, k_values=k_values, reward_threshold=1.0),
+            partial(compute_pass_power_k, k_values=k_values, reward_threshold=1.0),
         ]
 
 

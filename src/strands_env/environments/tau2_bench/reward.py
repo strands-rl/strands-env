@@ -17,19 +17,21 @@
 from __future__ import annotations
 
 import logging
+import math
 from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
 from strands.models import Model
 from strands.types.content import Message
-from tau2.data_model.tasks import RewardType
-from tau2.data_model.tasks import Task as Tau2Task
 from typing_extensions import override
 
 from strands_env.core.llm_judge_reward import LLMJudgeReward
 from strands_env.core.types import RewardFunction, RewardResult, RolloutResult, Task
 
+from . import _tau2
+
 if TYPE_CHECKING:
+    from ._tau2 import Tau2Task
     from .env import Tau2BenchEnv
 
 logger = logging.getLogger(__name__)
@@ -95,7 +97,7 @@ class Tau2BenchNLAssertionReward(LLMJudgeReward[NLJudgment]):
 
     @override
     async def get_judge_prompt(self, task: Task, result: RolloutResult) -> str:
-        tau2_task = Tau2Task.model_validate(self._env.task)
+        tau2_task = _tau2.Tau2Task.model_validate(self._env.task)
         assertions = list(tau2_task.evaluation_criteria.nl_assertions or [])
         messages = list(task.context.conversation_history) + list(result.messages)
         lines = []
@@ -126,40 +128,37 @@ class Tau2BenchReward(RewardFunction):
 
     @override
     async def compute(self, task: Task, result: RolloutResult) -> RewardResult:
-
         # tau2 only scores cleanly-stopped episodes; a premature end (e.g. `max_turns`) scores 0.
         termination = self._env.user_sim_hook.termination if self._env.user_sim_hook is not None else None
         if termination not in CLEAN_TERMINATIONS:
             return RewardResult(reward=0.0, info={"note": f"premature termination: {termination}"})
 
-        tau2_task = Tau2Task.model_validate(self._env.task)
+        reward_type = _tau2.RewardType
+        tau2_task = _tau2.Tau2Task.model_validate(self._env.task)
         basis_raw = tau2_task.evaluation_criteria.reward_basis
-        basis = set(basis_raw) if basis_raw is not None else {RewardType.DB, RewardType.COMMUNICATE}
+        basis = set(basis_raw) if basis_raw is not None else {reward_type.DB, reward_type.COMMUNICATE}
         messages = list(task.context.conversation_history) + list(result.messages)
 
-        sub: dict[str, float] = {}
+        sub_rewards: dict[str, float] = {}
         nl_judge_info: dict[str, Any] | None = None
-        if RewardType.DB in basis:
-            sub["db"] = _db_reward(self._env, tau2_task)
-        if RewardType.ENV_ASSERTION in basis:
-            sub["env_assertion"] = _env_assertion_reward(self._env, tau2_task)
-        if RewardType.ACTION in basis:
-            sub["action"] = _action_reward(self._env, messages, tau2_task)
-        if RewardType.COMMUNICATE in basis:
-            sub["communicate"] = _communicate_reward(messages, tau2_task)
-        if RewardType.NL_ASSERTION in basis:
-            sub["nl_assertion"], nl_judge_info = await self._nl_assertion_reward(task, result, tau2_task)
+        if reward_type.DB in basis:
+            sub_rewards["db"] = _db_reward(self._env, tau2_task)
+        if reward_type.ENV_ASSERTION in basis:
+            sub_rewards["env_assertion"] = _env_assertion_reward(self._env, tau2_task)
+        if reward_type.ACTION in basis:
+            sub_rewards["action"] = _action_reward(self._env, messages, tau2_task)
+        if reward_type.COMMUNICATE in basis:
+            sub_rewards["communicate"] = _communicate_reward(messages, tau2_task)
+        if reward_type.NL_ASSERTION in basis:
+            sub_rewards["nl_assertion"], nl_judge_info = await self._nl_assertion_reward(task, result, tau2_task)
 
-        reward = 1.0
-        for v in sub.values():
-            reward *= v
         info: dict[str, Any] = {
-            "sub_rewards": sub,
+            "sub_rewards": sub_rewards,
             "reward_basis": [b.value for b in basis],
         }
         if nl_judge_info is not None:
             info["nl_judge"] = nl_judge_info
-        return RewardResult(reward=reward, info=info)
+        return RewardResult(reward=math.prod(sub_rewards.values()), info=info)
 
     async def _nl_assertion_reward(
         self, task: Task, result: RolloutResult, tau2_task: Tau2Task
@@ -202,16 +201,14 @@ def _env_assertion_reward(env: Tau2BenchEnv, tau2_task: Tau2Task) -> float:
     )
 
 
-def _action_reward(env: Tau2BenchEnv, messages: list[Message], tau2_task: Any) -> float:
+def _action_reward(env: Tau2BenchEnv, messages: list[Message], tau2_task: Tau2Task) -> float:
     """Return 1.0 iff every golden action is matched by some tool_use across agent + user-sim messages."""
-    from tau2.data_model.message import ToolCall  # type: ignore[import-not-found]
-
     golden = tau2_task.evaluation_criteria.actions or []
     if not golden:
         return 1.0
     all_messages = messages + (env.user_sim.messages if env.user_sim is not None else [])
     tool_calls = [
-        ToolCall(id=b["toolUse"]["toolUseId"], name=b["toolUse"]["name"], arguments=b["toolUse"]["input"])
+        _tau2.ToolCall(id=b["toolUse"]["toolUseId"], name=b["toolUse"]["name"], arguments=b["toolUse"]["input"])
         for m in all_messages
         if m.get("role") == "assistant"
         for b in m.get("content", [])
