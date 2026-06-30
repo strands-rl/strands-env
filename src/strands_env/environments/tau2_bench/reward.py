@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Any
 from pydantic import BaseModel
 from strands.models import Model
 from strands.types.content import Message
+from tau2.data_model.tasks import RewardType
 from tau2.data_model.tasks import Task as Tau2Task
 from typing_extensions import override
 
@@ -125,8 +126,6 @@ class Tau2BenchReward(RewardFunction):
 
     @override
     async def compute(self, task: Task, result: RolloutResult) -> RewardResult:
-        from tau2.data_model.tasks import RewardType  # type: ignore
-        from tau2.data_model.tasks import Task as Tau2Task  # type: ignore
 
         # tau2 only scores cleanly-stopped episodes; a premature end (e.g. `max_turns`) scores 0.
         termination = self._env.user_sim_hook.termination if self._env.user_sim_hook is not None else None
