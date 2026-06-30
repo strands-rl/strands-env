@@ -68,3 +68,27 @@ def compute_pass_at_k(
         metrics[f"pass@{k}"] = sum(scores) / len(scores) if scores else 0.0
 
     return metrics
+
+
+def compute_pass_power_k(
+    results: dict[str, list[EvalSample]],
+    k_values: list[int],
+    reward_threshold: float = 1.0,
+) -> dict[str, float]:
+    """Consistency metric `pass^k = C(c, k) / C(n, k)` averaged across prompts."""
+
+    def is_correct(s: EvalSample) -> bool:
+        r = s.result.reward_result
+        return r is not None and r.reward >= reward_threshold
+
+    metrics = {}
+    for k in k_values:
+        scores = []
+        for samples in results.values():
+            n = len(samples)
+            c = sum(1 for s in samples if is_correct(s))
+            if k > n:  # keep: math.comb(n, k) would be 0 here and divide by zero
+                continue
+            scores.append(math.comb(c, k) / math.comb(n, k))
+        metrics[f"pass^{k}"] = sum(scores) / len(scores) if scores else 0.0
+    return metrics
