@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Any
 from pydantic import BaseModel
 from strands.models import Model
 from strands.types.content import Message
+from tau2.data_model.tasks import Task as Tau2Task
 from typing_extensions import override
 
 from strands_env.core.llm_judge_reward import LLMJudgeReward
@@ -32,19 +33,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-
-class NLAssertion(BaseModel):
-    """One NL-assertion judgment; field names mirror tau2's JSON shape."""
-
-    expectedOutcome: str  # noqa: N815
-    reasoning: str
-    metExpectation: bool  # noqa: N815
-
-
-class NLJudgment(BaseModel):
-    """Mirrors tau2's expected JSON wrapper: ``{"results": [...]}``."""
-
-    results: list[NLAssertion]
+#: Terminations tau2 treats as a clean stop; any other end (e.g. `max_turns`) scores 0.
+CLEAN_TERMINATIONS = frozenset({"agent_stop", "user_stop"})
 
 
 #: Verbatim system prompt from tau2's `evaluator_nl_assertions.py`.
@@ -74,6 +64,24 @@ Example response structure:
 """.strip()
 
 
+class NLAssertion(BaseModel):
+    """One NL-assertion judgment.
+
+    Fields are camelCase (hence `noqa: N815`) to match the JSON keys tau2's judge prompt asks the
+    model to emit; their meaning lives in `NL_JUDGE_SYSTEM_PROMPT`, not in per-field `Field` descriptions.
+    """
+
+    expectedOutcome: str  # noqa: N815
+    reasoning: str
+    metExpectation: bool  # noqa: N815
+
+
+class NLJudgment(BaseModel):
+    """Mirrors tau2's expected JSON wrapper: ``{"results": [...]}``."""
+
+    results: list[NLAssertion]
+
+
 class Tau2BenchNLAssertionReward(LLMJudgeReward[NLJudgment]):
     """LLM-judged NL_ASSERTION sub-reward; byte-aligned with tau2's prompt/schema."""
 
@@ -86,8 +94,6 @@ class Tau2BenchNLAssertionReward(LLMJudgeReward[NLJudgment]):
 
     @override
     async def get_judge_prompt(self, task: Task, result: RolloutResult) -> str:
-        from tau2.data_model.tasks import Task as Tau2Task  # type: ignore[import-not-found]
-
         tau2_task = Tau2Task.model_validate(self._env.task)
         assertions = list(tau2_task.evaluation_criteria.nl_assertions or [])
         messages = list(task.context.conversation_history) + list(result.messages)
@@ -122,6 +128,11 @@ class Tau2BenchReward(RewardFunction):
         from tau2.data_model.tasks import RewardType  # type: ignore
         from tau2.data_model.tasks import Task as Tau2Task  # type: ignore
 
+        # tau2 only scores cleanly-stopped episodes; a premature end (e.g. `max_turns`) scores 0.
+        termination = self._env.user_sim_hook.termination if self._env.user_sim_hook is not None else None
+        if termination not in CLEAN_TERMINATIONS:
+            return RewardResult(reward=0.0, info={"note": f"premature termination: {termination}"})
+
         tau2_task = Tau2Task.model_validate(self._env.task)
         basis_raw = tau2_task.evaluation_criteria.reward_basis
         basis = set(basis_raw) if basis_raw is not None else {RewardType.DB, RewardType.COMMUNICATE}
@@ -152,7 +163,7 @@ class Tau2BenchReward(RewardFunction):
         return RewardResult(reward=reward, info=info)
 
     async def _nl_assertion_reward(
-        self, task: Task, result: RolloutResult, tau2_task: Any
+        self, task: Task, result: RolloutResult, tau2_task: Tau2Task
     ) -> tuple[float, dict[str, Any] | None]:
         """Return the NL_ASSERTION sub-reward and the judge's `info` (None when not judged).
 
@@ -167,7 +178,7 @@ class Tau2BenchReward(RewardFunction):
         return nl_result.reward, nl_result.info
 
 
-def _db_reward(env: Tau2BenchEnv, tau2_task: Any) -> float:
+def _db_reward(env: Tau2BenchEnv, tau2_task: Tau2Task) -> float:
     """Return 1.0 iff the agent+user DB hashes match a golden env built by replaying `tau2_task.actions` on a fresh DB."""
     from .env import build_tau2_env
 
@@ -182,7 +193,7 @@ def _db_reward(env: Tau2BenchEnv, tau2_task: Any) -> float:
     )
 
 
-def _env_assertion_reward(env: Tau2BenchEnv, tau2_task: Any) -> float:
+def _env_assertion_reward(env: Tau2BenchEnv, tau2_task: Tau2Task) -> float:
     """Return 1.0 iff every `tau2_task.env_assertions` holds against the live post-episode env (telecom only)."""
     return float(
         all(
@@ -210,7 +221,7 @@ def _action_reward(env: Tau2BenchEnv, messages: list[Message], tau2_task: Any) -
     return float(all(any(g.compare_with_tool_call(tc) for tc in tool_calls) for g in golden))
 
 
-def _communicate_reward(messages: list[Message], tau2_task: Any) -> float:
+def _communicate_reward(messages: list[Message], tau2_task: Tau2Task) -> float:
     """Return 1.0 iff each required info string appears in some assistant message (per-message search)."""
     required = tau2_task.evaluation_criteria.communicate_info or []
     if not required:
