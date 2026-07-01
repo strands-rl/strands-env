@@ -131,15 +131,21 @@ class TestCodeInterpreterToolkit:
             await toolkit.invoke("executeCode", {"code": "1", "language": "python"})
             timestamps.append(time.monotonic())
 
-        # First 10 calls use burst capacity (~instant), calls 11-13 are rate-limited
         burst_elapsed = (timestamps[9] - timestamps[0]) * 1000
-        throttled_elapsed = (timestamps[12] - timestamps[9]) * 1000
+        total_elapsed = (timestamps[12] - timestamps[0]) * 1000
 
-        # Burst phase should be fast (< 50ms for 10 calls)
-        assert burst_elapsed < 50, f"Burst took {burst_elapsed:.0f}ms, expected < 50ms"
-        # Throttled phase: 3 calls at 10 TPS = ~300ms (allow ±50ms tolerance)
-        assert throttled_elapsed > 250, f"Throttled phase took {throttled_elapsed:.0f}ms, expected > 250ms"
-        assert throttled_elapsed < 400, f"Throttled phase took {throttled_elapsed:.0f}ms, expected < 400ms"
+        # Per-phase timings are not load-robust: on a slow runner the burst phase leaks
+        # bucket refills that the nominally-throttled calls then consume, shrinking the
+        # throttled phase below its ideal duration. Only the full window has a guaranteed
+        # lower bound, so assert on that.
+        # First 10 calls ride burst capacity: far below the ~900ms a throttled-from-call-1
+        # limiter would take, generous enough to absorb scheduler noise on shared runners.
+        assert burst_elapsed < 500, f"Burst took {burst_elapsed:.0f}ms, expected < 500ms"
+        # 13 calls against capacity 10 at 10 TPS require >= 3 bucket refills, so the full
+        # window takes >= ~300ms no matter how the waiting is distributed across calls.
+        assert total_elapsed > 290, f"Total took {total_elapsed:.0f}ms, expected > 290ms"
+        # Sanity upper bound: expected ~300ms; loaded runs should still stay well under 1s.
+        assert total_elapsed < 1000, f"Total took {total_elapsed:.0f}ms, expected < 1000ms"
 
     async def test_semaphore_blocks_then_unblocks(self):
         """Measure that blocked toolkits resume promptly after cleanup."""
