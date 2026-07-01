@@ -25,7 +25,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field
 from strands.types.content import Message, Messages
 from strands.types.exceptions import ContextWindowOverflowException, EventLoopException, MaxTokensReachedException
-from strands_sglang import MaxToolCallsReachedError, MaxToolIterationsReachedError, Rollout
+from strands_sglang import MaxMessagesReachedError, MaxToolCallsReachedError, MaxToolIterationsReachedError, Rollout
 
 logger = logging.getLogger(__name__)
 
@@ -89,6 +89,7 @@ class TerminationReason(str, Enum):
     CONTEXT_WINDOW_OVERFLOW = "context_window_overflow"
     MAX_TOOL_ITERATIONS_REACHED = "max_tool_iterations_reached"
     MAX_TOOL_CALLS_REACHED = "max_tool_calls_reached"
+    MAX_MESSAGES_REACHED = "max_messages_reached"
     RECURSION_DEPTH_EXCEEDED = "recursion_depth_exceeded"
     TIMEOUT = "timeout"
     CONNECTION_ERROR = "connection_error"
@@ -139,6 +140,8 @@ class TerminationReason(str, Enum):
                 reason = cls.MAX_TOOL_ITERATIONS_REACHED
             case MaxToolCallsReachedError():
                 reason = cls.MAX_TOOL_CALLS_REACHED
+            case MaxMessagesReachedError():
+                reason = cls.MAX_MESSAGES_REACHED
             case RecursionError():
                 reason = cls.RECURSION_DEPTH_EXCEEDED
             case e if cls._is_timeout(e):

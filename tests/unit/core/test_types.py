@@ -19,7 +19,7 @@ from strands.types.exceptions import (
     EventLoopException,
     MaxTokensReachedException,
 )
-from strands_sglang import MaxToolCallsReachedError, MaxToolIterationsReachedError
+from strands_sglang import MaxMessagesReachedError, MaxToolCallsReachedError, MaxToolIterationsReachedError
 
 from strands_env.core.types import (
     RewardResult,
@@ -150,6 +150,11 @@ class TestTerminationReason:
         error = EventLoopException(Exception())
         error.__cause__ = MaxToolCallsReachedError(5)
         assert TerminationReason.from_error(error) == TerminationReason.MAX_TOOL_CALLS_REACHED
+
+    def test_max_messages(self):
+        error = EventLoopException(Exception())
+        error.__cause__ = MaxMessagesReachedError(20)
+        assert TerminationReason.from_error(error) == TerminationReason.MAX_MESSAGES_REACHED
 
     def test_max_tokens(self):
         error = EventLoopException(Exception())

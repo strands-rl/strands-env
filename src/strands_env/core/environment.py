@@ -48,10 +48,12 @@ class EnvironmentConfig(TypedDict, total=False):
     """Serializable configuration for `Environment`."""
 
     system_prompt: str | None
-    # default tool limiting hook's config
+    # loop limiting config
     max_tool_iters: int | None
     max_tool_calls: int | None
     max_parallel_tool_calls: int | None
+    # bounds messages added during the rollout (preloaded conversation history is not counted)
+    max_messages: int | None
     # otel tracing
     trace_attributes: dict[str, AttributeValue] | None
     agent_name: str | None
@@ -80,6 +82,7 @@ class Environment:
         self.max_tool_iters: int | None = self.config.get("max_tool_iters")
         self.max_tool_calls: int | None = self.config.get("max_tool_calls")
         self.max_parallel_tool_calls: int | None = self.config.get("max_parallel_tool_calls")
+        self.max_messages: int | None = self.config.get("max_messages")
         self.verbose: bool = self.config.get("verbose", False)
         self.system_prompt: str | None = self.config.get("system_prompt") or (
             self.default_system_prompt_path.read_text().strip()
@@ -109,6 +112,7 @@ class Environment:
             max_tool_iters=self.max_tool_iters,
             max_tool_calls=self.max_tool_calls,
             max_parallel_tool_calls=self.max_parallel_tool_calls,
+            max_messages=self.max_messages,
         )
         model = self.model_factory()
         agent = Agent(

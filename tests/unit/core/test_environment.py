@@ -159,6 +159,20 @@ class TestRollout:
         assert "tool_calls" in result.metrics
         assert "cancelled_tool_calls" in result.metrics
 
+    @patch("strands_env.core.environment.Agent")
+    async def test_limiter_config_wired_to_hook(self, mock_agent_cls, model_factory):
+        """Limiter config keys reach the LoopLimiter hook passed to the Agent."""
+        mock_agent_cls.return_value = mock_agent(
+            messages=[{"role": "assistant", "content": [{"text": "done"}]}],
+        )
+        env = Environment(model_factory=model_factory, max_tool_iters=3, max_messages=7)
+
+        await env.rollout(Task(message="test"))
+
+        limiter = mock_agent_cls.call_args.kwargs["hooks"][0]
+        assert limiter.max_tool_iters == 3
+        assert limiter.max_messages == 7
+
 
 # ---------------------------------------------------------------------------
 # compute_metrics()
