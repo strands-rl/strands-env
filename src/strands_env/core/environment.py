@@ -27,7 +27,7 @@ from strands import Agent
 from strands.agent.conversation_manager import ConversationManager, NullConversationManager
 from strands.handlers.callback_handler import PrintingCallbackHandler
 from strands.telemetry.metrics import EventLoopMetrics
-from strands_sglang import ToolLimiter
+from strands_sglang import LoopLimiter
 from typing_extensions import TypedDict, Unpack
 
 from .models import ModelFactory
@@ -105,7 +105,7 @@ class Environment:
         """Run one agent rollout and return its trajectory, reward, and termination reason."""
         # 1. Build inputs and the agent.
         conversation_history = task.context.conversation_history
-        tool_limiter = ToolLimiter(
+        limiter = LoopLimiter(
             max_tool_iters=self.max_tool_iters,
             max_tool_calls=self.max_tool_calls,
             max_parallel_tool_calls=self.max_parallel_tool_calls,
@@ -116,7 +116,7 @@ class Environment:
             messages=list(conversation_history),
             tools=list(self.get_tools()),
             system_prompt=self.system_prompt,
-            hooks=[tool_limiter] + list(self.get_hooks()),
+            hooks=[limiter] + list(self.get_hooks()),
             conversation_manager=self.get_conversation_manager(),
             callback_handler=PrintingCallbackHandler() if self.verbose else None,
             trace_attributes=self.trace_attributes or None,
@@ -137,9 +137,9 @@ class Environment:
         tool_parse_errors = getattr(agent.model, "tool_parse_errors", None)
         metrics = {
             "message_count": len(new_messages),
-            "tool_iters": tool_limiter.tool_iter_count,
-            "tool_calls": tool_limiter.tool_call_count,
-            "cancelled_tool_calls": tool_limiter.cancelled_tool_call_count,
+            "tool_iters": limiter.tool_iter_count,
+            "tool_calls": limiter.tool_call_count,
+            "cancelled_tool_calls": limiter.cancelled_tool_call_count,
             **self.compute_metrics(agent.event_loop_metrics, tool_parse_errors=tool_parse_errors),
         }
         result = RolloutResult(
