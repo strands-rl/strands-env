@@ -21,14 +21,18 @@ by `Tau2BenchUserSimulator` via `AfterInvocationEvent.resume` (strands-agents >=
 
 from __future__ import annotations
 
+import logging
+import time
 from typing import TYPE_CHECKING, Any, Literal
 
 from strands.telemetry.metrics import EventLoopMetrics
+from strands.types.content import Message
+from strands_sglang import LoopLimiter
 from typing_extensions import NotRequired, Unpack, override
 
 from strands_env.core import Environment, ModelFactory, Task
 from strands_env.core.environment import EnvironmentConfig
-from strands_env.core.types import RewardFunction, RolloutResult, TerminationReason
+from strands_env.core.types import RolloutResult, TerminationReason
 
 from . import _tau2
 from .reward import Tau2BenchReward
@@ -36,7 +40,9 @@ from .simulator import Tau2BenchTerminationReason, Tau2BenchUserSimulator
 from .tool import Tau2BenchTool
 
 if TYPE_CHECKING:
-    from ._tau2 import Tau2Task
+    from ._tau2 import Tau2Environment, Tau2Task
+
+logger = logging.getLogger(__name__)
 
 #: Verbatim tau2 agent system prompt (`llm_agent.py`: SYSTEM_PROMPT with AGENT_INSTRUCTION
 #: inlined) — do not edit without diffing against upstream; prompt fidelity is score fidelity.
@@ -61,11 +67,15 @@ class Tau2BenchConfig(EnvironmentConfig):
 
     domain: Literal["airline", "retail", "telecom"]
     tau2_task: dict[str, Any]  # parsed via `Tau2Task.model_validate`
-    max_steps: NotRequired[int]
+    max_steps: NotRequired[int]  # tau2-style step budget: total message count across agent and user-sim
 
 
 class Tau2BenchEnv(Environment):
-    """tau2-bench env: thin wrapper; multi-turn driven by `Tau2BenchUserSimulator`."""
+    """Tau2-bench environment with user-simulator driving the multi-turn dialogue."""
+
+    tau2_task: Tau2Task
+    tau2_env: Tau2Environment
+    user_simulator: Tau2BenchUserSimulator
 
     def __init__(
         self,
@@ -77,40 +87,34 @@ class Tau2BenchEnv(Environment):
     ):
         """Initialize a `Tau2BenchEnv` instance."""
         super().__init__(model_factory=agent_model_factory, reward_fn=None, **config)  # type: ignore[misc]
-        self.user_model_factory = user_model_factory
-        self.domain: Literal["airline", "retail", "telecom"] = self.config["domain"]
-        self.tau2_task: Tau2Task = _tau2.Tau2Task.model_validate(self.config["tau2_task"])
-        self.max_steps: int = self.config.get("max_steps", 100)
 
-        # Populated by `reset()`.
-        self.tau2_env: Any = None
-        self.user_simulator: Tau2BenchUserSimulator | None = None
+        self.domain: Literal["airline", "retail", "telecom"] = self.config["domain"]
+        self.max_steps: int = self.config.get("max_steps", 100)
+        self.user_model_factory = user_model_factory
         self.agent_tools: list = []
         self.user_tools: list = []
-        self.first_user_msg: str = ""
 
-        self.reward_fn = Tau2BenchReward(
-            env=self,
-            judge_model=judge_model_factory() if judge_model_factory else None,
-        )
+        judge_model = judge_model_factory() if judge_model_factory else None
+        self.reward_fn: Tau2BenchReward = Tau2BenchReward(env=self, judge_model=judge_model)
 
     @override
     async def reset(self) -> None:
-        """Build per-episode tau2 environment and prime the user-sim."""
-        tau2_env = _tau2.build_task_environment(self.domain, self.tau2_task)
-        self.tau2_env = tau2_env
-        self.agent_tools = [Tau2BenchTool(t, tau2_env, "assistant") for t in tau2_env.tools.get_tools().values()]
+        """Build the tau2 environment based on the task config."""
+        self.tau2_task = _tau2.Tau2Task.model_validate(self.config["tau2_task"])
+        self.tau2_env = _tau2.build_task_environment(self.domain, self.tau2_task)
+        self.system_prompt = SYSTEM_PROMPT_TEMPLATE.format(
+            domain_policy=self.tau2_env.policy,
+        )
+        self.agent_tools = [
+            Tau2BenchTool(t, self.tau2_env, "assistant") for t in self.tau2_env.tools.get_tools().values()
+        ]
         self.user_tools = (
             [
-                Tau2BenchTool(t, tau2_env, "user")
-                for t in tau2_env.user_tools.get_tools(include=self.tau2_task.user_tools).values()
+                Tau2BenchTool(t, self.tau2_env, "user")
+                for t in self.tau2_env.user_tools.get_tools(include=self.tau2_task.user_tools).values()
             ]
-            if tau2_env.user_tools
+            if self.tau2_env.user_tools
             else []
-        )
-
-        self.system_prompt = SYSTEM_PROMPT_TEMPLATE.format(
-            domain_policy=tau2_env.policy,
         )
         self.user_simulator = Tau2BenchUserSimulator(
             model=self.user_model_factory(),
@@ -119,30 +123,43 @@ class Tau2BenchEnv(Environment):
             max_steps=self.max_steps,
             verbose=self.verbose,
         )
-        # User-sim's reply to the canned greeting seeds the agent's first invoke;
-        # subsequent turns flow through `Tau2BenchUserSimulator` via `event.resume`.
-        self.first_user_msg = await self.user_simulator.first_message()
 
     @override
     async def rollout(self, task: Task) -> RolloutResult:
-        """Inject `first_user_msg` and the canned greeting history into the task."""
-        task.message = self.first_user_msg
+        """Seed the greeting exchange into the task, then run the episode."""
+        # task prompt is simulated by the user simulator
+        task.message = await self.user_simulator.first_message()
         task.context.conversation_history = [
-            {"role": "assistant", "content": [{"text": Tau2BenchUserSimulator.DEFAULT_FIRST_AGENT_MESSAGE}]}
+            Message(role="assistant", content=[{"text": Tau2BenchUserSimulator.GREETING_MESSAGE}])
         ]
-        # The user may end the dialogue already in reply to the greeting (e.g. an
-        # out-of-scope scenario) — mirror tau2's USER_STOP on the first step and skip
-        # the assistant agent entirely.
-        if self.user_simulator is not None and self.user_simulator.termination is Tau2BenchTerminationReason.USER_STOP:
+
+        # if the user stopped the dialogue after the greeting, skip the rollout
+        if self.user_simulator.termination is Tau2BenchTerminationReason.USER_STOP:
             result = RolloutResult(
-                messages=[{"role": "user", "content": [{"text": self.first_user_msg}]}],
-                metrics={"message_count": 1, **self.compute_metrics(EventLoopMetrics())},
+                messages=[{"role": "user", "content": [{"text": task.message}]}],
+                # A fresh limiter reports the truth: the agent loop processed nothing
+                metrics=self.compute_metrics(event_loop_metrics=EventLoopMetrics(), loop_limiter=LoopLimiter()),
                 termination_reason=TerminationReason.TASK_COMPLETE,
             )
-            if self.reward_fn:
-                result.reward_result = await self.reward_fn.compute(task, result)
-            return result
-        return await super().rollout(task)
+            reward_t0 = time.perf_counter()
+            result.reward_result = await self.reward_fn.compute(task, result)
+            result.metrics["reward_latency_s"] = round(time.perf_counter() - reward_t0, 4)
+            logger.warning("user ended the dialogue at greeting (%s...)", task.message[:80])
+        # otherwise, run the rollout normally (computes the reward itself)
+        else:
+            result = await super().rollout(task)
+
+        # both paths report the user-simulator's side of the episode
+        result.metrics["user_simulator"] = {
+            "termination": self.user_simulator.termination,
+            "messages": list(self.user_simulator.agent.messages),
+            **self.compute_metrics(
+                event_loop_metrics=self.user_simulator.agent.event_loop_metrics,
+                loop_limiter=self.user_simulator.limiter,
+                tool_parse_errors=getattr(self.user_simulator.agent.model, "tool_parse_errors", None),
+            ),
+        }
+        return result
 
     @override
     def get_tools(self) -> list:
@@ -152,25 +169,4 @@ class Tau2BenchEnv(Environment):
     @override
     def get_hooks(self) -> list:
         """Return the user simulator driving the multi-turn dialogue."""
-        return [self.user_simulator] if self.user_simulator is not None else []
-
-    @override
-    def compute_metrics(
-        self,
-        event_loop_metrics: EventLoopMetrics,
-        tool_parse_errors: dict[str, int] | None = None,
-    ) -> dict[str, Any]:
-        """Agent metrics plus tau2 termination and a `user_sim` sub-dict."""
-        metrics = super().compute_metrics(event_loop_metrics, tool_parse_errors)
-        if self.user_simulator is not None:
-            metrics["tau2_termination"] = self.user_simulator.termination
-            sim_agent = self.user_simulator.agent
-            metrics["user_sim"] = {
-                "messages": list(sim_agent.messages),
-                "message_count": len(sim_agent.messages),
-                **super().compute_metrics(
-                    sim_agent.event_loop_metrics,
-                    tool_parse_errors=getattr(sim_agent.model, "tool_parse_errors", None),
-                ),
-            }
-        return metrics
+        return [self.user_simulator]

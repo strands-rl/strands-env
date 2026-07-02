@@ -40,6 +40,7 @@ if TYPE_CHECKING:
 __all__ = [
     "RewardType",
     "Tau2Task",
+    "Tau2Environment",
     "Tool",
     "ToolCall",
     "build_environment",

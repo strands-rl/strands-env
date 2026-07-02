@@ -107,7 +107,7 @@ class TestFirstMessage:
         sim.agent.invoke_async.return_value = _agent_result("Hi, I need a flight to Tokyo.")
         text = await sim.first_message()
         assert text == "Hi, I need a flight to Tokyo."
-        sim.agent.invoke_async.assert_awaited_once_with(Tau2BenchUserSimulator.DEFAULT_FIRST_AGENT_MESSAGE)
+        sim.agent.invoke_async.assert_awaited_once_with(Tau2BenchUserSimulator.GREETING_MESSAGE)
         assert sim.termination is Tau2BenchTerminationReason.ABORTED
 
     async def test_stop_marker_sets_user_stop(self, sim):

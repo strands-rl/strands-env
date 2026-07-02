@@ -17,6 +17,7 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from strands_sglang import LoopLimiter
 
 from strands_env.core.environment import Environment
 from strands_env.core.types import (
@@ -76,7 +77,7 @@ class TestRollout:
         result = await env.rollout(task)
 
         assert result.termination_reason == TerminationReason.TASK_COMPLETE
-        assert result.metrics["message_count"] == 1
+        assert len(result.messages) == 1
         assert result.reward_result is None
 
     @patch("strands_env.core.environment.Agent")
@@ -143,7 +144,7 @@ class TestRollout:
         task = Task(message="msg2", context=TaskContext(conversation_history=history))
         result = await env.rollout(task)
 
-        assert result.metrics["message_count"] == 2
+        assert len(result.messages) == 2
         assert result.messages == new_messages
 
     @patch("strands_env.core.environment.Agent")
@@ -197,7 +198,7 @@ class TestComputeMetrics:
         metrics.agent_invocations[0].cycles = cycles
         metrics.cycle_durations = [0.8, 0.9, 0.8]
 
-        result = env.compute_metrics(metrics)
+        result = env.compute_metrics(metrics, LoopLimiter())
 
         assert result["model_calls"] == 3
         assert result["input_tokens"]["total"] == 100
@@ -217,7 +218,7 @@ class TestComputeMetrics:
         metrics.cycle_durations = [0.5]
         metrics.tool_metrics = {"calculator": tool_metric}
 
-        result = env.compute_metrics(metrics, tool_parse_errors={"calculator": 2})
+        result = env.compute_metrics(metrics, LoopLimiter(), tool_parse_errors={"calculator": 2})
 
         assert result["per_tool_metrics"]["calculator"]["calls"] == 5
         assert result["per_tool_metrics"]["calculator"]["successes"] == 4
@@ -233,7 +234,7 @@ class TestComputeMetrics:
         metrics.agent_invocations[0].cycles = cycles
         metrics.cycle_durations = [0.5]
 
-        result = env.compute_metrics(metrics)
+        result = env.compute_metrics(metrics, LoopLimiter())
 
         assert result["cache_hit_rate"] == pytest.approx(0.4)
         assert result["cache_read_input_tokens"]["total"] == 40
@@ -246,7 +247,7 @@ class TestComputeMetrics:
         metrics.agent_invocations[0].cycles = cycles
         metrics.cycle_durations = [0.5]
 
-        result = env.compute_metrics(metrics)
+        result = env.compute_metrics(metrics, LoopLimiter())
 
         # any(cache_read_counts) is False when all are 0 → no summary
         assert result["cache_read_input_tokens"] is None
@@ -258,7 +259,7 @@ class TestComputeMetrics:
         metrics.agent_invocations = []
         metrics.cycle_durations = []
 
-        result = env.compute_metrics(metrics)
+        result = env.compute_metrics(metrics, LoopLimiter())
 
         assert result["cache_hit_rate"] is None
 

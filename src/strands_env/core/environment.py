@@ -139,13 +139,9 @@ class Environment:
         new_messages = list(agent.messages)[len(conversation_history) :]
         rollout = getattr(agent.model, "rollout", None)
         tool_parse_errors = getattr(agent.model, "tool_parse_errors", None)
-        metrics = {
-            "message_count": len(new_messages),
-            "tool_iters": limiter.tool_iter_count,
-            "tool_calls": limiter.tool_call_count,
-            "cancelled_tool_calls": limiter.cancelled_tool_call_count,
-            **self.compute_metrics(agent.event_loop_metrics, tool_parse_errors=tool_parse_errors),
-        }
+        metrics = self.compute_metrics(
+            event_loop_metrics=agent.event_loop_metrics, loop_limiter=limiter, tool_parse_errors=tool_parse_errors
+        )
         result = RolloutResult(
             messages=new_messages, rollout=rollout, metrics=metrics, termination_reason=termination_reason
         )
@@ -177,6 +173,7 @@ class Environment:
     def compute_metrics(
         self,
         event_loop_metrics: EventLoopMetrics,
+        loop_limiter: LoopLimiter,
         tool_parse_errors: dict[str, int] | None = None,
     ) -> dict[str, Any]:
         """Extract metrics from the event loop. Override to add custom metrics."""
@@ -217,6 +214,7 @@ class Environment:
         }
 
         return {
+            "message_count": loop_limiter.message_count,
             "model_calls": event_loop_metrics.cycle_count,
             "model_latency_s": _summarize(cycle_durations, round_digits=4) if cycle_durations else None,
             "input_tokens": _summarize(input_counts) if input_counts else None,
@@ -225,5 +223,9 @@ class Environment:
             "cache_hit_rate": round(sum(cache_read_counts) / sum(input_counts), 4)
             if input_counts and cache_read_counts and sum(input_counts) > 0
             else None,
+            # tool-using metrics
+            "tool_iters": loop_limiter.tool_iter_count,
+            "tool_calls": loop_limiter.tool_call_count,
+            "cancelled_tool_calls": loop_limiter.cancelled_tool_call_count,
             "per_tool_metrics": per_tool_metrics or None,
         }

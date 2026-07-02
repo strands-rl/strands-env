@@ -68,7 +68,7 @@ class Tau2BenchUserSimulator(HookProvider):
     `invoke_async()`.
     """
 
-    DEFAULT_FIRST_AGENT_MESSAGE: str = "Hi! How can I help you today?"
+    GREETING_MESSAGE: str = "Hi! How can I help you today?"
     SYSTEM_PROMPT_TEMPLATE: str = "{guidelines}\n\n<scenario>\n{scenario}\n</scenario>"
     STOP_PATTERN: re.Pattern[str] = re.compile(r"###(STOP|TRANSFER|OUT-OF-SCOPE)###")
 
@@ -114,7 +114,7 @@ class Tau2BenchUserSimulator(HookProvider):
         stop marker (e.g. an out-of-scope scenario), `termination` is set to `USER_STOP`
         and the episode should not reach the assistant.
         """
-        reply = await self.agent.invoke_async(self.DEFAULT_FIRST_AGENT_MESSAGE)
+        reply = await self.agent.invoke_async(self.GREETING_MESSAGE)
         text = extract_message_text(reply.message)
         if self.STOP_PATTERN.search(text):
             self.termination = Tau2BenchTerminationReason.USER_STOP
