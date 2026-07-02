@@ -160,6 +160,27 @@ class TerminationReason(str, Enum):
 # ---------------------------------------------------------------------------
 
 
+def extract_message_text(message: Message) -> str:
+    """Extract the final text from a message: the last text block, with any think block stripped.
+
+    Returns an empty string when the message contains no text block.
+    An unclosed `<think>` block (truncated generation) is returned as-is.
+    """
+    content = message.get("content") or []
+    # Take the last text block — the final textual output.
+    text = next(
+        (block["text"] for block in reversed(content) if isinstance(block, dict) and "text" in block),
+        None,
+    )
+    if text is None:
+        return ""
+    # Strip think block if any: keep only what follows the last closing tag
+    think_end = text.rfind("</think>")
+    if think_end != -1:
+        text = text[think_end + len("</think>") :].lstrip()
+    return text
+
+
 class RolloutResult(BaseModel):
     """Result of a single `Environment.rollout` call: trajectory, reward, and termination."""
 
@@ -171,19 +192,11 @@ class RolloutResult(BaseModel):
 
     @property
     def final_response(self) -> str | None:
-        """Return text from the last assistant message, or None."""
+        """Return text from the last assistant message, or None.
+
+        None when the conversation ended on a non-assistant message (e.g. a tau2
+        `user_stop` turn) — the agent did not have the last word.
+        """
         if not self.messages or self.messages[-1].get("role") != "assistant":
             return None
-        content = self.messages[-1].get("content", [])
-        # Take the last text block — the final textual output.
-        text = next(
-            (block["text"] for block in reversed(content) if isinstance(block, dict) and "text" in block),
-            None,
-        )
-        if text is None:
-            return None
-        # Strip think block if any
-        think_end = text.rfind("</think>")  # find the last </think> tag
-        if think_end != -1:
-            text = text[think_end + len("</think>") :].lstrip()
-        return text or None
+        return extract_message_text(self.messages[-1]) or None

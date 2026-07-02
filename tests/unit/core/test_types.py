@@ -27,6 +27,7 @@ from strands_env.core.types import (
     Task,
     TaskContext,
     TerminationReason,
+    extract_message_text,
 )
 
 # ---------------------------------------------------------------------------
@@ -62,6 +63,39 @@ class TestTask:
         ctx = TaskContext(ground_truth="4")
         task = Task(message="What is 2+2?", context=ctx)
         assert task.context.ground_truth == "4"
+
+
+# ---------------------------------------------------------------------------
+# extract_message_text
+# ---------------------------------------------------------------------------
+
+
+class TestExtractMessageText:
+    def test_no_text_block_returns_empty(self):
+        message = {"role": "assistant", "content": [{"toolUse": {"name": "calc", "toolUseId": "1", "input": {}}}]}
+        assert extract_message_text(message) == ""
+
+    def test_empty_content_returns_empty(self):
+        assert extract_message_text({"role": "assistant", "content": []}) == ""
+
+    def test_multiple_text_blocks_takes_last(self):
+        message = {
+            "role": "assistant",
+            "content": [
+                {"text": "Let me check."},
+                {"toolUse": {"name": "calc", "toolUseId": "1", "input": {}}},
+                {"text": "The answer is 4."},
+            ],
+        }
+        assert extract_message_text(message) == "The answer is 4."
+
+    def test_strips_think_block(self):
+        message = {"role": "assistant", "content": [{"text": "<think>reasoning ###STOP###</think>Here you go."}]}
+        assert extract_message_text(message) == "Here you go."
+
+    def test_unclosed_think_returned_as_is(self):
+        message = {"role": "assistant", "content": [{"text": "<think>truncated mid-thought"}]}
+        assert extract_message_text(message) == "<think>truncated mid-thought"
 
 
 # ---------------------------------------------------------------------------
