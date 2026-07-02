@@ -40,17 +40,25 @@ if TYPE_CHECKING:
     from ._tau2 import DB, Tau2Task
     from ._tau2 import Environment as Tau2Environment
 
-AGENT_INSTRUCTION = (
-    "You are a customer service agent that helps the user according to the <policy> provided below.\n"
-    "In each turn you can either:\n"
-    "- Send a message to the user.\n"
-    "- Make a tool call.\n"
-    "You cannot do both at the same time.\n\n"
-    "Try to be helpful and always follow the policy. Always make sure you generate valid JSON only."
-)
-AGENT_SYSTEM_PROMPT_TEMPLATE = (
-    "<instructions>\n{agent_instruction}\n</instructions>\n<policy>\n{domain_policy}\n</policy>"
-)
+#: Verbatim tau2 agent system prompt (`llm_agent.py`: SYSTEM_PROMPT with AGENT_INSTRUCTION
+#: inlined) — do not edit without diffing against upstream; prompt fidelity is score fidelity.
+SYSTEM_PROMPT_TEMPLATE = """
+<instructions>
+You are a customer service agent that helps the user according to the <policy> provided below.
+In each turn you can either:
+- Send a message to the user.
+- Make a tool call.
+You cannot do both at the same time.
+
+Try to be helpful and always follow the policy. Always make sure you generate valid JSON only.
+</instructions>
+<policy>
+{domain_policy}
+</policy>
+""".strip()
+
+class Tau2BenchTask(Task):
+    
 
 
 class Tau2BenchConfig(EnvironmentConfig):
@@ -123,8 +131,7 @@ class Tau2BenchEnv(Environment):
             else []
         )
 
-        self.system_prompt = AGENT_SYSTEM_PROMPT_TEMPLATE.format(
-            agent_instruction=AGENT_INSTRUCTION,
+        self.system_prompt = SYSTEM_PROMPT_TEMPLATE.format(
             domain_policy=tau2_env.policy,
         )
         self.user_simulator = Tau2BenchUserSimulator(
