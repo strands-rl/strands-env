@@ -16,36 +16,26 @@
 
 Multi-turn agent vs LLM user-sim over a shared in-memory DB. One `env.rollout()`
 runs the full episode inside a single `agent.invoke_async()`, driven turn-by-turn
-by `Tau2BenchUserSimHook` via `AfterInvocationEvent.resume` (strands-agents >= 1.30.0).
+by `Tau2BenchUserSimulator` via `AfterInvocationEvent.resume` (strands-agents >= 1.30.0).
 """
 
 from __future__ import annotations
 
-import logging
-import re
 from copy import deepcopy
 from typing import Any, Literal
 
-from strands import Agent
-from strands.agent import AgentResult
-from strands.agent.conversation_manager import NullConversationManager
-from strands.handlers.callback_handler import PrintingCallbackHandler
-from strands.hooks import AfterInvocationEvent, HookProvider, HookRegistry
 from strands.telemetry.metrics import EventLoopMetrics
 from typing_extensions import NotRequired, Unpack, override
 
 from strands_env.core import Environment, ModelFactory, Task
 from strands_env.core.environment import EnvironmentConfig
-from strands_env.core.types import RewardFunction, RolloutResult
+from strands_env.core.types import RewardFunction, RolloutResult, TerminationReason
 
 from . import _tau2
 from .reward import Tau2BenchReward
+from .simulator import Tau2BenchTerminationReason, Tau2BenchUserSimulator
 from .tool import Tau2BenchTool
 
-logger = logging.getLogger(__name__)
-
-#: Canned agent opening, seeded into agent history without an LLM call.
-DEFAULT_FIRST_AGENT_MESSAGE = "Hi! How can I help you today?"
 AGENT_INSTRUCTION = (
     "You are a customer service agent that helps the user according to the <policy> provided below.\n"
     "In each turn you can either:\n"
@@ -57,9 +47,6 @@ AGENT_INSTRUCTION = (
 AGENT_SYSTEM_PROMPT_TEMPLATE = (
     "<instructions>\n{agent_instruction}\n</instructions>\n<policy>\n{domain_policy}\n</policy>"
 )
-USER_SYSTEM_PROMPT_TEMPLATE = "{guidelines}\n\n<scenario>\n{instructions}\n</scenario>"
-AGENT_STOP_RE = re.compile(r"###STOP###")
-USER_STOP_RE = re.compile(r"###(STOP|TRANSFER|OUT-OF-SCOPE)###")
 
 
 class Tau2BenchConfig(EnvironmentConfig):
@@ -68,14 +55,7 @@ class Tau2BenchConfig(EnvironmentConfig):
     domain: Literal["airline", "retail", "telecom"]
     task: dict[str, Any]
     user_sim_guidelines: str
-    max_turns: NotRequired[int]
-
-
-def _extract_text(agent_result: AgentResult | None) -> str:
-    """Return the text from an `AgentResult.message`, or empty string."""
-    if agent_result is None:
-        return ""
-    return next((b["text"] for b in agent_result.message.get("content") or [] if "text" in b), "")
+    max_steps: NotRequired[int]
 
 
 def build_tau2_env(domain: str, initial_db: Any, task: Any) -> Any:
@@ -90,45 +70,8 @@ def build_tau2_env(domain: str, initial_db: Any, task: Any) -> Any:
     return tau2_env
 
 
-class Tau2BenchUserSimHook(HookProvider):
-    """Drive the multi-turn dialogue via `AfterInvocationEvent.resume`."""
-
-    def __init__(self, user_sim: Agent, max_turns: int):
-        """Initialize a `Tau2BenchUserSimHook` instance."""
-        self.user_sim = user_sim
-        self.max_turns = max_turns
-        self.turn_count = 0
-        self.termination: Literal["aborted", "agent_stop", "max_turns", "user_stop"] = "aborted"
-
-    def register_hooks(self, registry: HookRegistry, **kwargs: Any) -> None:
-        """Subscribe to `AfterInvocationEvent`."""
-        registry.add_callback(AfterInvocationEvent, self._on_after_invocation)
-
-    async def _on_after_invocation(self, event: AfterInvocationEvent) -> None:
-        self.turn_count += 1
-        agent_text = _extract_text(event.result)
-        if AGENT_STOP_RE.search(agent_text):
-            self.termination = "agent_stop"
-            return
-        if self.turn_count >= self.max_turns:
-            self.termination = "max_turns"
-            return
-        try:
-            user_text = _extract_text(await self.user_sim.invoke_async(agent_text))
-        except Exception as e:
-            logger.warning("user-sim failed at turn %d: %s", self.turn_count, e)
-            self.termination = "aborted"
-            return
-        if USER_STOP_RE.search(user_text):
-            self.termination = "user_stop"
-            # Append the terminating user msg so it shows up in `result.messages`.
-            event.agent.messages.append({"role": "user", "content": [{"text": user_text}]})
-            return
-        event.resume = user_text
-
-
 class Tau2BenchEnv(Environment):
-    """tau2-bench env: thin wrapper; multi-turn driven by `Tau2BenchUserSimHook`."""
+    """tau2-bench env: thin wrapper; multi-turn driven by `Tau2BenchUserSimulator`."""
 
     def __init__(
         self,
@@ -146,12 +89,11 @@ class Tau2BenchEnv(Environment):
         self.initial_db = initial_db
         self.domain: Literal["airline", "retail", "telecom"] = self.config["domain"]
         self.task: dict[str, Any] = self.config["task"]
-        self.max_turns: int = self.config.get("max_turns", 100)
+        self.max_steps: int = self.config.get("max_steps", 100)
 
         # Populated by `reset()`.
         self.tau2_env: Any = None
-        self.user_sim: Agent | None = None
-        self.user_sim_hook: Tau2BenchUserSimHook | None = None
+        self.user_simulator: Tau2BenchUserSimulator | None = None
         self.agent_tools: list = []
         self.user_tools: list = []
         self.first_user_msg: str = ""
@@ -181,27 +123,37 @@ class Tau2BenchEnv(Environment):
             agent_instruction=AGENT_INSTRUCTION,
             domain_policy=tau2_env.policy,
         )
-        self.user_sim = Agent(
+        self.user_simulator = Tau2BenchUserSimulator(
             model=self.user_model_factory(),
-            tools=list(self.user_tools),
-            system_prompt=USER_SYSTEM_PROMPT_TEMPLATE.format(
-                guidelines=self.config["user_sim_guidelines"],
-                instructions=str(task_obj.user_scenario),
-            ),
-            conversation_manager=NullConversationManager(),
-            # Mirror base `rollout()`'s callback handling; default `None` silences user-sim stream.
-            callback_handler=PrintingCallbackHandler() if self.verbose else None,
+            guidelines=self.config["user_sim_guidelines"],
+            scenario=str(task_obj.user_scenario),
+            tools=self.user_tools,
+            max_steps=self.max_steps,
+            verbose=self.verbose,
         )
         # User-sim's reply to the canned greeting seeds the agent's first invoke;
-        # subsequent turns flow through `Tau2BenchUserSimHook` via `event.resume`.
-        self.first_user_msg = _extract_text(await self.user_sim.invoke_async(DEFAULT_FIRST_AGENT_MESSAGE))
-        self.user_sim_hook = Tau2BenchUserSimHook(self.user_sim, self.max_turns)
+        # subsequent turns flow through `Tau2BenchUserSimulator` via `event.resume`.
+        self.first_user_msg = await self.user_simulator.first_message()
 
     @override
     async def rollout(self, task: Task) -> RolloutResult:
         """Inject `first_user_msg` and the canned greeting history into the task."""
         task.message = self.first_user_msg
-        task.context.conversation_history = [{"role": "assistant", "content": [{"text": DEFAULT_FIRST_AGENT_MESSAGE}]}]
+        task.context.conversation_history = [
+            {"role": "assistant", "content": [{"text": Tau2BenchUserSimulator.DEFAULT_FIRST_AGENT_MESSAGE}]}
+        ]
+        # The user may end the dialogue already in reply to the greeting (e.g. an
+        # out-of-scope scenario) — mirror tau2's USER_STOP on the first step and skip
+        # the assistant agent entirely.
+        if self.user_simulator is not None and self.user_simulator.termination is Tau2BenchTerminationReason.USER_STOP:
+            result = RolloutResult(
+                messages=[{"role": "user", "content": [{"text": self.first_user_msg}]}],
+                metrics={"message_count": 1, **self.compute_metrics(EventLoopMetrics())},
+                termination_reason=TerminationReason.TASK_COMPLETE,
+            )
+            if self.reward_fn:
+                result.reward_result = await self.reward_fn.compute(task, result)
+            return result
         return await super().rollout(task)
 
     @override
@@ -211,8 +163,8 @@ class Tau2BenchEnv(Environment):
 
     @override
     def get_hooks(self) -> list:
-        """Return the multi-turn driver hook."""
-        return [self.user_sim_hook] if self.user_sim_hook is not None else []
+        """Return the user simulator driving the multi-turn dialogue."""
+        return [self.user_simulator] if self.user_simulator is not None else []
 
     @override
     def compute_metrics(
@@ -222,16 +174,15 @@ class Tau2BenchEnv(Environment):
     ) -> dict[str, Any]:
         """Agent metrics plus tau2 termination and a `user_sim` sub-dict."""
         metrics = super().compute_metrics(event_loop_metrics, tool_parse_errors)
-        if self.user_sim_hook is not None:
-            metrics["tau2_termination"] = self.user_sim_hook.termination
-            metrics["turn_count"] = self.user_sim_hook.turn_count
-        if self.user_sim is not None:
+        if self.user_simulator is not None:
+            metrics["tau2_termination"] = self.user_simulator.termination
+            sim_agent = self.user_simulator.agent
             metrics["user_sim"] = {
-                "messages": list(self.user_sim.messages),
-                "message_count": len(self.user_sim.messages),
+                "messages": list(sim_agent.messages),
+                "message_count": len(sim_agent.messages),
                 **super().compute_metrics(
-                    self.user_sim.event_loop_metrics,
-                    tool_parse_errors=getattr(self.user_sim.model, "tool_parse_errors", None),
+                    sim_agent.event_loop_metrics,
+                    tool_parse_errors=getattr(sim_agent.model, "tool_parse_errors", None),
                 ),
             }
         return metrics

@@ -29,6 +29,7 @@ from strands_env.core.llm_judge_reward import LLMJudgeReward
 from strands_env.core.types import RewardFunction, RewardResult, RolloutResult, Task
 
 from . import _tau2
+from .simulator import Tau2BenchTerminationReason
 
 if TYPE_CHECKING:
     from ._tau2 import Tau2Task
@@ -36,8 +37,9 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-#: Terminations tau2 treats as a clean stop; any other end (e.g. `max_turns`) scores 0.
-CLEAN_TERMINATIONS = frozenset({"agent_stop", "user_stop"})
+#: Terminations tau2 treats as a clean stop (only the user ends a dual-mode dialogue);
+#: any other end (e.g. `max_steps`) scores 0.
+CLEAN_TERMINATIONS = frozenset({Tau2BenchTerminationReason.USER_STOP})
 
 
 #: Verbatim system prompt from tau2's `evaluator_nl_assertions.py`.
@@ -128,8 +130,8 @@ class Tau2BenchReward(RewardFunction):
 
     @override
     async def compute(self, task: Task, result: RolloutResult) -> RewardResult:
-        # tau2 only scores cleanly-stopped episodes; a premature end (e.g. `max_turns`) scores 0.
-        termination = self._env.user_sim_hook.termination if self._env.user_sim_hook is not None else None
+        # tau2 only scores cleanly-stopped episodes; a premature end (e.g. `max_steps`) scores 0.
+        termination = self._env.user_simulator.termination if self._env.user_simulator is not None else None
         if termination not in CLEAN_TERMINATIONS:
             return RewardResult(reward=0.0, info={"note": f"premature termination: {termination}"})
 
@@ -206,7 +208,7 @@ def _action_reward(env: Tau2BenchEnv, messages: list[Message], tau2_task: Tau2Ta
     golden = tau2_task.evaluation_criteria.actions or []
     if not golden:
         return 1.0
-    all_messages = messages + (env.user_sim.messages if env.user_sim is not None else [])
+    all_messages = messages + (env.user_simulator.agent.messages if env.user_simulator is not None else [])
     tool_calls = [
         _tau2.ToolCall(id=b["toolUse"]["toolUseId"], name=b["toolUse"]["name"], arguments=b["toolUse"]["input"])
         for m in all_messages
