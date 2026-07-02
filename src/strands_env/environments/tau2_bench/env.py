@@ -22,7 +22,7 @@ by `Tau2BenchUserSimulator` via `AfterInvocationEvent.resume` (strands-agents >=
 from __future__ import annotations
 
 from copy import deepcopy
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from strands.telemetry.metrics import EventLoopMetrics
 from typing_extensions import NotRequired, Unpack, override
@@ -35,6 +35,10 @@ from . import _tau2
 from .reward import Tau2BenchReward
 from .simulator import Tau2BenchTerminationReason, Tau2BenchUserSimulator
 from .tool import Tau2BenchTool
+
+if TYPE_CHECKING:
+    from ._tau2 import DB, Tau2Task
+    from ._tau2 import Environment as Tau2Environment
 
 AGENT_INSTRUCTION = (
     "You are a customer service agent that helps the user according to the <policy> provided below.\n"
@@ -58,7 +62,7 @@ class Tau2BenchConfig(EnvironmentConfig):
     max_steps: NotRequired[int]
 
 
-def build_tau2_env(domain: str, initial_db: Any, task: Any) -> Any:
+def build_tau2_env(domain: str, initial_db: DB, task: Tau2Task) -> Tau2Environment:
     """Build a fresh tau2 domain `Environment` from `initial_db`, applying `task.initial_state` if set."""
     tau2_env = _tau2.build_environment(domain, db=deepcopy(initial_db))
     if task.initial_state is not None:
