@@ -41,6 +41,9 @@ from strands_sglang import LoopLimiter
 
 from strands_env.core.types import TerminationReason, extract_message_text
 
+from . import _tau2
+from .tool import Tau2BenchTool
+
 logger = logging.getLogger(__name__)
 
 
@@ -66,25 +69,23 @@ class Tau2BenchUserSimulator(HookProvider):
     """
 
     DEFAULT_FIRST_AGENT_MESSAGE: str = "Hi! How can I help you today?"
-    USER_SYSTEM_PROMPT_TEMPLATE: str = "{guidelines}\n\n<scenario>\n{instructions}\n</scenario>"
-    USER_STOP_RE: re.Pattern[str] = re.compile(r"###(STOP|TRANSFER|OUT-OF-SCOPE)###")
+    SYSTEM_PROMPT_TEMPLATE: str = "{guidelines}\n\n<scenario>\n{scenario}\n</scenario>"
+    STOP_PATTERN: re.Pattern[str] = re.compile(r"###(STOP|TRANSFER|OUT-OF-SCOPE)###")
 
     def __init__(
         self,
         *,
         model: Model,
-        guidelines: str,
+        tools: list[Tau2BenchTool],
         scenario: str,
-        tools: list | None = None,
-        max_steps: int,
+        max_steps: int = 100,
         verbose: bool = False,
     ):
         """Initialize a `Tau2BenchUserSimulator` instance.
 
         Args:
             model: Model powering the simulated user.
-            guidelines: Domain user-simulation guidelines.
-            scenario: Task-specific user scenario instructions.
+            scenario: Task-specific user persona and instructions, formatted as a string.
             tools: User-side tools, if the task provides any.
             max_steps: Step budget shared by the assistant conversation and the user
                 simulation: the total message count across both agents. A slightly
@@ -95,8 +96,10 @@ class Tau2BenchUserSimulator(HookProvider):
         self.limiter = LoopLimiter(max_messages=max_steps)
         self.agent = Agent(
             model=model,
-            tools=list(tools or []),
-            system_prompt=self.USER_SYSTEM_PROMPT_TEMPLATE.format(guidelines=guidelines, instructions=scenario),
+            tools=tools,  # type: ignore[arg-type]
+            system_prompt=self.SYSTEM_PROMPT_TEMPLATE.format(
+                guidelines=_tau2.user_sim_guidelines(use_tools=bool(tools)), scenario=scenario
+            ),
             conversation_manager=NullConversationManager(),
             hooks=[self.limiter],
             callback_handler=PrintingCallbackHandler() if verbose else None,
@@ -113,7 +116,7 @@ class Tau2BenchUserSimulator(HookProvider):
         """
         reply = await self.agent.invoke_async(self.DEFAULT_FIRST_AGENT_MESSAGE)
         text = extract_message_text(reply.message)
-        if self.USER_STOP_RE.search(text):
+        if self.STOP_PATTERN.search(text):
             self.termination = Tau2BenchTerminationReason.USER_STOP
         return text
 
@@ -142,7 +145,7 @@ class Tau2BenchUserSimulator(HookProvider):
             return
 
         # Check if the user wanted to stop the dialogue
-        if self.USER_STOP_RE.search(user_text):
+        if self.STOP_PATTERN.search(user_text):
             self.termination = Tau2BenchTerminationReason.USER_STOP
             # Append the terminating user msg so it shows up in `result.messages`.
             event.agent.messages.append({"role": "user", "content": [{"text": user_text}]})

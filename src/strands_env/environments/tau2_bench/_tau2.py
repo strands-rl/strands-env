@@ -24,6 +24,7 @@ anywhere else in the package.
 
 from __future__ import annotations
 
+from functools import cache
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -70,8 +71,9 @@ def get_tasks(domain: str, split: str = "base") -> list[Tau2Task]:
     return registry.get_tasks_loader(domain)(split)
 
 
+@cache
 def user_sim_guidelines(use_tools: bool) -> str:
-    """Return tau2's global user-simulator guidelines."""
+    """Return tau2's global user-simulator guidelines (cached; read once per variant)."""
     from tau2.user.user_simulator import get_global_user_sim_guidelines
 
     return get_global_user_sim_guidelines(use_tools=use_tools)

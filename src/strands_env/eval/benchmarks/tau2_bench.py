@@ -47,7 +47,7 @@ class Tau2BenchTaskContext(TaskContext):
 
 
 class Tau2BenchEvaluator(Evaluator):
-    """Base evaluator for tau2-bench; subclasses set `domain` and `user_has_tools`."""
+    """Base evaluator for tau2-bench; subclasses set `domain`."""
 
     git_url: str = "https://github.com/sierra-research/tau2-bench.git"
     # Tag to clone the data files from.
@@ -55,7 +55,6 @@ class Tau2BenchEvaluator(Evaluator):
     data_dir: Path = DATA_DIR
 
     domain: ClassVar[Literal["airline", "retail", "telecom"]]
-    user_has_tools: ClassVar[bool] = False
 
     def _download_dataset(self) -> None:
         """Clone tau2-bench data files at `git_ref` (not bundled with the `tau2` pip wheel)."""
@@ -71,7 +70,6 @@ class Tau2BenchEvaluator(Evaluator):
         if not self.data_dir.exists():
             self._download_dataset()
         tasks = [task.model_dump(mode="json") for task in _tau2.get_tasks(self.domain)]
-        user_sim_guidelines = _tau2.user_sim_guidelines(use_tools=self.user_has_tools)
         return [
             Task(
                 id=str(task["id"]),
@@ -81,7 +79,6 @@ class Tau2BenchEvaluator(Evaluator):
                     config=Tau2BenchConfig(
                         domain=self.domain,
                         task=task,
-                        user_sim_guidelines=user_sim_guidelines,
                     ),
                 ),
             )
@@ -133,4 +130,3 @@ class Tau2BenchTelecomEvaluator(Tau2BenchEvaluator):
 
     benchmark_name = "tau2-bench-telecom"
     domain: ClassVar[Literal["airline", "retail", "telecom"]] = "telecom"
-    user_has_tools: ClassVar[bool] = True

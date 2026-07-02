@@ -42,10 +42,18 @@ def agent_cls():
 
 
 @pytest.fixture
-def sim(agent_cls):
+def tau2_shim():
+    """Patch the _tau2 shim so guidelines derivation needs no tau2 install or data dir."""
+    with patch("strands_env.environments.tau2_bench.simulator._tau2") as shim:
+        shim.user_sim_guidelines.return_value = "Play the customer."
+        yield shim
+
+
+@pytest.fixture
+def sim(agent_cls, tau2_shim):
     return Tau2BenchUserSimulator(
         model=MagicMock(),
-        guidelines="Play the customer.",
+        tools=[],
         scenario="Book a flight to Tokyo.",
         max_steps=MAX_STEPS,
     )
@@ -80,6 +88,13 @@ class TestInit:
 
     def test_termination_starts_aborted(self, sim):
         assert sim.termination is Tau2BenchTerminationReason.ABORTED
+
+    @pytest.mark.parametrize(("tools", "use_tools"), [([], False), ([MagicMock()], True)])
+    def test_guidelines_derived_like_tau2(self, agent_cls, tau2_shim, tools, use_tools):
+        """Guidelines always come from tau2's global guidelines: tools variant iff the user has tools."""
+        Tau2BenchUserSimulator(model=MagicMock(), tools=tools, scenario="S.", max_steps=MAX_STEPS)
+        tau2_shim.user_sim_guidelines.assert_called_once_with(use_tools=use_tools)
+        assert agent_cls.call_args.kwargs["system_prompt"].startswith("Play the customer.")
 
 
 # =============================================================================

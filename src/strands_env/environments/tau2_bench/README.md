@@ -1,6 +1,6 @@
 # tau2-bench Environment
 
-`Tau2BenchEnv` runs a [tau2-bench](https://github.com/sierra-research/tau2-bench) (Sierra Research) customer-service task: a multi-turn dialogue between the **agent under test** and an LLM **user-simulator**, both acting on a shared in-memory domain DB. The entire episode runs inside a single `agent.invoke_async()`, driven turn-by-turn by `Tau2BenchUserSimHook` via `AfterInvocationEvent.resume`. Termination is decided by stop markers in either side's reply (`###STOP###`, `###TRANSFER###`, `###OUT-OF-SCOPE###`) or a `max_turns` cap.
+`Tau2BenchEnv` runs a [tau2-bench](https://github.com/sierra-research/tau2-bench) (Sierra Research) customer-service task: a multi-turn dialogue between the **agent under test** and an LLM **user-simulator**, both acting on a shared in-memory domain DB. The entire episode runs inside a single `agent.invoke_async()`, driven turn-by-turn by `Tau2BenchUserSimulator` via `AfterInvocationEvent.resume`. Termination is decided by stop markers in the user's reply (`###STOP###`, `###TRANSFER###`, `###OUT-OF-SCOPE###`) or the `max_steps` budget — matching tau2's dual mode, the agent cannot end the dialogue.
 
 ## Domains
 
@@ -32,8 +32,7 @@ env = Tau2BenchEnv(
     initial_db=initial_db,                       # pristine base DB for the domain
     domain="retail",
     task=task_dict,                              # one tau2 `Task`, as a dict
-    user_sim_guidelines=guidelines,
-    max_turns=100,
+    max_steps=100,
 )
 
 await env.reset()                # Build per-episode tau2 env, prime the user-sim
@@ -66,8 +65,7 @@ Serializable config via `Tau2BenchConfig` (passed as `**kwargs`):
 
 - `domain` — `"airline"`, `"retail"`, or `"telecom"`
 - `task` — one tau2 `Task` serialized to a dict
-- `user_sim_guidelines` — system-prompt guidelines for the user-simulator
-- `max_turns` — turn cap before forced termination (default 100)
+- `max_steps` — step budget in tau2's sense, shared by agent and user-sim (default 100)
 
 Non-serializable params (named args):
 

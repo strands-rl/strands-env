@@ -57,16 +57,12 @@ Try to be helpful and always follow the policy. Always make sure you generate va
 </policy>
 """.strip()
 
-class Tau2BenchTask(Task):
-    
-
 
 class Tau2BenchConfig(EnvironmentConfig):
     """Serializable configuration for `Tau2BenchEnv`."""
 
     domain: Literal["airline", "retail", "telecom"]
     task: dict[str, Any]
-    user_sim_guidelines: str
     max_steps: NotRequired[int]
 
 
@@ -90,7 +86,7 @@ class Tau2BenchEnv(Environment):
         *,
         agent_model_factory: ModelFactory,
         user_model_factory: ModelFactory,
-        initial_db: Any,
+        initial_db: DB,
         reward_fn: RewardFunction | None = None,
         judge_model_factory: ModelFactory | None = None,
         **config: Unpack[Tau2BenchConfig],
@@ -98,7 +94,7 @@ class Tau2BenchEnv(Environment):
         """Initialize a `Tau2BenchEnv` instance."""
         super().__init__(model_factory=agent_model_factory, reward_fn=None, **config)  # type: ignore[misc]
         self.user_model_factory = user_model_factory
-        self.initial_db = initial_db
+        self.initial_db: DB = initial_db
         self.domain: Literal["airline", "retail", "telecom"] = self.config["domain"]
         self.task: dict[str, Any] = self.config["task"]
         self.max_steps: int = self.config.get("max_steps", 100)
@@ -136,7 +132,6 @@ class Tau2BenchEnv(Environment):
         )
         self.user_simulator = Tau2BenchUserSimulator(
             model=self.user_model_factory(),
-            guidelines=self.config["user_sim_guidelines"],
             scenario=str(task_obj.user_scenario),
             tools=self.user_tools,
             max_steps=self.max_steps,
