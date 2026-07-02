@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Single chokepoint for importing the optional `tau2` dependency.
+"""Single chokepoint for importing and accessing the optional `tau2` dependency.
 
 `tau2` reads `TAU2_DATA_DIR` into a frozen module global at *import* time
 (`tau2/utils/utils.py`), and `tau2/__init__.py` eagerly pulls that chain in — so
@@ -24,6 +24,7 @@ anywhere else in the package.
 
 from __future__ import annotations
 
+from copy import deepcopy
 from functools import cache
 from typing import TYPE_CHECKING, Any
 
@@ -32,11 +33,21 @@ if TYPE_CHECKING:
     from tau2.data_model.tasks import RewardType
     from tau2.data_model.tasks import Task as Tau2Task
     from tau2.environment.db import DB
-    from tau2.environment.environment import Environment
+    from tau2.environment.environment import Environment as Tau2Environment
     from tau2.environment.tool import Tool
 
 #: Public surface: classes resolved lazily by `__getattr__`, helpers defined below.
-__all__ = ["RewardType", "Tau2Task", "Tool", "ToolCall", "build_environment", "get_tasks", "user_sim_guidelines"]
+__all__ = [
+    "RewardType",
+    "Tau2Task",
+    "Tool",
+    "ToolCall",
+    "build_environment",
+    "build_task_environment",
+    "get_tasks",
+    "initial_db",
+    "user_sim_guidelines",
+]
 
 
 def __getattr__(name: str) -> Any:
@@ -62,7 +73,7 @@ def __getattr__(name: str) -> Any:
             raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
-def build_environment(domain: str, db: DB | None = None) -> Environment:
+def build_environment(domain: str, db: DB | None = None) -> Tau2Environment:
     """Construct a fresh tau2 domain `Environment` via tau2's own registry."""
     from tau2.registry import registry
 
@@ -74,6 +85,27 @@ def get_tasks(domain: str, split: str = "base") -> list[Tau2Task]:
     from tau2.registry import registry
 
     return registry.get_tasks_loader(domain)(split)
+
+
+@cache
+def initial_db(domain: str) -> DB:
+    """Return the pristine base DB for `domain` (cached; shared instance — deepcopy before mutating)."""
+    return build_environment(domain).tools.db
+
+
+def build_task_environment(domain: str, task: Tau2Task) -> Tau2Environment:
+    """Build a fresh domain `Environment` for `task`, applying its `initial_state` if set."""
+    env = build_environment(domain, db=deepcopy(initial_db(domain)))
+    if task.initial_state is not None:
+        # The fresh world must not alias caller state: the live and golden (reward replay)
+        # envs are built from the same parsed task
+        initial_state = deepcopy(task.initial_state)
+        env.set_state(
+            initial_state.initialization_data,
+            initial_state.initialization_actions,
+            [],  # no message_history resume
+        )
+    return env
 
 
 @cache

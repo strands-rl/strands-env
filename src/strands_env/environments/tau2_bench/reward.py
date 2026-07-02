@@ -180,9 +180,7 @@ class Tau2BenchReward(RewardFunction):
 
 def _db_reward(env: Tau2BenchEnv, tau2_task: Tau2Task) -> float:
     """Return 1.0 iff the agent+user DB hashes match a golden env built by replaying `tau2_task.actions` on a fresh DB."""
-    from .env import build_tau2_env
-
-    gold = build_tau2_env(env.domain, env.initial_db, tau2_task)
+    gold = _tau2.build_task_environment(env.domain, tau2_task)
     for act in tau2_task.evaluation_criteria.actions or []:
         try:
             gold.make_tool_call(tool_name=act.name, requestor=act.requestor, **act.arguments)

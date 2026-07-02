@@ -21,7 +21,6 @@ by `Tau2BenchUserSimulator` via `AfterInvocationEvent.resume` (strands-agents >=
 
 from __future__ import annotations
 
-from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Literal
 
 from strands.telemetry.metrics import EventLoopMetrics
@@ -37,8 +36,7 @@ from .simulator import Tau2BenchTerminationReason, Tau2BenchUserSimulator
 from .tool import Tau2BenchTool
 
 if TYPE_CHECKING:
-    from ._tau2 import DB, Tau2Task
-    from ._tau2 import Environment as Tau2Environment
+    from ._tau2 import Tau2Task
 
 #: Verbatim tau2 agent system prompt (`llm_agent.py`: SYSTEM_PROMPT with AGENT_INSTRUCTION
 #: inlined) — do not edit without diffing against upstream; prompt fidelity is score fidelity.
@@ -66,21 +64,6 @@ class Tau2BenchConfig(EnvironmentConfig):
     max_steps: NotRequired[int]
 
 
-def build_tau2_env(domain: str, initial_db: DB, task: Tau2Task) -> Tau2Environment:
-    """Build a fresh tau2 domain `Environment` from `initial_db`, applying `task.initial_state` if set."""
-    tau2_env = _tau2.build_environment(domain, db=deepcopy(initial_db))
-    if task.initial_state is not None:
-        # The fresh world must not alias caller state: the live and golden (reward replay)
-        # envs are built from the same parsed task
-        initial_state = deepcopy(task.initial_state)
-        tau2_env.set_state(
-            initial_state.initialization_data,
-            initial_state.initialization_actions,
-            [],  # no message_history resume
-        )
-    return tau2_env
-
-
 class Tau2BenchEnv(Environment):
     """tau2-bench env: thin wrapper; multi-turn driven by `Tau2BenchUserSimulator`."""
 
@@ -89,15 +72,12 @@ class Tau2BenchEnv(Environment):
         *,
         agent_model_factory: ModelFactory,
         user_model_factory: ModelFactory,
-        initial_db: DB,
-        reward_fn: RewardFunction | None = None,
         judge_model_factory: ModelFactory | None = None,
         **config: Unpack[Tau2BenchConfig],
     ):
         """Initialize a `Tau2BenchEnv` instance."""
         super().__init__(model_factory=agent_model_factory, reward_fn=None, **config)  # type: ignore[misc]
         self.user_model_factory = user_model_factory
-        self.initial_db: DB = initial_db
         self.domain: Literal["airline", "retail", "telecom"] = self.config["domain"]
         self.tau2_task: Tau2Task = _tau2.Tau2Task.model_validate(self.config["tau2_task"])
         self.max_steps: int = self.config.get("max_steps", 100)
@@ -109,15 +89,15 @@ class Tau2BenchEnv(Environment):
         self.user_tools: list = []
         self.first_user_msg: str = ""
 
-        self.reward_fn = reward_fn or Tau2BenchReward(
-            self,
+        self.reward_fn = Tau2BenchReward(
+            env=self,
             judge_model=judge_model_factory() if judge_model_factory else None,
         )
 
     @override
     async def reset(self) -> None:
         """Build per-episode tau2 environment and prime the user-sim."""
-        tau2_env = build_tau2_env(self.domain, self.initial_db, self.tau2_task)
+        tau2_env = _tau2.build_task_environment(self.domain, self.tau2_task)
         self.tau2_env = tau2_env
         self.agent_tools = [Tau2BenchTool(t, tau2_env, "assistant") for t in tau2_env.tools.get_tools().values()]
         self.user_tools = (

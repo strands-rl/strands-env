@@ -26,7 +26,7 @@ from typing_extensions import override
 from . import _tau2
 
 if TYPE_CHECKING:
-    from ._tau2 import Environment as Tau2Environment
+    from ._tau2 import Tau2Environment
     from ._tau2 import Tool as Tau2Tool
 
 

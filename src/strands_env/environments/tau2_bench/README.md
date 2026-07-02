@@ -29,7 +29,6 @@ env = Tau2BenchEnv(
     agent_model_factory=agent_model_factory,    # the model under test
     user_model_factory=user_model_factory,      # drives the user-simulator
     judge_model_factory=judge_model_factory,    # optional; only used for NL-assertion reward
-    initial_db=initial_db,                       # pristine base DB for the domain
     domain="retail",
     tau2_task=task_dict,                         # one tau2 `Task`, as a dict
     max_steps=100,
@@ -72,5 +71,4 @@ Non-serializable params (named args):
 - `agent_model_factory` — model factory for the agent under test
 - `user_model_factory` — model factory for the user-simulator
 - `judge_model_factory` — optional model factory for the NL-assertion judge
-- `initial_db` — pristine base DB for the domain (deep-copied per episode)
 - `reward_fn` — optional override for the default `Tau2BenchReward`
