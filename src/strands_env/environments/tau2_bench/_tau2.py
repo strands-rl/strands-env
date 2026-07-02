@@ -33,9 +33,10 @@ if TYPE_CHECKING:
     from tau2.data_model.tasks import Task as Tau2Task
     from tau2.environment.db import DB
     from tau2.environment.environment import Environment
+    from tau2.environment.tool import Tool
 
 #: Public surface: classes resolved lazily by `__getattr__`, helpers defined below.
-__all__ = ["RewardType", "Tau2Task", "ToolCall", "build_environment", "get_tasks", "user_sim_guidelines"]
+__all__ = ["RewardType", "Tau2Task", "Tool", "ToolCall", "build_environment", "get_tasks", "user_sim_guidelines"]
 
 
 def __getattr__(name: str) -> Any:
@@ -53,6 +54,10 @@ def __getattr__(name: str) -> Any:
             from tau2.data_model.message import ToolCall
 
             return ToolCall
+        case "Tool":
+            from tau2.environment.tool import Tool
+
+            return Tool
         case _:
             raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
