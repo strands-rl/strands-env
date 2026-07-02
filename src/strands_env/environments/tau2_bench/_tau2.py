@@ -24,13 +24,14 @@ anywhere else in the package.
 
 from __future__ import annotations
 
-import importlib
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from tau2.data_model.message import ToolCall
     from tau2.data_model.tasks import RewardType
     from tau2.data_model.tasks import Task as Tau2Task
+    from tau2.environment.db import DB
+    from tau2.environment.environment import Environment
 
 #: Public surface: classes resolved lazily by `__getattr__`, helpers defined below.
 __all__ = ["RewardType", "Tau2Task", "ToolCall", "build_environment", "get_tasks", "user_sim_guidelines"]
@@ -55,16 +56,18 @@ def __getattr__(name: str) -> Any:
             raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
-def build_environment(domain: str, db: Any = None) -> Any:
-    """Construct a fresh tau2 domain `Environment` for `domain`."""
-    module = importlib.import_module(f"tau2.domains.{domain}.environment")
-    return module.get_environment(db=db)
+def build_environment(domain: str, db: DB | None = None) -> Environment:
+    """Construct a fresh tau2 domain `Environment` via tau2's own registry."""
+    from tau2.registry import registry
+
+    return registry.get_env_constructor(domain)(db=db)
 
 
-def get_tasks(domain: str, split: str = "base") -> list[Any]:
-    """Return the tau2 task objects for `domain`/`split`."""
-    module = importlib.import_module(f"tau2.domains.{domain}.environment")
-    return module.get_tasks(task_split_name=split)
+def get_tasks(domain: str, split: str = "base") -> list[Tau2Task]:
+    """Return the tau2 task objects for `domain`/`split` via tau2's own registry."""
+    from tau2.registry import registry
+
+    return registry.get_tasks_loader(domain)(split)
 
 
 def user_sim_guidelines(use_tools: bool) -> str:
