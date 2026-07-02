@@ -99,7 +99,7 @@ class Tau2BenchNLAssertionReward(LLMJudgeReward[NLJudgment]):
 
     @override
     async def get_judge_prompt(self, task: Task, result: RolloutResult) -> str:
-        tau2_task = _tau2.Tau2Task.model_validate(self._env.task)
+        tau2_task = self._env.tau2_task
         assertions = list(tau2_task.evaluation_criteria.nl_assertions or [])
         messages = list(task.context.conversation_history) + list(result.messages)
         lines = []
@@ -136,7 +136,7 @@ class Tau2BenchReward(RewardFunction):
             return RewardResult(reward=0.0, info={"note": f"premature termination: {termination}"})
 
         reward_type = _tau2.RewardType
-        tau2_task = _tau2.Tau2Task.model_validate(self._env.task)
+        tau2_task = self._env.tau2_task
         basis_raw = tau2_task.evaluation_criteria.reward_basis
         basis = set(basis_raw) if basis_raw is not None else {reward_type.DB, reward_type.COMMUNICATE}
         messages = list(task.context.conversation_history) + list(result.messages)

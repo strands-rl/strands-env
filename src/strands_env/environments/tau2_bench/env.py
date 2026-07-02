@@ -62,7 +62,7 @@ class Tau2BenchConfig(EnvironmentConfig):
     """Serializable configuration for `Tau2BenchEnv`."""
 
     domain: Literal["airline", "retail", "telecom"]
-    task: dict[str, Any]
+    tau2_task: dict[str, Any]  # parsed via `Tau2Task.model_validate`
     max_steps: NotRequired[int]
 
 
@@ -70,9 +70,12 @@ def build_tau2_env(domain: str, initial_db: DB, task: Tau2Task) -> Tau2Environme
     """Build a fresh tau2 domain `Environment` from `initial_db`, applying `task.initial_state` if set."""
     tau2_env = _tau2.build_environment(domain, db=deepcopy(initial_db))
     if task.initial_state is not None:
+        # The fresh world must not alias caller state: the live and golden (reward replay)
+        # envs are built from the same parsed task
+        initial_state = deepcopy(task.initial_state)
         tau2_env.set_state(
-            task.initial_state.initialization_data,
-            task.initial_state.initialization_actions,
+            initial_state.initialization_data,
+            initial_state.initialization_actions,
             [],  # no message_history resume
         )
     return tau2_env
@@ -96,7 +99,7 @@ class Tau2BenchEnv(Environment):
         self.user_model_factory = user_model_factory
         self.initial_db: DB = initial_db
         self.domain: Literal["airline", "retail", "telecom"] = self.config["domain"]
-        self.task: dict[str, Any] = self.config["task"]
+        self.tau2_task: Tau2Task = _tau2.Tau2Task.model_validate(self.config["tau2_task"])
         self.max_steps: int = self.config.get("max_steps", 100)
 
         # Populated by `reset()`.
@@ -114,14 +117,13 @@ class Tau2BenchEnv(Environment):
     @override
     async def reset(self) -> None:
         """Build per-episode tau2 environment and prime the user-sim."""
-        task_obj = _tau2.Tau2Task.model_validate(self.task)
-        tau2_env = build_tau2_env(self.domain, self.initial_db, task_obj)
+        tau2_env = build_tau2_env(self.domain, self.initial_db, self.tau2_task)
         self.tau2_env = tau2_env
         self.agent_tools = [Tau2BenchTool(t, tau2_env, "assistant") for t in tau2_env.tools.get_tools().values()]
         self.user_tools = (
             [
                 Tau2BenchTool(t, tau2_env, "user")
-                for t in tau2_env.user_tools.get_tools(include=task_obj.user_tools).values()
+                for t in tau2_env.user_tools.get_tools(include=self.tau2_task.user_tools).values()
             ]
             if tau2_env.user_tools
             else []
@@ -132,7 +134,7 @@ class Tau2BenchEnv(Environment):
         )
         self.user_simulator = Tau2BenchUserSimulator(
             model=self.user_model_factory(),
-            scenario=str(task_obj.user_scenario),
+            scenario=str(self.tau2_task.user_scenario),
             tools=self.user_tools,
             max_steps=self.max_steps,
             verbose=self.verbose,

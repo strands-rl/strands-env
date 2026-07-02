@@ -31,7 +31,7 @@ env = Tau2BenchEnv(
     judge_model_factory=judge_model_factory,    # optional; only used for NL-assertion reward
     initial_db=initial_db,                       # pristine base DB for the domain
     domain="retail",
-    task=task_dict,                              # one tau2 `Task`, as a dict
+    tau2_task=task_dict,                         # one tau2 `Task`, as a dict
     max_steps=100,
 )
 
@@ -64,7 +64,7 @@ Supply a custom `reward_fn` to override.
 Serializable config via `Tau2BenchConfig` (passed as `**kwargs`):
 
 - `domain` — `"airline"`, `"retail"`, or `"telecom"`
-- `task` — one tau2 `Task` serialized to a dict
+- `tau2_task` — one tau2 `Task` serialized to a dict; parsed once into `env.tau2_task`
 - `max_steps` — step budget in tau2's sense, shared by agent and user-sim (default 100)
 
 Non-serializable params (named args):

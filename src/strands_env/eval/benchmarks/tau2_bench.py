@@ -78,7 +78,7 @@ class Tau2BenchEvaluator(Evaluator):
                     ground_truth=(task.get("evaluation_criteria") or {}).get("reward_basis"),
                     config=Tau2BenchConfig(
                         domain=self.domain,
-                        task=task,
+                        tau2_task=task,
                     ),
                 ),
             )
