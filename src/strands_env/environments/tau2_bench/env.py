@@ -22,7 +22,6 @@ by `Tau2BenchUserSimulator` via `AfterInvocationEvent.resume` (strands-agents >=
 from __future__ import annotations
 
 import logging
-import time
 from typing import TYPE_CHECKING, Any, Literal
 
 from strands.types.content import Message
@@ -141,11 +140,7 @@ class Tau2BenchEnv(Environment):
                 metrics=self.compute_metrics(None, LoopLimiter()),
                 termination_reason=TerminationReason.TASK_COMPLETE,
             )
-            reward_t0 = time.perf_counter()
-            result.reward_result = await self.reward_fn.compute(task, result)
-            result.metrics["reward_latency_s"] = round(time.perf_counter() - reward_t0, 4)
             logger.warning("user ended the dialogue at greeting (%s...)", task.message[:80])
-        # otherwise, run the rollout normally (computes the reward itself)
         else:
             result = await super()._rollout(task)
 

@@ -114,7 +114,9 @@ class Environment:
         """
         try:
             await self.reset(task)
-            return await self._rollout(task)
+            result = await self._rollout(task)
+            await self._compute_reward(task, result)
+            return result
         finally:
             await self.cleanup()
 
@@ -153,17 +155,17 @@ class Environment:
         new_messages = list(agent.messages)[len(conversation_history) :]
         rollout = getattr(agent.model, "rollout", None)
         metrics = self.compute_metrics(agent, limiter)
-        result = RolloutResult(
+        return RolloutResult(
             messages=new_messages, rollout=rollout, metrics=metrics, termination_reason=termination_reason
         )
 
-        # 4. Compute and time the reward (if any).
-        if self.reward_fn:
-            reward_t0 = time.perf_counter()
-            result.reward_result = await self.reward_fn.compute(task, result)
-            result.metrics["reward_latency_s"] = round(time.perf_counter() - reward_t0, 4)
-
-        return result
+    async def _compute_reward(self, task: Task, result: RolloutResult) -> None:
+        """Compute and time the reward (if any), recording `reward_latency_s` in the metrics."""
+        if self.reward_fn is None:
+            return
+        reward_t0 = time.perf_counter()
+        result.reward_result = await self.reward_fn.compute(task, result)
+        result.metrics["reward_latency_s"] = round(time.perf_counter() - reward_t0, 4)
 
     async def cleanup(self) -> None:
         """Release resources. Override in subclasses."""
