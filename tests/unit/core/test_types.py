@@ -25,28 +25,9 @@ from strands_env.core.types import (
     RewardResult,
     RolloutResult,
     Task,
-    TaskContext,
     TerminationReason,
     extract_message_text,
 )
-
-# ---------------------------------------------------------------------------
-# TaskContext
-# ---------------------------------------------------------------------------
-
-
-class TestTaskContext:
-    def test_defaults(self):
-        ctx = TaskContext()
-        assert ctx.ground_truth is None
-        assert ctx.conversation_history == []
-
-    def test_extra_fields(self):
-        ctx = TaskContext(ground_truth="42", difficulty=3, tags=["math"])
-        assert ctx.ground_truth == "42"
-        assert ctx.difficulty == 3
-        assert ctx.tags == ["math"]
-
 
 # ---------------------------------------------------------------------------
 # Task
@@ -57,12 +38,27 @@ class TestTask:
     def test_string_message(self):
         task = Task(message="What is 2+2?")
         assert task.message == "What is 2+2?"
-        assert task.context.ground_truth is None
+        assert task.ground_truth is None
+        assert task.conversation_history == []
 
-    def test_with_context(self):
-        ctx = TaskContext(ground_truth="4")
-        task = Task(message="What is 2+2?", context=ctx)
-        assert task.context.ground_truth == "4"
+    def test_ground_truth(self):
+        task = Task(message="What is 2+2?", ground_truth="4")
+        assert task.ground_truth == "4"
+
+    def test_extra_fields_allowed(self):
+        # ad-hoc tasks work without a subclass; extras survive JSON round-trips
+        task = Task(message="q", difficulty=3)
+        assert task.difficulty == 3
+        assert Task.model_validate_json(task.model_dump_json()).difficulty == 3
+
+    def test_subclass_json_round_trip(self):
+        class _MyTask(Task):
+            difficulty: int = 0
+
+        task = _MyTask(message="q", ground_truth="4", difficulty=3)
+        again = _MyTask.model_validate_json(task.model_dump_json())
+        assert again.ground_truth == "4"
+        assert again.difficulty == 3
 
 
 # ---------------------------------------------------------------------------

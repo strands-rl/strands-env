@@ -18,13 +18,13 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterable
-from typing import Literal
+from typing import Any, Literal
 
 from datasets import load_dataset
 from pydantic import BaseModel, Field
 from typing_extensions import override
 
-from strands_env.core import RolloutResult, Task, TaskContext
+from strands_env.core import RolloutResult, Task
 from strands_env.core.llm_judge_reward import LLMJudgeReward
 
 from ..evaluator import EvalSample, Evaluator
@@ -62,6 +62,13 @@ class FramesJudgment(BaseModel):
     )
 
 
+class FramesTask(Task):
+    """`Task` with FRAMES row metadata (kept for reporting/analysis)."""
+
+    wiki_links: Any = None
+    reasoning_types: Any = None
+
+
 class FramesReward(LLMJudgeReward[FramesJudgment]):
     """Reward for FRAMES benchmark."""
 
@@ -72,7 +79,7 @@ class FramesReward(LLMJudgeReward[FramesJudgment]):
         """Get judge prompt for FRAMES benchmark."""
         return GRADER_TEMPLATE.format(
             query=task.message,
-            ground_truth=task.context.ground_truth,
+            ground_truth=task.ground_truth,
             model_response=result.final_response,
         )
 
@@ -114,14 +121,10 @@ class FramesEvaluator(Evaluator):
                 logger.warning("Row %s: missing Prompt/Answer, skipped", i)
                 continue
 
-            yield Task(
+            yield FramesTask(
                 id=f"{self.benchmark_name}_{i}",
                 message=str(prompt),
-                context=TaskContext(
-                    ground_truth=str(answer),
-                    **{
-                        "wiki_links": row["wiki_links"],
-                        "reasoning_types": row["reasoning_types"],
-                    },
-                ),
+                ground_truth=str(answer),
+                wiki_links=row["wiki_links"],
+                reasoning_types=row["reasoning_types"],
             )

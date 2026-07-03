@@ -129,7 +129,7 @@ class Tau2BenchEnv(Environment):
         """Seed the greeting exchange into the task, then run the episode."""
         # task prompt is simulated by the user simulator
         task.message = await self.user_simulator.first_message()
-        task.context.conversation_history = [
+        task.conversation_history = [
             Message(role="assistant", content=[{"text": Tau2BenchUserSimulator.GREETING_MESSAGE}])
         ]
 

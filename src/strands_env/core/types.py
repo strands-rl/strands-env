@@ -34,24 +34,20 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
-class TaskContext(BaseModel):
-    """Ground truth, conversation history, and arbitrary task-specific fields.
+class Task(BaseModel):
+    """A single task containing the starting message and any additional context.
 
-    Extra kwargs are forwarded to reward functions (e.g. `TaskContext(ground_truth="4", difficulty=3)`).
+    Environments with per-sample payload should subclass `Task` with declared, typed fields
+    (e.g. a serialized task spec, per-task directories) — declared fields are validated as
+    usual. `extra="allow"` keeps undeclared fields for ad-hoc tasks without a subclass.
     """
 
     model_config = ConfigDict(extra="allow")
 
-    ground_truth: Any = None
-    conversation_history: Messages = Field(default_factory=list)
-
-
-class Task(BaseModel):
-    """A single task: an `id`, the message to send, and the context needed for reward computation."""
-
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    message: str | Message = Field(..., description="The message/prompt to send to the agent.")
-    context: TaskContext = Field(default_factory=TaskContext)
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()), description="The unique identifier for the task.")
+    message: str | Message = Field(..., description="The task message/prompt to send to the agent.")
+    ground_truth: Any = Field(default=None, description="The ground truth answer to the task.")
+    conversation_history: Messages = Field(default_factory=list, description="The conversation prior to the task.")
 
 
 # ---------------------------------------------------------------------------
@@ -60,10 +56,10 @@ class Task(BaseModel):
 
 
 class RewardResult(BaseModel):
-    """Scalar reward plus optional diagnostics."""
+    """Scalar reward plus optional diagnostic information."""
 
-    reward: float = Field(...)
-    info: dict[str, Any] = Field(default_factory=dict)
+    reward: float = Field(..., description="The reward scalar value.")
+    info: dict[str, Any] = Field(default_factory=dict, description="Additional diagnostic information.")
 
 
 class RewardFunction(ABC):
@@ -160,27 +156,6 @@ class TerminationReason(str, Enum):
 # ---------------------------------------------------------------------------
 
 
-def extract_message_text(message: Message) -> str:
-    """Extract the final text from a message: the last text block, with any think block stripped.
-
-    Returns an empty string when the message contains no text block.
-    An unclosed `<think>` block (truncated generation) is returned as-is.
-    """
-    content = message.get("content") or []
-    # Take the last text block — the final textual output.
-    text = next(
-        (block["text"] for block in reversed(content) if isinstance(block, dict) and "text" in block),
-        None,
-    )
-    if text is None:
-        return ""
-    # Strip think block if any: keep only what follows the last closing tag
-    think_end = text.rfind("</think>")
-    if think_end != -1:
-        text = text[think_end + len("</think>") :].lstrip()
-    return text
-
-
 class RolloutResult(BaseModel):
     """Result of a single `Environment.rollout` call: trajectory, reward, and termination."""
 
@@ -200,3 +175,24 @@ class RolloutResult(BaseModel):
         if not self.messages or self.messages[-1].get("role") != "assistant":
             return None
         return extract_message_text(self.messages[-1]) or None
+
+
+def extract_message_text(message: Message) -> str:
+    """Extract the final text from a message: the last text block, with any think block stripped.
+
+    Returns an empty string when the message contains no text block.
+    An unclosed `<think>` block (truncated generation) is returned as-is.
+    """
+    content = message.get("content") or []
+    # Take the last text block — the final textual output.
+    text = next(
+        (block["text"] for block in reversed(content) if isinstance(block, dict) and "text" in block),
+        None,
+    )
+    if text is None:
+        return ""
+    # Strip think block if any: keep only what follows the last closing tag
+    think_end = text.rfind("</think>")
+    if think_end != -1:
+        text = text[think_end + len("</think>") :].lstrip()
+    return text

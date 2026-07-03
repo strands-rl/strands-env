@@ -23,7 +23,7 @@ from collections.abc import Iterable
 
 from typing_extensions import override
 
-from strands_env.core import AsyncEnvFactory, Task, TaskContext
+from strands_env.core import AsyncEnvFactory, Task
 from strands_env.eval import EvalSample, Evaluator
 
 from ..registry import register_eval
@@ -57,8 +57,8 @@ DEFAULT_SERVERS = frozenset(
 )
 
 
-class MCPAtlasTaskContext(TaskContext):
-    """TaskContext with MCP-Atlas-specific fields."""
+class MCPAtlasTask(Task):
+    """`Task` with MCP-Atlas-specific fields."""
 
     enabled_tools: list[str]
     gtfa_claims: list[str]
@@ -129,12 +129,15 @@ class MCPAtlasEvaluator(Evaluator):
             # that break ast.literal_eval, so escape them first.
             gtfa_claims = ast.literal_eval(row["GTFA_CLAIMS"].replace("\n", "\\n"))
 
-            ctx = MCPAtlasTaskContext(
-                enabled_tools=enabled_tools,
-                gtfa_claims=gtfa_claims,
-                ground_truth=row["PROMPT"],
+            tasks.append(
+                MCPAtlasTask(
+                    id=row["TASK"],
+                    message=row["PROMPT"],
+                    enabled_tools=enabled_tools,
+                    gtfa_claims=gtfa_claims,
+                    ground_truth=row["PROMPT"],
+                )
             )
-            tasks.append(Task(id=row["TASK"], message=row["PROMPT"], context=ctx))
 
         logger.info(
             "MCP-Atlas: loaded %d tasks (%d skipped — require unavailable servers)",

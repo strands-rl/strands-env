@@ -20,7 +20,7 @@ Exercises the full rollout lifecycle: agent invocation → result
 Requires a running SGLang server (default: http://localhost:30000).
 """
 
-from strands_env.core.types import Task, TaskContext, TerminationReason
+from strands_env.core.types import Task, TerminationReason
 from strands_env.environments.calculator import CalculatorEnv
 from strands_env.environments.calculator.reward import MathVerifyReward
 
@@ -63,7 +63,7 @@ class TestCalculatorEnv:
         result2 = await env.rollout(
             Task(
                 message="Now multiply that result by 3.",
-                context=TaskContext(conversation_history=result1.messages),
+                conversation_history=result1.messages,
             )
         )
         assert result2.termination_reason == TerminationReason.TASK_COMPLETE
@@ -76,7 +76,7 @@ class TestCalculatorEnv:
             reward_fn=MathVerifyReward(),
         )
         result = await env.rollout(
-            Task(message="What is 6 * 7?", context=TaskContext(ground_truth="42")),
+            Task(message="What is 6 * 7?", ground_truth="42"),
         )
 
         assert result.reward_result is not None

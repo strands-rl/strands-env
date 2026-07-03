@@ -21,7 +21,7 @@ Requires:
 
 import pytest
 
-from strands_env.core.types import RewardResult, RolloutResult, Task, TaskContext, TerminationReason
+from strands_env.core.types import RewardResult, RolloutResult, Task, TerminationReason
 from strands_env.environments.agentcore_code import AgentCoreCodeEnv
 from strands_env.utils.aws import check_credentials, get_client, get_session
 
@@ -99,7 +99,7 @@ class TestAgentCoreCodeEnv:
         class ContainsReward:
             async def compute(self, task: Task, result: RolloutResult) -> RewardResult:
                 response = result.final_response or ""
-                expected = str(task.context.ground_truth)
+                expected = str(task.ground_truth)
                 return RewardResult(reward=1.0 if expected in response else 0.0)
 
         env = AgentCoreCodeEnv(
@@ -115,7 +115,8 @@ class TestAgentCoreCodeEnv:
             result2 = await env.rollout(
                 Task(
                     message="Now use code to compute x * 2 and give me the final number.",
-                    context=TaskContext(conversation_history=result1.messages, ground_truth=84),
+                    conversation_history=result1.messages,
+                    ground_truth=84,
                 ),
             )
             assert result2.termination_reason == TerminationReason.TASK_COMPLETE

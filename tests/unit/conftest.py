@@ -19,7 +19,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from click.testing import CliRunner
 
-from strands_env.core import Environment, RewardResult, RolloutResult, Task, TaskContext
+from strands_env.core import Environment, RewardResult, RolloutResult, Task
 from strands_env.eval import EvalSample
 
 # ---------------------------------------------------------------------------
@@ -30,7 +30,7 @@ from strands_env.eval import EvalSample
 def make_sample(reward: float, idx: int = 0, aborted: bool = False) -> EvalSample:
     """Create an EvalSample with the given reward and optional abort flag."""
     return EvalSample(
-        task=Task(id=f"sample_{idx}", message="q", context=TaskContext()),
+        task=Task(id=f"sample_{idx}", message="q"),
         result=RolloutResult(reward_result=RewardResult(reward=reward)),
         aborted=aborted,
     )

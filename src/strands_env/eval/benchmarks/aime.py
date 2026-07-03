@@ -22,7 +22,7 @@ from collections.abc import Iterable
 from datasets import load_dataset
 from typing_extensions import override
 
-from strands_env.core import Task, TaskContext
+from strands_env.core import Task
 
 from ..evaluator import Evaluator
 from ..registry import register_eval
@@ -53,9 +53,7 @@ class AIMEEvaluator(Evaluator):
             yield Task(
                 id=f"{self.benchmark_name}_{row.get('id', i)}",
                 message=str(problem),
-                context=TaskContext(
-                    ground_truth=str(answer),
-                ),
+                ground_truth=str(answer),
             )
 
 

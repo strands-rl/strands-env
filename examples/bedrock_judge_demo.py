@@ -33,7 +33,7 @@ import boto3
 import click
 from strands.models.bedrock import BedrockModel
 
-from strands_env.core.types import RolloutResult, Task, TaskContext, TerminationReason
+from strands_env.core.types import RolloutResult, Task, TerminationReason
 from strands_env.eval.benchmarks.simpleqa_verified import SimpleQAReward
 
 # ---------------------------------------------------------------------------
@@ -76,7 +76,7 @@ async def run_demo(model_id: str) -> None:
         click.echo(f"Response:     {response}")
         click.echo("-" * 60)
 
-        task = Task(message=question, context=TaskContext(ground_truth=ground_truth))
+        task = Task(message=question, ground_truth=ground_truth)
         result = create_mock_rollout_result(response)
 
         reward = await reward_fn.compute(task, result)

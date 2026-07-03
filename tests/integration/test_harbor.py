@@ -27,7 +27,7 @@ import pytest
 
 pytest.importorskip("harbor", reason="harbor>=0.1.43 required for harbor env integration tests")
 
-from strands_env.core.types import Task, TaskContext, TerminationReason
+from strands_env.core.types import Task, TerminationReason
 from strands_env.environments.harbor import HarborEnv
 
 from .conftest import assert_rollout, assert_successful_rollout, assert_token_usage
@@ -118,7 +118,7 @@ class TestHarborEnv:
         result2 = await harbor_env.rollout(
             Task(
                 message="Now run 'echo world'.",
-                context=TaskContext(conversation_history=result1.messages),
+                conversation_history=result1.messages,
             ),
         )
         assert result2.termination_reason == TerminationReason.TASK_COMPLETE

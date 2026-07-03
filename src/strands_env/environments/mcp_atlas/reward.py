@@ -118,7 +118,7 @@ class MCPAtlasReward(LLMJudgeReward[ClaimJudgment]):
     @override
     async def compute(self, task: Task, result: RolloutResult) -> RewardResult:
         """Evaluate each GTFA claim individually and return binary pass/fail reward."""
-        claims: list[str] = task.context.gtfa_claims  # type: ignore[attr-defined]
+        claims: list[str] = task.gtfa_claims  # type: ignore[attr-defined]
 
         if not claims:
             return RewardResult(reward=self.default_reward, info={"reason": "no_claims"})

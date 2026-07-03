@@ -24,7 +24,7 @@ from datasets import load_dataset
 from pydantic import BaseModel, Field
 from typing_extensions import override
 
-from strands_env.core import RolloutResult, Task, TaskContext
+from strands_env.core import RolloutResult, Task
 from strands_env.core.llm_judge_reward import LLMJudgeReward
 
 from ..evaluator import EvalSample, Evaluator
@@ -131,7 +131,7 @@ class SimpleQAReward(LLMJudgeReward[SimpleQAJudgment]):
         """Get judge prompt for SimpleQA-Verified benchmarks."""
         return GRADER_TEMPLATE.format(
             query=task.message,
-            ground_truth=task.context.ground_truth,
+            ground_truth=task.ground_truth,
             model_response=result.final_response,
         )
 
@@ -175,7 +175,5 @@ class SimpleQAVerifiedEvaluator(Evaluator):
             yield Task(
                 id=f"{self.benchmark_name}_{row.get('original_index', i)}",
                 message=str(problem),
-                context=TaskContext(
-                    ground_truth=str(answer),
-                ),
+                ground_truth=str(answer),
             )

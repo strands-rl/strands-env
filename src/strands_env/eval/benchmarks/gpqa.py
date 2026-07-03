@@ -26,13 +26,21 @@ from collections.abc import Iterable
 from datasets import load_dataset
 from typing_extensions import override
 
-from strands_env.core import Task, TaskContext
+from strands_env.core import Task
 from strands_env.core.types import RewardFunction, RewardResult, RolloutResult
 
 from ..evaluator import Evaluator
 from ..registry import register_eval
 
 logger = logging.getLogger(__name__)
+
+
+class GPQATask(Task):
+    """`Task` with the shuffled choice sheet needed to grade a letter answer."""
+
+    subdomain: str = ""
+    correct_letter: str
+    choices: list[str]
 
 
 class GPQAReward(RewardFunction):
@@ -62,12 +70,12 @@ class GPQAReward(RewardFunction):
     async def compute(self, task: Task, result: RolloutResult) -> RewardResult:
         """Extract the answer letter and compare with the correct choice."""
         response = result.final_response or ""
-        correct_letter: str | None = getattr(task.context, "correct_letter", None)
+        correct_letter: str | None = getattr(task, "correct_letter", None)
 
         if correct_letter is None:
-            return RewardResult(reward=0.0, info={"status": "error", "error": "missing correct_letter in TaskContext"})
+            return RewardResult(reward=0.0, info={"status": "error", "error": "missing correct_letter on Task"})
 
-        choices: list[str] | None = getattr(task.context, "choices", None)
+        choices: list[str] | None = getattr(task, "choices", None)
         extracted = self.extract_answer(response, choices)
         is_correct = extracted is not None and extracted.upper() == correct_letter.upper()
 
@@ -197,17 +205,13 @@ class GPQAEvaluator(Evaluator):
                 f'Format your response as follows: "The correct answer is (insert answer here)"'
             )
 
-            yield Task(
+            yield GPQATask(
                 id=f"{self.benchmark_name}_{i}",
                 message=formatted_question,
-                context=TaskContext(
-                    ground_truth=str(correct_answer),
-                    **{
-                        "subdomain": row.get("Subdomain", ""),
-                        "correct_letter": correct_letter,
-                        "choices": choices,
-                    },
-                ),
+                ground_truth=str(correct_answer),
+                subdomain=row.get("Subdomain", ""),
+                correct_letter=correct_letter,
+                choices=choices,
             )
 
 

@@ -23,7 +23,7 @@ from pathlib import Path
 from harbor.models.task.task import Task as HarborTask
 from typing_extensions import override
 
-from strands_env.core import Task, TaskContext
+from strands_env.core import Task
 from strands_env.environments.harbor import HarborConfig
 from strands_env.eval import Evaluator
 from strands_env.eval.evaluator import EvalSample
@@ -31,8 +31,8 @@ from strands_env.eval.evaluator import EvalSample
 from ..registry import register_eval
 
 
-class TerminalBenchTaskContext(TaskContext):
-    """TaskContext with Harbor task config."""
+class TerminalBenchTask(Task):
+    """`Task` carrying the Harbor task config."""
 
     config: HarborConfig
 
@@ -83,10 +83,10 @@ class TerminalBenchEvaluator(Evaluator):
         }
         if self.system_prompt_path is not None:
             config["system_prompt"] = self.system_prompt_path.read_text().strip()
-        return Task(
+        return TerminalBenchTask(
             id=task.name,
             message=task.instruction,
-            context=TerminalBenchTaskContext(config=config),
+            config=config,
         )
 
     @override
@@ -100,15 +100,14 @@ class TerminalBenchEvaluator(Evaluator):
     @override
     async def evaluate_sample(self, task: Task) -> EvalSample:
         """Override to create sample-specific output directories for pass@k."""
-        assert isinstance(task.context, TerminalBenchTaskContext)
-        ctx = task.context
+        assert isinstance(task, TerminalBenchTask)
         sample_idx = int(task.id.rsplit("_", 1)[1]) if "_" in task.id else 0
-        ctx.config["trial_dir"] = str(self.output_path.parent / ctx.config["task_id"] / str(sample_idx))
+        task.config["trial_dir"] = str(self.output_path.parent / task.config["task_id"] / str(sample_idx))
 
         sample = await super().evaluate_sample(task)
 
         # Save agent messages
-        agent_dir = Path(ctx.config["trial_dir"]) / "agent"
+        agent_dir = Path(task.config["trial_dir"]) / "agent"
         agent_dir.mkdir(parents=True, exist_ok=True)
         (agent_dir / "messages.json").write_text(json.dumps(sample.result.messages, indent=2, default=str))
         return sample

@@ -29,7 +29,7 @@ from slime.utils.types import Sample  # type: ignore
 from strands_sglang import get_client_from_slime_args
 
 from strands_env.core.models import sglang_model_factory
-from strands_env.core.types import Task, TaskContext
+from strands_env.core.types import Task
 from strands_env.environments.agentcore_code import AgentCoreCodeEnv
 from strands_env.environments.agentcore_code.quotas import CodeInterpreterQuotas
 from strands_env.environments.calculator.reward import MathVerifyReward
@@ -85,10 +85,8 @@ async def generate_and_rm(args, sample: Sample, sampling_params) -> Sample:
     prompt = sample.prompt if isinstance(sample.prompt, str) else sample.prompt[0]["content"]
     task = Task(
         message=prompt,
-        context=TaskContext(
-            ground_truth=sample.label,
-            conversation_history=[],
-        ),
+        ground_truth=sample.label,
+        conversation_history=[],
     )
     result = await env.rollout(task)
 

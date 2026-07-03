@@ -29,7 +29,7 @@ from pydantic import BaseModel, Field
 from strands.types.content import Message
 from typing_extensions import override
 
-from strands_env.core import RolloutResult, Task, TaskContext
+from strands_env.core import RolloutResult, Task
 from strands_env.core.llm_judge_reward import LLMJudgeReward
 
 from ..evaluator import EvalSample, Evaluator
@@ -75,6 +75,15 @@ class HLEJudgment(BaseModel):
     )
 
 
+class HLEVerifiedTask(Task):
+    """`Task` with HLE metadata used for judging and reporting."""
+
+    answer_type: str | None = None
+    raw_subject: str | None = None
+    category: str | None = None
+    has_image: bool = False
+
+
 class HLEReward(LLMJudgeReward[HLEJudgment]):
     """Reward for HLE-Verified benchmark."""
 
@@ -85,7 +94,7 @@ class HLEReward(LLMJudgeReward[HLEJudgment]):
         """Get judge prompt for HLE-Verified benchmark."""
         return GRADER_TEMPLATE.format(
             query=task.message,
-            ground_truth=task.context.ground_truth,
+            ground_truth=task.ground_truth,
             model_response=result.final_response,
         )
 
@@ -184,18 +193,14 @@ class HLEVerifiedEvaluator(Evaluator):
                     ],
                 }
 
-            yield Task(
+            yield HLEVerifiedTask(
                 id=f"{self.benchmark_name}_{row.get('id', i)}",
                 message=message,
-                context=TaskContext(
-                    ground_truth=str(answer),
-                    **{
-                        "answer_type": meta.get("answer_type"),
-                        "raw_subject": row.get("raw_subject"),
-                        "category": row.get("category"),
-                        "has_image": bool(image_data_url),
-                    },
-                ),
+                ground_truth=str(answer),
+                answer_type=meta.get("answer_type"),
+                raw_subject=row.get("raw_subject"),
+                category=row.get("category"),
+                has_image=bool(image_data_url),
             )
 
 

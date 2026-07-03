@@ -14,7 +14,7 @@
 
 """Tests for MathVerifyReward."""
 
-from strands_env.core.types import RolloutResult, Task, TaskContext
+from strands_env.core.types import RolloutResult, Task
 from strands_env.environments.calculator.reward import MathVerifyReward
 
 
@@ -24,7 +24,7 @@ def make_rollout_result(content: str) -> RolloutResult:
 
 
 def make_task(ground_truth: str | None = None) -> Task:
-    return Task(message="test", context=TaskContext(ground_truth=ground_truth))
+    return Task(message="test", ground_truth=ground_truth)
 
 
 class TestMathRewardFunction:

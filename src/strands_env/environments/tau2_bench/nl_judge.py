@@ -85,7 +85,7 @@ class Tau2BenchNLAssertionReward(LLMJudgeReward[NLJudgment]):
     @override
     async def get_judge_prompt(self, task: Task, result: RolloutResult) -> str:
         assertions = list(self._env.tau2_task.evaluation_criteria.nl_assertions or [])
-        messages = list(task.context.conversation_history) + list(result.messages)
+        messages = list(task.conversation_history) + list(result.messages)
         lines = []
         for m in messages:
             for b in m.get("content") or []:

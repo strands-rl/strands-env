@@ -46,7 +46,7 @@ def create_env_factory(model_config: dict, **env_config: Any):
 
     async def env_factory(task: Task) -> Tau2BenchEnv:
         """Construct a fresh `Tau2BenchEnv` for one task."""
-        config = dict(task.context.config)  # type: ignore[attr-defined]
+        config = dict(task.config)  # type: ignore[attr-defined]
         return Tau2BenchEnv(
             agent_model_factory=agent_model_factory,
             user_model_factory=user_model_factory,

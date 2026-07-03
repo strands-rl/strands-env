@@ -55,7 +55,7 @@ class Tau2BenchReward(RewardFunction):
         reward_type = _tau2.RewardType
         basis_raw = self._env.tau2_task.evaluation_criteria.reward_basis
         basis = set(basis_raw) if basis_raw is not None else {reward_type.DB, reward_type.COMMUNICATE}
-        messages = list(task.context.conversation_history) + list(result.messages)
+        messages = list(task.conversation_history) + list(result.messages)
 
         sub_rewards: dict[str, float] = {}
         nl_judge_info: dict[str, Any] | None = None

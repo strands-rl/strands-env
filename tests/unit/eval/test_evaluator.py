@@ -20,7 +20,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from strands_sglang import Rollout
 
-from strands_env.core import RewardResult, RolloutResult, Task, TaskContext
+from strands_env.core import RewardResult, RolloutResult, Task
 from strands_env.eval import EvalSample, Evaluator
 from strands_env.eval.metrics import compute_pass_at_k
 
@@ -39,7 +39,7 @@ class TestEvaluator:
         async def factory(task):
             return mock_env
 
-        tasks = [Task(id=f"p{i}", message=f"q{i}", context=TaskContext()) for i in range(3)]
+        tasks = [Task(id=f"p{i}", message=f"q{i}") for i in range(3)]
 
         evaluator = Evaluator(env_factory=factory, output_path=tmp_path / "results.jsonl")
         results = await evaluator.run(tasks)
@@ -57,7 +57,7 @@ class TestEvaluator:
         async def factory(task):
             return mock_env
 
-        tasks = [Task(id="p1", message="q", context=TaskContext())]
+        tasks = [Task(id="p1", message="q")]
 
         evaluator = Evaluator(env_factory=factory, n_samples_per_prompt=5, output_path=tmp_path / "results.jsonl")
         results = await evaluator.run(tasks)
@@ -147,7 +147,7 @@ class TestEvaluator:
             return env
 
         evaluator = Evaluator(env_factory=factory, output_path=tmp_path / "results.jsonl")
-        results = await evaluator.run([Task(id="p1", message="q", context=TaskContext())])
+        results = await evaluator.run([Task(id="p1", message="q")])
 
         assert results["p1"][0].result.rollout is None
 
@@ -169,7 +169,7 @@ class TestEvaluator:
             return env
 
         evaluator = Evaluator(env_factory=factory, output_path=tmp_path / "results.jsonl")
-        sample = await evaluator.evaluate_sample(Task(id="err", message="q", context=TaskContext()))
+        sample = await evaluator.evaluate_sample(Task(id="err", message="q"))
         assert sample.aborted
         assert cleanup_called
 
@@ -189,7 +189,7 @@ class TestCheckpoint:
             return mock_env
 
         evaluator = Evaluator(env_factory=factory, output_path=output_path, save_interval=1)
-        await evaluator.run([Task(id="s1", message="q1", context=TaskContext())])
+        await evaluator.run([Task(id="s1", message="q1")])
 
         assert output_path.exists()
         lines = output_path.read_text().strip().split("\n")
@@ -205,7 +205,7 @@ class TestCheckpoint:
 
         # First run - complete s1
         evaluator1 = Evaluator(env_factory=factory, output_path=output_path, save_interval=1)
-        await evaluator1.run([Task(id="s1", message="q1", context=TaskContext())])
+        await evaluator1.run([Task(id="s1", message="q1")])
         assert mock_env.rollout.await_count == 1
 
         # Second run - s1 skipped, s2 processed
@@ -213,8 +213,8 @@ class TestCheckpoint:
         evaluator2 = Evaluator(env_factory=factory, output_path=output_path, save_interval=1)
         results = await evaluator2.run(
             [
-                Task(id="s1", message="q1", context=TaskContext()),
-                Task(id="s2", message="q2", context=TaskContext()),
+                Task(id="s1", message="q1"),
+                Task(id="s2", message="q2"),
             ]
         )
 
@@ -267,14 +267,14 @@ class TestValidateSample:
 
         # First run
         eval1 = AbortingEvaluator(env_factory=factory, output_path=output_path, save_interval=1)
-        results1 = await eval1.run([Task(id="s1", message="q1", context=TaskContext())])
+        results1 = await eval1.run([Task(id="s1", message="q1")])
         assert rollout_count == 1
         assert results1["s1"][0].aborted is True
 
         # Second run — s1 retried
         rollout_count = 0
         eval2 = AbortingEvaluator(env_factory=factory, output_path=output_path, save_interval=1)
-        results2 = await eval2.run([Task(id="s1", message="q1", context=TaskContext())])
+        results2 = await eval2.run([Task(id="s1", message="q1")])
         assert rollout_count == 1
         assert results2["s1"][0].aborted is True
 
@@ -320,7 +320,7 @@ class TestValidateSample:
             max_concurrency=1,
             output_path=tmp_path / "results.jsonl",
         )
-        results = await evaluator.run([Task(id="p1", message="q", context=TaskContext())])
+        results = await evaluator.run([Task(id="p1", message="q")])
 
         assert len(results["p1"]) == 2
         aborted = [s for s in results["p1"] if s.aborted]
@@ -351,7 +351,7 @@ class TestComputeMetrics:
             return env
 
         evaluator = Evaluator(env_factory=factory, n_samples_per_prompt=3, output_path=tmp_path / "results.jsonl")
-        results = await evaluator.run([Task(id="p1", message="q", context=TaskContext())])
+        results = await evaluator.run([Task(id="p1", message="q")])
 
         metrics = evaluator.compute_metrics(results)
         assert "pass@1" in metrics
@@ -409,7 +409,7 @@ class TestPassAtK:
     def test_none_reward_handled(self):
         """Samples with None reward are treated as incorrect."""
         sample = EvalSample(
-            task=Task(id="p1_0", message="q", context=TaskContext()),
+            task=Task(id="p1_0", message="q"),
             result=RolloutResult(reward_result=None),
         )
         result = compute_pass_at_k({"p1": [sample]}, k_values=[1])
@@ -439,7 +439,7 @@ class TestDistributedEvaluation:
         mock_pool.rollout = AsyncMock(return_value=RolloutResult())
 
         evaluator = Evaluator(env_actor_pool=mock_pool, output_path=tmp_path / "results.jsonl")
-        results = await evaluator.run([Task(id="p1", message="q", context=TaskContext())])
+        results = await evaluator.run([Task(id="p1", message="q")])
 
         mock_pool.rollout.assert_awaited_once()
         assert len(results) == 1
@@ -455,7 +455,7 @@ class TestDistributedEvaluation:
             factory_called = True
 
         evaluator = Evaluator(env_factory=factory, env_actor_pool=mock_pool, output_path=tmp_path / "results.jsonl")
-        await evaluator.run([Task(id="p1", message="q", context=TaskContext())])
+        await evaluator.run([Task(id="p1", message="q")])
 
         assert not factory_called
 
@@ -465,7 +465,7 @@ class TestDistributedEvaluation:
         mock_pool.rollout = AsyncMock(side_effect=RuntimeError("remote error"))
 
         evaluator = Evaluator(env_actor_pool=mock_pool, output_path=tmp_path / "results.jsonl")
-        sample = await evaluator.evaluate_sample(Task(id="err", message="q", context=TaskContext()))
+        sample = await evaluator.evaluate_sample(Task(id="err", message="q"))
 
         assert sample.aborted
 
@@ -478,7 +478,7 @@ class TestDistributedEvaluation:
         mock_pool.rollout = AsyncMock(return_value=RolloutResult(rollout=rollout))
 
         evaluator = Evaluator(env_actor_pool=mock_pool, output_path=tmp_path / "results.jsonl")
-        results = await evaluator.run([Task(id="p1", message="q", context=TaskContext())])
+        results = await evaluator.run([Task(id="p1", message="q")])
 
         assert results["p1"][0].result.rollout is None
 

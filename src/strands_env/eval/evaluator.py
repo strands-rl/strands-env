@@ -186,7 +186,7 @@ class Evaluator:
                 task.id,
                 result.termination_reason.value,
                 reward_str,
-                task.context.ground_truth,
+                task.ground_truth,
                 reward_info,
                 result.metrics,
             )

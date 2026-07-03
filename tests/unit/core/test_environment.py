@@ -23,7 +23,6 @@ from strands_env.core.environment import Environment
 from strands_env.core.types import (
     RewardResult,
     Task,
-    TaskContext,
     TerminationReason,
 )
 
@@ -72,7 +71,7 @@ class TestRollout:
 
         task = Task(
             message="What is 2+2?",
-            context=TaskContext(conversation_history=conversation_history),
+            conversation_history=conversation_history,
         )
         result = await env.rollout(task)
 
@@ -103,7 +102,7 @@ class TestRollout:
         reward_fn.compute = AsyncMock(return_value=RewardResult(reward=1.0))
         env = Environment(model_factory=model_factory, reward_fn=reward_fn)
 
-        task = Task(message="What is 2+2?", context=TaskContext(ground_truth="4"))
+        task = Task(message="What is 2+2?", ground_truth="4")
         result = await env.rollout(task)
 
         reward_fn.compute.assert_awaited_once()
@@ -141,7 +140,7 @@ class TestRollout:
         ]
         mock_agent_cls.return_value = mock_agent(messages=history + new_messages)
 
-        task = Task(message="msg2", context=TaskContext(conversation_history=history))
+        task = Task(message="msg2", conversation_history=history)
         result = await env.rollout(task)
 
         assert len(result.messages) == 2

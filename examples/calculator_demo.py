@@ -36,7 +36,7 @@ from typing import Literal
 import click
 
 from strands_env.core.models import ModelConfig, build_model_factory
-from strands_env.core.types import Task, TaskContext
+from strands_env.core.types import Task
 from strands_env.environments.calculator import CalculatorEnv, MathVerifyReward
 
 MATH_PROBLEMS = [
@@ -76,7 +76,7 @@ async def run_demo(
         click.echo(f"Expected: {ground_truth}")
         click.echo("-" * 60)
 
-        task = Task(message=question, context=TaskContext(ground_truth=ground_truth))
+        task = Task(message=question, ground_truth=ground_truth)
         result = await env.rollout(task)
 
         click.echo(f"Termination: {result.termination_reason.value}")

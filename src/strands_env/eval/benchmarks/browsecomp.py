@@ -26,7 +26,7 @@ import pandas as pd
 from pydantic import BaseModel, Field
 from typing_extensions import override
 
-from strands_env.core import RolloutResult, Task, TaskContext
+from strands_env.core import RolloutResult, Task
 from strands_env.core.llm_judge_reward import LLMJudgeReward
 
 from ..evaluator import EvalSample, Evaluator
@@ -79,7 +79,7 @@ class BrowseCompReward(LLMJudgeReward[BrowseCompJudgment]):
         """Get judge prompt for BrowseComp benchmark."""
         return GRADER_TEMPLATE.format(
             query=task.message,
-            ground_truth=task.context.ground_truth,
+            ground_truth=task.ground_truth,
             model_response=result.final_response,
         )
 
@@ -139,9 +139,7 @@ class BrowseCompEvaluator(Evaluator):
             yield Task(
                 id=f"{self.benchmark_name}_{i}",
                 message=decrypted_problem,
-                context=TaskContext(
-                    ground_truth=decrypted_answer,
-                ),
+                ground_truth=decrypted_answer,
             )
 
     # ---------------------------------------------------------------------------

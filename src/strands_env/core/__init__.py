@@ -23,7 +23,6 @@ from .types import (
     RewardResult,
     RolloutResult,
     Task,
-    TaskContext,
     TerminationReason,
 )
 
@@ -39,6 +38,5 @@ __all__ = [
     "RewardFunction",
     "RewardResult",
     "RolloutResult",
-    "TaskContext",
     "TerminationReason",
 ]

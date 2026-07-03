@@ -23,7 +23,7 @@ The hook file must export `EvaluatorClass` (an Evaluator subclass).
 
 from collections.abc import Iterable
 
-from strands_env.core import Task, TaskContext
+from strands_env.core import Task
 from strands_env.eval import Evaluator
 
 
@@ -55,10 +55,8 @@ class SimpleMathEvaluator(Evaluator):
         for item in problems:
             yield Task(
                 message=item["prompt"],
-                context=TaskContext(
-                    id=item["id"],
-                    ground_truth=item["answer"],
-                ),
+                id=item["id"],
+                ground_truth=item["answer"],
             )
 
     def get_metric_fns(self):

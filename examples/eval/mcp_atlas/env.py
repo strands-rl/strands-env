@@ -40,7 +40,6 @@ def create_env_factory(model_config: dict, **env_config):
     http_client = MCPAtlasEnv.create_client(base_url=docker_url)
 
     async def env_factory(task):
-        ctx = task.context
         # Each env gets its own reward_fn to avoid concurrent tasks overwriting
         # _current_claim / _response on a shared instance.
         reward_fn = MCPAtlasReward(judge_model=judge_models, max_model_retries=max_judge_retries)
@@ -48,7 +47,7 @@ def create_env_factory(model_config: dict, **env_config):
             model_factory=model_factory,
             http_client=http_client,
             reward_fn=reward_fn,
-            enabled_tools=ctx.enabled_tools,
+            enabled_tools=task.enabled_tools,
             **env_config,
         )
 

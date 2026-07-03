@@ -51,7 +51,7 @@ class AgentWorldModelReward(RewardFunction):
 
     async def compute(self, task: Task, result: RolloutResult) -> RewardResult:
         """Run verification code against the agent's final response."""
-        ctx: Any = task.context
+        ctx: Any = task  # AWM task fields (verify_code, db paths, scenario) arrive as Task extras
         final_answer = result.final_response or ""
 
         try:

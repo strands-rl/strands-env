@@ -20,7 +20,7 @@ from pydantic import BaseModel
 from strands.types.exceptions import ModelThrottledException
 
 from strands_env.core.llm_judge_reward import LLMJudgeReward
-from strands_env.core.types import RolloutResult, Task, TaskContext
+from strands_env.core.types import RolloutResult, Task
 
 # ---------------------------------------------------------------------------
 # Concrete subclass for testing
@@ -57,7 +57,7 @@ class _TextJudge(LLMJudgeReward):
 
 
 def _task_and_result():
-    task = Task(message="What is 2+2?", context=TaskContext(ground_truth="4"))
+    task = Task(message="What is 2+2?", ground_truth="4")
     result = RolloutResult(
         messages=[{"role": "assistant", "content": [{"text": "4"}]}],
     )
