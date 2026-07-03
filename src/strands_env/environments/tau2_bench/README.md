@@ -23,6 +23,7 @@ The DB, policy, and task data live in the tau2 repo (not the pip wheel); the eva
 ## Usage
 
 ```python
+from strands_env.core import Task
 from strands_env.environments.tau2_bench import Tau2BenchEnv
 
 env = Tau2BenchEnv(
@@ -34,11 +35,11 @@ env = Tau2BenchEnv(
     max_steps=100,
 )
 
-await env.reset()                # Build per-episode tau2 env, prime the user-sim
-result = await env.rollout(task)  # Runs the full multi-turn episode
+await env.reset()                           # Build the per-episode tau2 world
+result = await env.rollout(Task(message=""))  # Runs the full multi-turn episode
 ```
 
-`reset()` builds a fresh tau2 domain environment (applying `task.initial_state`), constructs the agent/user tools, and gets the user-sim's reply to a canned greeting to seed the agent's first turn. No `cleanup()` is needed — the DB is per-episode in-memory state.
+`reset()` builds a fresh tau2 domain environment (applying the task's `initial_state`) and constructs the agent/user tools and the user-simulator. `rollout()` then generates the opening exchange itself — the user-sim replies to a canned greeting, and that reply **replaces** `task.message` (which is why the placeholder is empty). No `cleanup()` is needed — the DB is per-episode in-memory state.
 
 ## Tools
 
@@ -53,17 +54,17 @@ Built-in `Tau2BenchReward` computes the **product** of the sub-rewards named by 
 | `DB` | Agent+user DB hashes match a golden env built by replaying `task.actions` on a fresh DB |
 | `ACTION` | Every golden action is matched by some tool call across agent + user-sim messages |
 | `COMMUNICATE` | Each required info string appears in some assistant message |
-| `NL_ASSERTION` | LLM judge (byte-aligned with tau2's prompt/schema) grades each expected outcome; needs `judge_model_factory` |
+| `NL_ASSERTION` | LLM judge (tau2's judge prompt; documented deviation: snake_case keys, verdict-last field order) grades each expected outcome; needs `judge_model_factory` |
 | `ENV_ASSERTION` | Every `task.env_assertions` holds against the live post-episode env (telecom) |
 
-Supply a custom `reward_fn` to override.
+The reward is benchmark material and is not injectable; episodes not ended by the user (`max_steps`, aborts) score 0, matching tau2's dual mode.
 
 ## Configuration
 
 Serializable config via `Tau2BenchConfig` (passed as `**kwargs`):
 
 - `domain` — `"airline"`, `"retail"`, or `"telecom"`
-- `tau2_task` — one tau2 `Task` serialized to a dict; parsed once into `env.tau2_task`
+- `tau2_task` — one tau2 `Task` serialized to a dict; parsed in `reset()` into `env.tau2_task`
 - `max_steps` — step budget in tau2's sense, shared by agent and user-sim (default 100)
 
 Non-serializable params (named args):
@@ -71,4 +72,3 @@ Non-serializable params (named args):
 - `agent_model_factory` — model factory for the agent under test
 - `user_model_factory` — model factory for the user-simulator
 - `judge_model_factory` — optional model factory for the NL-assertion judge
-- `reward_fn` — optional override for the default `Tau2BenchReward`
