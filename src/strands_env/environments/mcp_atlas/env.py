@@ -25,7 +25,7 @@ from typing_extensions import Unpack, override
 
 from strands_env.core.environment import Environment, EnvironmentConfig
 from strands_env.core.models import ModelFactory
-from strands_env.core.types import RewardFunction
+from strands_env.core.types import RewardFunction, Task
 
 from .tool import MCPAtlasTool
 
@@ -100,7 +100,7 @@ class MCPAtlasEnv(Environment):
         return httpx.AsyncClient(base_url=base_url, limits=limits)
 
     @override
-    async def reset(self) -> None:
+    async def reset(self, task: Task) -> None:
         """Fetch tools from the container (or use cache) and apply per-task filter."""
         if self._cached_tools is None:
             response = await self._http_client.post("/list-tools", timeout=self._tool_timeout)

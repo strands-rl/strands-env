@@ -62,12 +62,8 @@ class EnvironmentActor:
         """
         task = Task.model_validate_json(task_json)
         env = await self.env_factory(task)
-        try:
-            await env.reset()
-            result = await env.rollout(task)
-            return result.model_dump_json()
-        finally:
-            await env.cleanup()
+        result = await env.rollout(task)
+        return result.model_dump_json()
 
     async def compute_reward(self, task_json: str, result_json: str) -> str:
         """Recompute reward for an existing rollout without re-running the agent.

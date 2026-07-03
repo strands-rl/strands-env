@@ -35,7 +35,7 @@ from harbor.models.trial.paths import TrialPaths
 from strands import tool
 from typing_extensions import NotRequired, TypedDict, Unpack, override
 
-from strands_env.core import Environment, ModelFactory
+from strands_env.core import Environment, ModelFactory, Task
 from strands_env.core.environment import EnvironmentConfig
 
 from .reward import HarborReward
@@ -106,7 +106,7 @@ class HarborEnv(Environment):
         self.reward_fn = HarborReward(self)
 
     @override
-    async def reset(self) -> None:
+    async def reset(self, task: Task) -> None:
         """Build and start the sandbox."""
         self.trial_paths.mkdir()
         session_id = f"{self.task_id}-{uuid.uuid4().hex[:8]}"

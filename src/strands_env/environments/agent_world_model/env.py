@@ -32,7 +32,7 @@ from typing_extensions import NotRequired, Unpack, override
 
 from strands_env.core.environment import Environment, EnvironmentConfig
 from strands_env.core.models import ModelFactory
-from strands_env.core.types import RewardFunction
+from strands_env.core.types import RewardFunction, Task
 
 from .reward import AgentWorldModelReward
 from .server import kill_server, start_server
@@ -89,7 +89,7 @@ class AgentWorldModelEnv(Environment):
         self._tools: list[AgentWorldModelTool] = []
 
     @override
-    async def reset(self) -> None:
+    async def reset(self, task: Task) -> None:
         """Start AgentWorldModel server, open MCP session, discover tools."""
         await asyncio.sleep(random.uniform(0, 5))  # stagger concurrent server spawns
         self._server_proc, port = await start_server(

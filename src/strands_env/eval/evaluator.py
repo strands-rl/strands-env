@@ -170,11 +170,7 @@ class Evaluator:
             else:
                 assert self.env_factory is not None
                 env = await self.env_factory(task)
-                try:
-                    await env.reset()
-                    result = await env.rollout(task)
-                finally:
-                    await env.cleanup()
+                result = await env.rollout(task)
             # Clean up the token-level rollout if not needed to reduce verbosity
             if not self.keep_rollout:
                 result.rollout = None

@@ -91,20 +91,35 @@ class Environment:
         self.trace_attributes: dict[str, AttributeValue] | None = self.config.get("trace_attributes")
         self.agent_name: str | None = self.config.get("agent_name")
 
-    async def reset(self) -> None:
-        """Reset for a new episode. Override for environment-specific init.
+    async def reset(self, _task: Task) -> None:
+        """Build the episode for `task`. Override for environment-specific init.
+
+        Called by `rollout()` before the agent runs — gym-style, the task enters here.
 
         Notes:
             - This is the right place for resource-heavy or async initialization
             (e.g., spinning up containers, creating sessions, connecting to services).
-            - Keep `__init__` limited to storing config and lightweight state —
-            it is synchronous and cannot `await`.
-            - Paired with `cleanup` which tears down what `reset` sets up.
+            - Keep `__init__` limited to storing operator-authored config and lightweight
+            state — it is synchronous and cannot `await`.
+            - Paired with `cleanup`, which tears down what `reset` sets up and must
+            tolerate partially-initialized state (`reset` may fail midway).
         """
         pass
 
     async def rollout(self, task: Task) -> RolloutResult:
-        """Run one agent rollout and return its trajectory, reward, and termination reason."""
+        """Run one episode: `reset(task)`, then the agent loop, then `cleanup()` (always).
+
+        Template method — override `_rollout()` for environment-specific episode logic;
+        `rollout()` itself centralizes the setup/teardown guarantee for every harness.
+        """
+        try:
+            await self.reset(task)
+            return await self._rollout(task)
+        finally:
+            await self.cleanup()
+
+    async def _rollout(self, task: Task) -> RolloutResult:
+        """Run the agent loop for one episode and return its trajectory, reward, and termination reason."""
         # 1. Build inputs and the agent.
         conversation_history = task.conversation_history
         limiter = LoopLimiter(

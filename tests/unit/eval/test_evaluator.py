@@ -33,7 +33,7 @@ from ..conftest import make_sample
 
 class TestEvaluator:
     async def test_factory_mode(self, mock_env, tmp_path):
-        """Factory mode: reset/rollout/cleanup called for each sample."""
+        """Factory mode: rollout() called once per sample (it owns reset/cleanup internally)."""
         mock_env.rollout.return_value = RolloutResult()
 
         async def factory(task):
@@ -44,9 +44,7 @@ class TestEvaluator:
         evaluator = Evaluator(env_factory=factory, output_path=tmp_path / "results.jsonl")
         results = await evaluator.run(tasks)
 
-        assert mock_env.reset.await_count == 3
         assert mock_env.rollout.await_count == 3
-        assert mock_env.cleanup.await_count == 3
         assert len(results) == 3
         assert sum(len(samples) for samples in results.values()) == 3
 
@@ -151,27 +149,17 @@ class TestEvaluator:
 
         assert results["p1"][0].result.rollout is None
 
-    async def test_cleanup_called_on_rollout_error(self, tmp_path):
-        """env.cleanup() is called even when env.rollout() raises."""
-        cleanup_called = False
+    async def test_rollout_error_aborts_sample(self, tmp_path):
+        """A raising rollout() marks the sample aborted (cleanup guarantee lives in Environment.rollout)."""
 
         async def factory(task):
-            nonlocal cleanup_called
             env = MagicMock()
-            env.reset = AsyncMock()
             env.rollout = AsyncMock(side_effect=RuntimeError("rollout failed"))
-
-            async def track_cleanup():
-                nonlocal cleanup_called
-                cleanup_called = True
-
-            env.cleanup = track_cleanup
             return env
 
         evaluator = Evaluator(env_factory=factory, output_path=tmp_path / "results.jsonl")
         sample = await evaluator.evaluate_sample(Task(id="err", message="q"))
         assert sample.aborted
-        assert cleanup_called
 
 
 # ---------------------------------------------------------------------------

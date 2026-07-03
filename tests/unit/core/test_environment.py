@@ -175,6 +175,49 @@ class TestRollout:
 
 
 # ---------------------------------------------------------------------------
+# rollout() template method
+# ---------------------------------------------------------------------------
+
+
+class TestRolloutTemplate:
+    async def test_reset_receives_task_and_cleanup_always_runs(self, env):
+        """rollout() = reset(task) -> _rollout(task) -> cleanup(), cleanup even on error."""
+        calls = []
+        task = Task(message="q")
+
+        async def reset(t):
+            calls.append(("reset", t))
+
+        async def _rollout(t):
+            calls.append(("_rollout", t))
+            raise RuntimeError("episode failed")
+
+        async def cleanup():
+            calls.append(("cleanup", None))
+
+        env.reset, env._rollout, env.cleanup = reset, _rollout, cleanup
+        with pytest.raises(RuntimeError):
+            await env.rollout(task)
+
+        assert calls == [("reset", task), ("_rollout", task), ("cleanup", None)]
+
+    async def test_cleanup_runs_when_reset_fails(self, env):
+        """A midway reset failure still triggers cleanup (which must tolerate partial init)."""
+        cleaned = []
+
+        async def reset(t):
+            raise RuntimeError("reset failed")
+
+        async def cleanup():
+            cleaned.append(True)
+
+        env.reset, env.cleanup = reset, cleanup
+        with pytest.raises(RuntimeError):
+            await env.rollout(Task(message="q"))
+        assert cleaned == [True]
+
+
+# ---------------------------------------------------------------------------
 # compute_metrics()
 # ---------------------------------------------------------------------------
 

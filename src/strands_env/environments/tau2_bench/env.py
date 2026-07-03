@@ -98,7 +98,7 @@ class Tau2BenchEnv(Environment):
         self.reward_fn: Tau2BenchReward = Tau2BenchReward(env=self, judge_model=judge_model)
 
     @override
-    async def reset(self) -> None:
+    async def reset(self, task: Task) -> None:
         """Build the tau2 environment based on the task config."""
         self.tau2_task = _tau2.Tau2Task.model_validate(self.config["tau2_task"])
         self.tau2_env = _tau2.build_task_environment(self.domain, self.tau2_task)
@@ -125,7 +125,7 @@ class Tau2BenchEnv(Environment):
         )
 
     @override
-    async def rollout(self, task: Task) -> RolloutResult:
+    async def _rollout(self, task: Task) -> RolloutResult:
         """Seed the greeting exchange into the task, then run the episode."""
         # task prompt is simulated by the user simulator
         task.message = await self.user_simulator.first_message()
@@ -147,7 +147,7 @@ class Tau2BenchEnv(Environment):
             logger.warning("user ended the dialogue at greeting (%s...)", task.message[:80])
         # otherwise, run the rollout normally (computes the reward itself)
         else:
-            result = await super().rollout(task)
+            result = await super()._rollout(task)
 
         # both paths report the user-simulator's side of the episode
         result.metrics["user_simulator"] = {
