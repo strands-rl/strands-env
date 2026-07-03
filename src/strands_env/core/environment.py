@@ -52,7 +52,6 @@ class EnvironmentConfig(TypedDict, total=False):
     max_tool_iters: int | None
     max_tool_calls: int | None
     max_parallel_tool_calls: int | None
-    # bounds messages added during the rollout (preloaded conversation history is not counted)
     max_messages: int | None
     # otel tracing
     trace_attributes: dict[str, AttributeValue] | None
