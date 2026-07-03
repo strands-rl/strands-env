@@ -49,11 +49,9 @@ def agentcore_client():
 
 
 @pytest.fixture
-async def code_env(model_factory, agentcore_client):
-    """AgentCoreCodeEnv in CODE mode with automatic cleanup."""
-    env = AgentCoreCodeEnv(model_factory=model_factory, client=agentcore_client, mode="code")
-    yield env
-    await env.cleanup()
+def code_env(model_factory, agentcore_client):
+    """AgentCoreCodeEnv in CODE mode; rollout() cleans up its session per episode."""
+    return AgentCoreCodeEnv(model_factory=model_factory, client=agentcore_client, mode="code")
 
 
 # ---------------------------------------------------------------------------
@@ -76,22 +74,16 @@ class TestAgentCoreCodeEnv:
     async def test_terminal_mode(self, model_factory, agentcore_client):
         """TERMINAL mode: agent executes shell commands."""
         env = AgentCoreCodeEnv(model_factory=model_factory, client=agentcore_client, mode="terminal")
-        try:
-            result = await env.rollout(Task(message="Use a shell command to print 'hello' with echo."))
-            assert_successful_rollout(result)
-        finally:
-            await env.cleanup()
+        result = await env.rollout(Task(message="Use a shell command to print 'hello' with echo."))
+        assert_successful_rollout(result)
 
     async def test_code_and_terminal_mode(self, model_factory, agentcore_client):
         """CODE_AND_TERMINAL mode: both execute_code and execute_command tools available."""
         env = AgentCoreCodeEnv(model_factory=model_factory, client=agentcore_client, mode="code_and_terminal")
-        try:
-            result = await env.rollout(
-                Task(message="Use code to compute 2 + 2, then use a shell command to echo the result."),
-            )
-            assert_successful_rollout(result)
-        finally:
-            await env.cleanup()
+        result = await env.rollout(
+            Task(message="Use code to compute 2 + 2, then use a shell command to echo the result."),
+        )
+        assert_successful_rollout(result)
 
     async def test_multi_turn_with_reward(self, model_factory, agentcore_client):
         """Multi-turn conversation with reward function exercising the full lifecycle."""
@@ -108,22 +100,19 @@ class TestAgentCoreCodeEnv:
             mode="code",
             reward_fn=ContainsReward(),
         )
-        try:
-            result1 = await env.rollout(Task(message="Use code to define x = 42 and print it."))
-            assert result1.termination_reason == TerminationReason.TASK_COMPLETE
+        result1 = await env.rollout(Task(message="Use code to define x = 42 and print it."))
+        assert result1.termination_reason == TerminationReason.TASK_COMPLETE
 
-            result2 = await env.rollout(
-                Task(
-                    message="Now use code to compute x * 2 and give me the final number.",
-                    conversation_history=result1.messages,
-                    ground_truth=84,
-                ),
-            )
-            assert result2.termination_reason == TerminationReason.TASK_COMPLETE
-            assert result2.reward_result is not None
-            assert isinstance(result2.reward_result.reward, float)
-        finally:
-            await env.cleanup()
+        result2 = await env.rollout(
+            Task(
+                message="Now use code to compute x * 2 and give me the final number.",
+                conversation_history=result1.messages,
+                ground_truth=84,
+            ),
+        )
+        assert result2.termination_reason == TerminationReason.TASK_COMPLETE
+        assert result2.reward_result is not None
+        assert isinstance(result2.reward_result.reward, float)
 
     async def test_tool_iteration_limit(self, model_factory, agentcore_client):
         """max_tool_iters terminates the agent after the specified number of tool rounds."""
@@ -134,13 +123,10 @@ class TestAgentCoreCodeEnv:
             system_prompt=FORCE_TOOL_PROMPT,
             max_tool_iters=1,
         )
-        try:
-            result = await env.rollout(Task(message=MANY_STEPS_PROMPT))
+        result = await env.rollout(Task(message=MANY_STEPS_PROMPT))
 
-            assert result.termination_reason == TerminationReason.MAX_TOOL_ITERATIONS_REACHED
-            assert result.metrics["tool_iters"] <= 1
-        finally:
-            await env.cleanup()
+        assert result.termination_reason == TerminationReason.MAX_TOOL_ITERATIONS_REACHED
+        assert result.metrics["tool_iters"] <= 1
 
     async def test_max_tool_calls_limit(self, model_factory, agentcore_client):
         """max_tool_calls terminates the agent after the specified total tool invocations."""
@@ -151,10 +137,7 @@ class TestAgentCoreCodeEnv:
             system_prompt=FORCE_TOOL_PROMPT,
             max_tool_calls=1,
         )
-        try:
-            result = await env.rollout(Task(message=MANY_STEPS_PROMPT))
+        result = await env.rollout(Task(message=MANY_STEPS_PROMPT))
 
-            assert result.termination_reason == TerminationReason.MAX_TOOL_CALLS_REACHED
-            assert result.metrics["tool_calls"] >= 1
-        finally:
-            await env.cleanup()
+        assert result.termination_reason == TerminationReason.MAX_TOOL_CALLS_REACHED
+        assert result.metrics["tool_calls"] >= 1

@@ -77,17 +77,14 @@ def task_dir(tmp_path_factory, docker_available):
 
 
 @pytest.fixture
-async def harbor_env(model_factory, task_dir, tmp_path):
-    """HarborEnv with Docker reset and cleanup."""
-    env = HarborEnv(
+def harbor_env(model_factory, task_dir, tmp_path):
+    """HarborEnv — each rollout() builds and tears down its own sandbox."""
+    return HarborEnv(
         model_factory=model_factory,
         task_id="test-task",
         task_dir=str(task_dir),
         trial_dir=str(tmp_path / "trial"),
     )
-    await env.reset()
-    yield env
-    await env.cleanup()
 
 
 # ---------------------------------------------------------------------------
@@ -133,14 +130,10 @@ class TestHarborEnv:
             system_prompt=FORCE_TOOL_PROMPT,
             max_tool_iters=1,
         )
-        try:
-            await env.reset()
-            result = await env.rollout(Task(message=MANY_STEPS_PROMPT))
+        result = await env.rollout(Task(message=MANY_STEPS_PROMPT))
 
-            assert result.termination_reason == TerminationReason.MAX_TOOL_ITERATIONS_REACHED
-            assert result.metrics["tool_iters"] <= 1
-        finally:
-            await env.cleanup()
+        assert result.termination_reason == TerminationReason.MAX_TOOL_ITERATIONS_REACHED
+        assert result.metrics["tool_iters"] <= 1
 
     async def test_max_tool_calls_limit(self, model_factory, task_dir, tmp_path):
         """max_tool_calls terminates the agent after the specified total tool invocations."""
@@ -152,11 +145,7 @@ class TestHarborEnv:
             system_prompt=FORCE_TOOL_PROMPT,
             max_tool_calls=1,
         )
-        try:
-            await env.reset()
-            result = await env.rollout(Task(message=MANY_STEPS_PROMPT))
+        result = await env.rollout(Task(message=MANY_STEPS_PROMPT))
 
-            assert result.termination_reason == TerminationReason.MAX_TOOL_CALLS_REACHED
-            assert result.metrics["tool_calls"] >= 1
-        finally:
-            await env.cleanup()
+        assert result.termination_reason == TerminationReason.MAX_TOOL_CALLS_REACHED
+        assert result.metrics["tool_calls"] >= 1

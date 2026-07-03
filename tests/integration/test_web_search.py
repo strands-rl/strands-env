@@ -41,41 +41,32 @@ class TestSerperWebSearchEnv:
     async def test_search_completes_with_response(self, model_factory):
         """Agent searches the web, produces a response, and reports metrics."""
         env = WebSearchEnv(model_factory=model_factory)
-        try:
-            result = await env.rollout(Task(message="What is the capital of France?"))
+        result = await env.rollout(Task(message="What is the capital of France?"))
 
-            assert_successful_rollout(result)
-            assert result.metrics["model_calls"] >= 1
-        finally:
-            await env.cleanup()
+        assert_successful_rollout(result)
+        assert result.metrics["model_calls"] >= 1
 
     async def test_search_and_scrape(self, model_factory):
         """Agent can search and scrape pages when scrape_config is provided."""
         env = WebSearchEnv(model_factory=model_factory, scrape_enabled=True)
-        try:
-            result = await env.rollout(Task(message="What is the population of Tokyo?"))
-            assert_successful_rollout(result)
-        finally:
-            await env.cleanup()
+        result = await env.rollout(Task(message="What is the population of Tokyo?"))
+        assert_successful_rollout(result)
 
     async def test_tool_iteration_limit(self, model_factory):
         """max_tool_iters constrains the search agent."""
         env = WebSearchEnv(model_factory=model_factory, max_tool_iters=1)
-        try:
-            result = await env.rollout(
-                Task(
-                    message=(
-                        "Search for 10 different topics: Python, Java, Rust, Go, C++, "
-                        "Ruby, PHP, Swift, Kotlin, Scala. Search each one separately."
-                    )
-                ),
-            )
-            assert result.termination_reason in (
-                TerminationReason.MAX_TOOL_ITERATIONS_REACHED,
-                TerminationReason.TASK_COMPLETE,
-            )
-        finally:
-            await env.cleanup()
+        result = await env.rollout(
+            Task(
+                message=(
+                    "Search for 10 different topics: Python, Java, Rust, Go, C++, "
+                    "Ruby, PHP, Swift, Kotlin, Scala. Search each one separately."
+                )
+            ),
+        )
+        assert result.termination_reason in (
+            TerminationReason.MAX_TOOL_ITERATIONS_REACHED,
+            TerminationReason.TASK_COMPLETE,
+        )
 
 
 @google_available
@@ -83,8 +74,5 @@ class TestGoogleWebSearchEnv:
     async def test_search_completes_with_response(self, model_factory):
         """Agent can search with Google Custom Search and produce a response."""
         env = WebSearchEnv(model_factory=model_factory, search_provider="google")
-        try:
-            result = await env.rollout(Task(message="What is the speed of light?"))
-            assert_successful_rollout(result)
-        finally:
-            await env.cleanup()
+        result = await env.rollout(Task(message="What is the speed of light?"))
+        assert_successful_rollout(result)

@@ -25,7 +25,6 @@ import logging
 import time
 from typing import TYPE_CHECKING, Any, Literal
 
-from strands.telemetry.metrics import EventLoopMetrics
 from strands.types.content import Message
 from strands_sglang import LoopLimiter
 from typing_extensions import NotRequired, Unpack, override
@@ -138,7 +137,8 @@ class Tau2BenchEnv(Environment):
             result = RolloutResult(
                 messages=[{"role": "user", "content": [{"text": task.message}]}],
                 # A fresh limiter reports the truth: the agent loop processed nothing
-                metrics=self.compute_metrics(event_loop_metrics=EventLoopMetrics(), loop_limiter=LoopLimiter()),
+                # `agent=None`: the user stopped at the greeting, no assistant agent ever ran
+                metrics=self.compute_metrics(None, LoopLimiter()),
                 termination_reason=TerminationReason.TASK_COMPLETE,
             )
             reward_t0 = time.perf_counter()
@@ -153,11 +153,7 @@ class Tau2BenchEnv(Environment):
         result.metrics["user_simulator"] = {
             "termination": self.user_simulator.termination,
             "messages": list(self.user_simulator.agent.messages),
-            **self.compute_metrics(
-                event_loop_metrics=self.user_simulator.agent.event_loop_metrics,
-                loop_limiter=self.user_simulator.limiter,
-                tool_parse_errors=getattr(self.user_simulator.agent.model, "tool_parse_errors", None),
-            ),
+            **self.compute_metrics(self.user_simulator.agent, self.user_simulator.limiter),
         }
         return result
 

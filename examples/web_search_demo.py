@@ -72,18 +72,15 @@ async def run_demo(
         verbose=False,
     )
 
-    try:
-        click.echo(f"\n{'=' * 60}")
-        click.echo(f"Question: {QUESTION}")
-        click.echo("-" * 60)
+    click.echo(f"\n{'=' * 60}")
+    click.echo(f"Question: {QUESTION}")
+    click.echo("-" * 60)
 
-        result = await env.rollout(Task(message=QUESTION))
+    result = await env.rollout(Task(message=QUESTION))
 
-        click.echo(f"\nMessages:    {result.messages}")
-        click.echo(f"\nTermination: {result.termination_reason.value}")
-        click.echo(f"Metrics:     {result.metrics}")
-    finally:
-        await env.cleanup()
+    click.echo(f"\nMessages:    {result.messages}")
+    click.echo(f"\nTermination: {result.termination_reason.value}")
+    click.echo(f"Metrics:     {result.metrics}")
 
 
 @click.command()

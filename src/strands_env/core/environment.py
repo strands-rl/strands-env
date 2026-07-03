@@ -152,10 +152,7 @@ class Environment:
         # 3. Build the result.
         new_messages = list(agent.messages)[len(conversation_history) :]
         rollout = getattr(agent.model, "rollout", None)
-        tool_parse_errors = getattr(agent.model, "tool_parse_errors", None)
-        metrics = self.compute_metrics(
-            event_loop_metrics=agent.event_loop_metrics, loop_limiter=limiter, tool_parse_errors=tool_parse_errors
-        )
+        metrics = self.compute_metrics(agent, limiter)
         result = RolloutResult(
             messages=new_messages, rollout=rollout, metrics=metrics, termination_reason=termination_reason
         )
@@ -184,13 +181,16 @@ class Environment:
         """Conversation manager for context window handling. Override in subclasses."""
         return NullConversationManager()
 
-    def compute_metrics(
-        self,
-        event_loop_metrics: EventLoopMetrics,
-        loop_limiter: LoopLimiter,
-        tool_parse_errors: dict[str, int] | None = None,
-    ) -> dict[str, Any]:
-        """Extract metrics from the event loop. Override to add custom metrics."""
+    def compute_metrics(self, agent: Agent | None, loop_limiter: LoopLimiter) -> dict[str, Any]:
+        """Extract metrics from an agent's event loop. Override to add custom metrics.
+
+        `agent=None` means no agent ran (e.g. the episode ended before the first turn);
+        the metrics dict keeps its usual shape with zeroed values.
+        """
+        event_loop_metrics = agent.event_loop_metrics if agent is not None else EventLoopMetrics()
+        tool_parse_errors: dict[str, int] | None = (
+            getattr(agent.model, "tool_parse_errors", None) if agent is not None else None
+        )
 
         def _summarize(counts: Sequence[Any], round_digits: int = 1) -> dict[str, int | float]:
             return {
