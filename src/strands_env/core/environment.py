@@ -162,6 +162,7 @@ class Environment(Generic[TaskT]):
     async def _compute_reward(self, task: TaskT, result: RolloutResult) -> None:
         """Compute and time the reward (if any), recording `reward_latency_s` in the metrics."""
         if self.reward_fn is None:
+            # no reward function usually means inference-only mode
             return
         reward_t0 = time.perf_counter()
         result.reward_result = await self.reward_fn.compute(task, result)
