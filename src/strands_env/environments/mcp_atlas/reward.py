@@ -34,7 +34,9 @@ from typing import override
 from pydantic import BaseModel, Field
 
 from strands_env.core.llm_judge_reward import LLMJudgeReward
-from strands_env.core.types import RewardResult, RolloutResult, Task
+from strands_env.core.types import RewardResult, RolloutResult
+
+from .task import MCPAtlasTask
 
 logger = logging.getLogger(__name__)
 
@@ -93,7 +95,7 @@ class ClaimJudgment(BaseModel):
     confidence_level: float = Field(ge=0.0, le=1.0)
 
 
-class MCPAtlasReward(LLMJudgeReward[ClaimJudgment]):
+class MCPAtlasReward(LLMJudgeReward[ClaimJudgment, MCPAtlasTask]):
     """Per-claim LLM-as-judge reward for MCP-Atlas benchmark.
 
     Overrides ``compute()`` to evaluate multiple claims per rollout via
@@ -104,7 +106,7 @@ class MCPAtlasReward(LLMJudgeReward[ClaimJudgment]):
     judgment_format = ClaimJudgment
 
     @override
-    async def get_judge_prompt(self, task: Task, result: RolloutResult) -> str:
+    async def get_judge_prompt(self, task: MCPAtlasTask, result: RolloutResult) -> str:
         """Format the prompt for the current claim being evaluated."""
         return CLAIM_EVALUATION_PROMPT.format(claim=self._current_claim, response=self._response)
 
@@ -116,9 +118,9 @@ class MCPAtlasReward(LLMJudgeReward[ClaimJudgment]):
         return COVERAGE_SCORES.get(judgment.coverage_outcome, 0.0)
 
     @override
-    async def compute(self, task: Task, result: RolloutResult) -> RewardResult:
+    async def compute(self, task: MCPAtlasTask, result: RolloutResult) -> RewardResult:
         """Evaluate each GTFA claim individually and return binary pass/fail reward."""
-        claims: list[str] = task.gtfa_claims  # type: ignore[attr-defined]
+        claims: list[str] = task.gtfa_claims
 
         if not claims:
             return RewardResult(reward=self.default_reward, info={"reason": "no_claims"})

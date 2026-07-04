@@ -12,11 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""MCP-Atlas benchmark environment — Docker container with 36 MCP servers."""
+"""The dataset-authored MCP-Atlas sample type."""
 
-from .env import MCPAtlasConfig, MCPAtlasEnv
-from .reward import MCPAtlasReward
-from .task import MCPAtlasTask
-from .tool import MCPAtlasTool
+from __future__ import annotations
 
-__all__ = ["MCPAtlasConfig", "MCPAtlasEnv", "MCPAtlasReward", "MCPAtlasTask", "MCPAtlasTool"]
+from pydantic import Field
+
+from strands_env.core import Task
+
+
+class MCPAtlasTask(Task):
+    """Rollout input for `MCPAtlasEnv`."""
+
+    enabled_tools: list[str] = Field(description="List of MCP tools available to the agent.")
+    gtfa_claims: list[str] = Field(description="List of ground truth final answer claims to evaluate.")

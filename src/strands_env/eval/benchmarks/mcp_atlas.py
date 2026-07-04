@@ -22,7 +22,8 @@ import logging
 from collections.abc import Iterable
 from typing import override
 
-from strands_env.core import AsyncEnvFactory, Task
+from strands_env.core import AsyncEnvFactory
+from strands_env.environments.mcp_atlas import MCPAtlasTask
 from strands_env.eval import EvalSample, Evaluator
 
 from ..registry import register_eval
@@ -56,15 +57,8 @@ DEFAULT_SERVERS = frozenset(
 )
 
 
-class MCPAtlasTask(Task):
-    """`Task` with MCP-Atlas-specific fields."""
-
-    enabled_tools: list[str]
-    gtfa_claims: list[str]
-
-
 @register_eval("mcp-atlas")
-class MCPAtlasEvaluator(Evaluator):
+class MCPAtlasEvaluator(Evaluator[MCPAtlasTask]):
     """Evaluator for MCP-Atlas benchmark."""
 
     benchmark_name = "mcp-atlas"
@@ -88,7 +82,7 @@ class MCPAtlasEvaluator(Evaluator):
         self._available_servers = available_servers
 
     @override
-    async def run(self, tasks: Iterable[Task]) -> dict[str, list[EvalSample]]:
+    async def run(self, tasks: Iterable[MCPAtlasTask]) -> dict[str, list[EvalSample[MCPAtlasTask]]]:
         """Run evaluation, closing any shared HTTP client at the end."""
         try:
             return await super().run(tasks)
@@ -98,7 +92,7 @@ class MCPAtlasEvaluator(Evaluator):
                 await http_client.aclose()
 
     @override
-    def validate_sample(self, sample: EvalSample) -> bool:
+    def validate_sample(self, sample: EvalSample[MCPAtlasTask]) -> bool:
         """Abort samples where reward is missing or judge failed, so they are retried on resume."""
         reward_result = sample.result.reward_result
         if reward_result is None:
@@ -107,7 +101,7 @@ class MCPAtlasEvaluator(Evaluator):
         return reward_result.info.get("status") != "error"
 
     @override
-    def load_dataset(self) -> Iterable[Task]:
+    def load_dataset(self) -> Iterable[MCPAtlasTask]:
         """Load MCP-Atlas tasks from HuggingFace, filter by available servers."""
         from datasets import load_dataset
 
