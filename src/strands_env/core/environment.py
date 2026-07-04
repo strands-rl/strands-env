@@ -60,7 +60,7 @@ class EnvironmentConfig(TypedDict, total=False):
     verbose: bool
 
 
-class Environment(Generic[TaskT]):  # noqa: UP046 — PEP 695 syntax can't express TaskT's default until 3.13
+class Environment(Generic[TaskT]):
     """Base RL rollout environment for Strands agents."""
 
     default_system_prompt_path: ClassVar[Path | None] = None

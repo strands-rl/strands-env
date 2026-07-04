@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 JudgmentFormat = TypeVar("JudgmentFormat", bound=BaseModel)
 
 
-class LLMJudgeReward(RewardFunction[TaskT], Generic[JudgmentFormat, TaskT]):  # noqa: UP046 — see Environment
+class LLMJudgeReward(RewardFunction[TaskT], Generic[JudgmentFormat, TaskT]):
     r"""Abstract base for LLM-as-judge reward functions.
 
     Args:
