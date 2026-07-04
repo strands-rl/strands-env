@@ -22,23 +22,22 @@ by `Tau2BenchUserSimulator` via `AfterInvocationEvent.resume` (strands-agents >=
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, NotRequired, Unpack, override
 
 from strands.types.content import Message
 from strands_sglang import LoopLimiter
-from typing_extensions import NotRequired, Unpack, override
 
-from strands_env.core import Environment, ModelFactory, Task
+from strands_env.core import Environment, ModelFactory
 from strands_env.core.environment import EnvironmentConfig
 from strands_env.core.types import RolloutResult, TerminationReason
 
-from . import _tau2
 from .reward import Tau2BenchReward
 from .simulator import Tau2BenchTerminationReason, Tau2BenchUserSimulator
+from .task import Tau2BenchTask
 from .tool import Tau2BenchTool
 
 if TYPE_CHECKING:
-    from ._tau2 import Tau2Environment, Tau2Task
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -63,16 +62,12 @@ Try to be helpful and always follow the policy. Always make sure you generate va
 class Tau2BenchConfig(EnvironmentConfig):
     """Serializable configuration for `Tau2BenchEnv`."""
 
-    domain: Literal["airline", "retail", "telecom"]
-    tau2_task: dict[str, Any]  # parsed via `Tau2Task.model_validate`
     max_steps: NotRequired[int]  # tau2-style step budget: total message count across agent and user-sim
 
 
-class Tau2BenchEnv(Environment):
+class Tau2BenchEnv(Environment[Tau2BenchTask]):
     """Tau2-bench environment with user-simulator driving the multi-turn dialogue."""
 
-    tau2_task: Tau2Task
-    tau2_env: Tau2Environment
     user_simulator: Tau2BenchUserSimulator
 
     def __init__(
@@ -86,7 +81,6 @@ class Tau2BenchEnv(Environment):
         """Initialize a `Tau2BenchEnv` instance."""
         super().__init__(model_factory=agent_model_factory, reward_fn=None, **config)  # type: ignore[misc]
 
-        self.domain: Literal["airline", "retail", "telecom"] = self.config["domain"]
         self.max_steps: int = self.config.get("max_steps", 100)
         self.user_model_factory = user_model_factory
         self.agent_tools: list = []
@@ -96,34 +90,27 @@ class Tau2BenchEnv(Environment):
         self.reward_fn: Tau2BenchReward = Tau2BenchReward(env=self, judge_model=judge_model)
 
     @override
-    async def reset(self, task: Task) -> None:
-        """Build the tau2 environment based on the task config."""
-        self.tau2_task = _tau2.Tau2Task.model_validate(self.config["tau2_task"])
-        self.tau2_env = _tau2.build_task_environment(self.domain, self.tau2_task)
-        self.system_prompt = SYSTEM_PROMPT_TEMPLATE.format(
-            domain_policy=self.tau2_env.policy,
-        )
-        self.agent_tools = [
-            Tau2BenchTool(t, self.tau2_env, "assistant") for t in self.tau2_env.tools.get_tools().values()
-        ]
-        self.user_tools = (
-            [
-                Tau2BenchTool(t, self.tau2_env, "user")
-                for t in self.tau2_env.user_tools.get_tools(include=self.tau2_task.user_tools).values()
+    async def reset(self, task: Tau2BenchTask) -> None:
+        """Build the tau2 world from the task's domain and serialized tau2 task."""
+        tau2_task = task.tau2_task
+        tau2_env = task.tau2_env
+        self.system_prompt = SYSTEM_PROMPT_TEMPLATE.format(domain_policy=tau2_env.policy)
+        self.agent_tools = [Tau2BenchTool(t, tau2_env, "assistant") for t in tau2_env.tools.get_tools().values()]
+        if tau2_env.user_tools:
+            self.user_tools = [
+                Tau2BenchTool(t, tau2_env, "user")
+                for t in tau2_env.user_tools.get_tools(include=tau2_task.user_tools).values()
             ]
-            if self.tau2_env.user_tools
-            else []
-        )
         self.user_simulator = Tau2BenchUserSimulator(
             model=self.user_model_factory(),
-            scenario=str(self.tau2_task.user_scenario),
+            scenario=str(tau2_task.user_scenario),
             tools=self.user_tools,
             max_steps=self.max_steps,
             verbose=self.verbose,
         )
 
     @override
-    async def _rollout(self, task: Task) -> RolloutResult:
+    async def _rollout(self, task: Tau2BenchTask) -> RolloutResult:
         """Seed the greeting exchange into the task, then run the episode."""
         # task prompt is simulated by the user simulator
         task.message = await self.user_simulator.first_message()

@@ -21,12 +21,10 @@ import os
 import subprocess
 from functools import partial
 from pathlib import Path
-from typing import ClassVar, Literal
-
-from typing_extensions import override
+from typing import ClassVar, Literal, override
 
 from strands_env.core import Task
-from strands_env.environments.tau2_bench import Tau2BenchConfig, _tau2
+from strands_env.environments.tau2_bench import Tau2BenchTask, _tau2
 from strands_env.eval import Evaluator
 from strands_env.eval.evaluator import EvalSample
 from strands_env.eval.metrics import MetricFunction, compute_pass_at_k, compute_pass_power_k
@@ -38,12 +36,6 @@ DATA_DIR = Path("./data/tau2-bench")
 os.environ.setdefault("TAU2_DATA_DIR", str((DATA_DIR / "data").resolve()))
 
 logger = logging.getLogger(__name__)
-
-
-class Tau2BenchTask(Task):
-    """`Task` carrying the tau2-bench env config."""
-
-    config: Tau2BenchConfig
 
 
 class Tau2BenchEvaluator(Evaluator):
@@ -73,12 +65,8 @@ class Tau2BenchEvaluator(Evaluator):
         return [
             Tau2BenchTask(
                 id=str(task["id"]),
-                message="",  # set by Tau2BenchEnv.rollout() from the user-sim's first message
-                ground_truth=(task.get("evaluation_criteria") or {}).get("reward_basis"),
-                config=Tau2BenchConfig(
-                    domain=self.domain,
-                    tau2_task=task,
-                ),
+                domain=self.domain,
+                config=task,
             )
             for task in tasks
         ]

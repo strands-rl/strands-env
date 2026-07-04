@@ -16,14 +16,15 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from pydantic import BaseModel
 from strands.models import Model
-from typing_extensions import override
 
 from strands_env.core.llm_judge_reward import LLMJudgeReward
-from strands_env.core.types import RolloutResult, Task
+from strands_env.core.types import RolloutResult
+
+from .task import Tau2BenchTask
 
 if TYPE_CHECKING:
     from .env import Tau2BenchEnv
@@ -72,7 +73,7 @@ class NLJudgment(BaseModel):
     results: list[NLAssertion]
 
 
-class Tau2BenchNLAssertionReward(LLMJudgeReward[NLJudgment]):
+class Tau2BenchNLAssertionReward(LLMJudgeReward[NLJudgment, Tau2BenchTask]):
     """LLM-judged NL_ASSERTION sub-reward following tau2's judge design (see prompt note)."""
 
     judgment_format = NLJudgment
@@ -83,8 +84,8 @@ class Tau2BenchNLAssertionReward(LLMJudgeReward[NLJudgment]):
         self._env = env
 
     @override
-    async def get_judge_prompt(self, task: Task, result: RolloutResult) -> str:
-        assertions = list(self._env.tau2_task.evaluation_criteria.nl_assertions or [])
+    async def get_judge_prompt(self, task: Tau2BenchTask, result: RolloutResult) -> str:
+        assertions = list(task.tau2_task.evaluation_criteria.nl_assertions or [])
         messages = list(task.conversation_history) + list(result.messages)
         lines = []
         for m in messages:

@@ -44,14 +44,12 @@ def create_env_factory(model_config: dict, **env_config: Any):
     judge_config = env_config.pop("judge_model_config", DEFAULT_USER_JUDGE_MODEL_CONFIG)
     judge_model_factory = build_model_factory(judge_config) if judge_config else None
 
-    async def env_factory(task: Task) -> Tau2BenchEnv:
-        """Construct a fresh `Tau2BenchEnv` for one task."""
-        config = dict(task.config)  # type: ignore[attr-defined]
+    async def env_factory(_task: Task) -> Tau2BenchEnv:
+        """Construct a fresh `Tau2BenchEnv` (the sample itself arrives via `rollout(task)`)."""
         return Tau2BenchEnv(
             agent_model_factory=agent_model_factory,
             user_model_factory=user_model_factory,
             judge_model_factory=judge_model_factory,
-            **config,
             **env_config,
         )
 

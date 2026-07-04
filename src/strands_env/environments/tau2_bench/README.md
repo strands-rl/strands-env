@@ -23,23 +23,20 @@ The DB, policy, and task data live in the tau2 repo (not the pip wheel); the eva
 ## Usage
 
 ```python
-from strands_env.core import Task
-from strands_env.environments.tau2_bench import Tau2BenchEnv
+from strands_env.environments.tau2_bench import Tau2BenchEnv, Tau2BenchTask
 
 env = Tau2BenchEnv(
     agent_model_factory=agent_model_factory,    # the model under test
     user_model_factory=user_model_factory,      # drives the user-simulator
     judge_model_factory=judge_model_factory,    # optional; only used for NL-assertion reward
-    domain="retail",
-    tau2_task=task_dict,                         # one tau2 `Task`, as a dict
     max_steps=100,
 )
 
-await env.reset()                           # Build the per-episode tau2 world
-result = await env.rollout(Task(message=""))  # Runs the full multi-turn episode
+task = Tau2BenchTask(domain="retail", config=task_dict)  # one tau2 `Task`, as a dict
+result = await env.rollout(task)  # reset (build the tau2 world) -> episode -> reward -> cleanup
 ```
 
-`reset()` builds a fresh tau2 domain environment (applying the task's `initial_state`) and constructs the agent/user tools and the user-simulator. `rollout()` then generates the opening exchange itself — the user-sim replies to a canned greeting, and that reply **replaces** `task.message` (which is why the placeholder is empty). No `cleanup()` is needed — the DB is per-episode in-memory state.
+`rollout()` is a template method: `reset(task)` builds a fresh tau2 domain environment from the task's domain and `initial_state` and constructs the agent/user tools and the user-simulator; the episode then generates the opening exchange itself — the user-sim replies to a canned greeting, and that reply **replaces** `task.message` (which is why `Tau2BenchTask` defaults it to empty).
 
 ## Tools
 
@@ -61,11 +58,15 @@ The reward is benchmark material and is not injectable; episodes not ended by th
 
 ## Configuration
 
-Serializable config via `Tau2BenchConfig` (passed as `**kwargs`):
+Operator-authored config via `Tau2BenchConfig` (passed as `**kwargs`):
+
+- `max_steps` — step budget in tau2's sense, shared by agent and user-sim (default 100)
+
+Dataset-authored sample via `Tau2BenchTask` (passed to `rollout()`):
 
 - `domain` — `"airline"`, `"retail"`, or `"telecom"`
-- `tau2_task` — one tau2 `Task` serialized to a dict; parsed in `reset()` into `env.tau2_task`
-- `max_steps` — step budget in tau2's sense, shared by agent and user-sim (default 100)
+- `config` — one tau2 `Task` serialized to a dict; lazily parsed (`task.tau2_task`) and built into the
+  live world (`task.tau2_env`) as cached properties — the episode and the reward share the same instance
 
 Non-serializable params (named args):
 
