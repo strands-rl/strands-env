@@ -108,6 +108,7 @@ select = [
     "W",   # pycodestyle warnings
 ]
 ignore = ["E501", "UP046"]
+
 [tool.ruff.lint.per-file-ignores]
 "!src/**/*.py" = ["D"]
 
