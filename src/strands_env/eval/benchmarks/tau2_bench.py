@@ -21,7 +21,7 @@ import os
 import subprocess
 from functools import partial
 from pathlib import Path
-from typing import ClassVar, Literal, override
+from typing import Literal, override
 
 from strands_env.core import Task
 from strands_env.environments.tau2_bench import Tau2BenchTask, _tau2
@@ -41,12 +41,11 @@ logger = logging.getLogger(__name__)
 class Tau2BenchEvaluator(Evaluator):
     """Base evaluator for tau2-bench; subclasses set `domain`."""
 
+    benchmark_name: str = "tau2-bench"
+    domain: Literal["airline", "retail", "telecom"]
     git_url: str = "https://github.com/sierra-research/tau2-bench.git"
-    # Tag to clone the data files from.
     git_ref: str = "v1.0.0"
     data_dir: Path = DATA_DIR
-
-    domain: ClassVar[Literal["airline", "retail", "telecom"]]
 
     def _download_dataset(self) -> None:
         """Clone tau2-bench data files at `git_ref` (not bundled with the `tau2` pip wheel)."""
@@ -99,7 +98,7 @@ class Tau2BenchRetailEvaluator(Tau2BenchEvaluator):
     """tau2-bench retail domain (114 tasks)."""
 
     benchmark_name = "tau2-bench-retail"
-    domain: ClassVar[Literal["airline", "retail", "telecom"]] = "retail"
+    domain = "retail"
 
 
 @register_eval("tau2-bench-airline")
@@ -107,7 +106,7 @@ class Tau2BenchAirlineEvaluator(Tau2BenchEvaluator):
     """tau2-bench airline domain (50 tasks)."""
 
     benchmark_name = "tau2-bench-airline"
-    domain: ClassVar[Literal["airline", "retail", "telecom"]] = "airline"
+    domain = "airline"
 
 
 @register_eval("tau2-bench-telecom")
@@ -115,4 +114,4 @@ class Tau2BenchTelecomEvaluator(Tau2BenchEvaluator):
     """tau2-bench telecom domain (114 tasks, sub-sampled from 2285)."""
 
     benchmark_name = "tau2-bench-telecom"
-    domain: ClassVar[Literal["airline", "retail", "telecom"]] = "telecom"
+    domain = "telecom"

@@ -22,7 +22,7 @@ from pydantic import BaseModel
 from strands.models import Model
 
 from strands_env.core.llm_judge_reward import LLMJudgeReward
-from strands_env.core.types import RolloutResult
+from strands_env.core.types import RewardResult, RolloutResult
 
 from .task import Tau2BenchTask
 
@@ -103,3 +103,13 @@ class Tau2BenchNLAssertionReward(LLMJudgeReward[NLJudgment, Tau2BenchTask]):
         if not isinstance(judgment, NLJudgment):
             return self.default_reward  # 0.0 by default
         return float(all(r.met_expectation for r in judgment.results))
+
+    @override
+    async def compute(self, task: Tau2BenchTask, result: RolloutResult) -> RewardResult:
+        """Score the episode's NL assertions; an empty assertion list is a vacuous pass (no judge call), per tau2."""
+        if not task.tau2_task.evaluation_criteria.nl_assertions:
+            return RewardResult(
+                reward=1.0,
+                info={"status": "success", "reason": "no nl assertions to judge", "judgment": {"results": []}},
+            )
+        return await super().compute(task, result)

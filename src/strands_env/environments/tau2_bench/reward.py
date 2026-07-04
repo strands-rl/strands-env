@@ -46,46 +46,50 @@ class Tau2BenchReward(RewardFunction[Tau2BenchTask]):
 
     @override
     async def compute(self, task: Tau2BenchTask, result: RolloutResult) -> RewardResult:
-        # tau2 only scores cleanly-stopped episodes, and only the user ends a dual-mode
-        # dialogue — any other end (e.g. `max_steps`) scores 0.
+        # tau2 only scores cleanly-stopped episodes with user stop
         termination = self._env.user_simulator.termination
         if termination is not Tau2BenchTerminationReason.USER_STOP:
             return RewardResult(reward=0.0, info={"note": f"premature termination: {termination.value}"})
 
-        reward_type = _tau2.RewardType
-        basis_raw = task.tau2_task.evaluation_criteria.reward_basis
-        basis = set(basis_raw) if basis_raw is not None else {reward_type.DB, reward_type.COMMUNICATE}
         # full dialogue = seeded greeting exchange + everything the episode added
         messages = list(task.conversation_history) + list(result.messages)
 
-        info: dict[str, Any] = {"reward_basis": sorted(b.value for b in basis)}
-        sub_rewards: dict[str, float] = {}
-        if reward_type.DB in basis:
-            sub_rewards["db"] = self._db_reward(task)
-        if reward_type.ENV_ASSERTION in basis:
-            sub_rewards["env_assertion"] = self._env_assertion_reward(task)
-        if reward_type.ACTION in basis:
-            sub_rewards["action"] = self._action_reward(task, messages)
-        if reward_type.COMMUNICATE in basis:
-            sub_rewards["communicate"] = self._communicate_reward(task, messages)
-        if reward_type.NL_ASSERTION in basis:
-            sub_rewards["nl_assertion"] = await self._nl_assertion_reward(task, result, info)
-        info["sub_rewards"] = sub_rewards
+        # compute sub-rewards
+        reward_basis = set(task.tau2_task.evaluation_criteria.reward_basis)
+        info: dict[str, Any] = {"reward_basis": sorted(b.value for b in reward_basis), "sub_rewards": {}}
+        for reward_type in reward_basis:
+            match reward_type:
+                case _tau2.RewardType.DB:
+                    info["sub_rewards"]["db"] = self._db_reward(task)
+                case _tau2.RewardType.ENV_ASSERTION:
+                    info["sub_rewards"]["env_assertion"] = self._env_assertion_reward(task)
+                case _tau2.RewardType.ACTION:
+                    info["sub_rewards"]["action"] = self._action_reward(task, messages)
+                case _tau2.RewardType.COMMUNICATE:
+                    info["sub_rewards"]["communicate"] = self._communicate_reward(task, messages)
+                case _tau2.RewardType.NL_ASSERTION:
+                    if self._nl_judge is None:
+                        raise ValueError("task requires NL_ASSERTION but no judge_model is configured")
+                    nl_result = await self._nl_judge.compute(task, result)
+                    info["sub_rewards"]["nl_assertion"] = nl_result.reward
+                    if nl_result.info:
+                        info["nl_judge"] = nl_result.info
 
-        return RewardResult(reward=math.prod(sub_rewards.values()), info=info)
+        return RewardResult(reward=math.prod(info["sub_rewards"].values()), info=info)
 
     def _db_reward(self, task: Tau2BenchTask) -> float:
         """Return 1.0 iff agent+user DB hashes match a golden env built by replaying golden actions on a fresh DB."""
         # `task.tau2_env` is the live world the episode mutated; the gold env is a fresh replay
-        gold = _tau2.build_task_environment(task.domain, task.tau2_task)
+        ref_env = _tau2.build_task_environment(task.domain, task.tau2_task)
         for act in task.tau2_task.evaluation_criteria.actions or []:
             try:
-                gold.make_tool_call(tool_name=act.name, requestor=act.requestor, **act.arguments)
+                ref_env.make_tool_call(tool_name=act.name, requestor=act.requestor, **act.arguments)
             except Exception as e:
                 logger.warning("Error in golden action %s(%s): %s", act.name, act.arguments, e)
+        # compare db hashes
         return float(
-            gold.get_db_hash() == task.tau2_env.get_db_hash()
-            and gold.get_user_db_hash() == task.tau2_env.get_user_db_hash()
+            ref_env.get_db_hash() == task.tau2_env.get_db_hash()
+            and ref_env.get_user_db_hash() == task.tau2_env.get_user_db_hash()
         )
 
     def _env_assertion_reward(self, task: Tau2BenchTask) -> float:
@@ -99,8 +103,8 @@ class Tau2BenchReward(RewardFunction[Tau2BenchTask]):
 
     def _action_reward(self, task: Tau2BenchTask, messages: list[Message]) -> float:
         """Return 1.0 iff every golden action is matched by some tool call across agent + user-sim messages."""
-        golden = task.tau2_task.evaluation_criteria.actions or []
-        if not golden:
+        ref_actions = task.tau2_task.evaluation_criteria.actions or []
+        if not ref_actions:
             return 1.0
         # collect every toolUse block (assistant-role) from both sides of the dialogue as tau2 ToolCalls
         tool_calls = [
@@ -110,12 +114,12 @@ class Tau2BenchReward(RewardFunction[Tau2BenchTask]):
             for b in m.get("content", [])
             if isinstance(b, dict) and "toolUse" in b
         ]
-        return float(all(any(g.compare_with_tool_call(tc) for tc in tool_calls) for g in golden))
+        return float(all(any(g.compare_with_tool_call(tc) for tc in tool_calls) for g in ref_actions))
 
     def _communicate_reward(self, task: Tau2BenchTask, messages: list[Message]) -> float:
         """Return 1.0 iff each required info string appears in some assistant message (per-message search)."""
-        required = task.tau2_task.evaluation_criteria.communicate_info or []
-        if not required:
+        required_texts = task.tau2_task.evaluation_criteria.communicate_info or []
+        if not required_texts:
             return 1.0
         assistant_texts = [
             "".join(b.get("text", "") for b in m.get("content", []) if isinstance(b, dict))
@@ -124,18 +128,4 @@ class Tau2BenchReward(RewardFunction[Tau2BenchTask]):
         ]
         # Per-message lower + comma-strip, matching tau2; each required info must match SOME message.
         haystacks = [t.lower().replace(",", "") for t in assistant_texts if t]
-        return float(all(any(s.lower() in h for h in haystacks) for s in required))
-
-    async def _nl_assertion_reward(self, task: Tau2BenchTask, result: RolloutResult, info: dict[str, Any]) -> float:
-        """Return the NL_ASSERTION sub-reward, recording the judge's verdicts under `info["nl_judge"]`.
-
-        Defaults to 1.0 (nothing recorded) when there are no assertions or no judge_model.
-        """
-        if not (task.tau2_task.evaluation_criteria.nl_assertions or []):
-            return 1.0
-        if self._nl_judge is None:
-            logger.warning("NL_ASSERTION required but no judge_model; defaulting to 1.0")
-            return 1.0
-        nl_result = await self._nl_judge.compute(task, result)
-        info["nl_judge"] = nl_result.info
-        return nl_result.reward
+        return float(all(any(s.lower() in h for h in haystacks) for s in required_texts))
