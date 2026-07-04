@@ -55,10 +55,11 @@ class Tau2BenchReward(RewardFunction[Tau2BenchTask]):
         reward_type = _tau2.RewardType
         basis_raw = task.tau2_task.evaluation_criteria.reward_basis
         basis = set(basis_raw) if basis_raw is not None else {reward_type.DB, reward_type.COMMUNICATE}
+        # full dialogue = seeded greeting exchange + everything the episode added
         messages = list(task.conversation_history) + list(result.messages)
 
+        info: dict[str, Any] = {"reward_basis": sorted(b.value for b in basis)}
         sub_rewards: dict[str, float] = {}
-        nl_judge_info: dict[str, Any] | None = None
         if reward_type.DB in basis:
             sub_rewards["db"] = self._db_reward(task)
         if reward_type.ENV_ASSERTION in basis:
@@ -68,14 +69,9 @@ class Tau2BenchReward(RewardFunction[Tau2BenchTask]):
         if reward_type.COMMUNICATE in basis:
             sub_rewards["communicate"] = self._communicate_reward(task, messages)
         if reward_type.NL_ASSERTION in basis:
-            sub_rewards["nl_assertion"], nl_judge_info = await self._nl_assertion_reward(task, result)
+            sub_rewards["nl_assertion"] = await self._nl_assertion_reward(task, result, info)
+        info["sub_rewards"] = sub_rewards
 
-        info: dict[str, Any] = {
-            "sub_rewards": sub_rewards,
-            "reward_basis": [b.value for b in basis],
-        }
-        if nl_judge_info is not None:
-            info["nl_judge"] = nl_judge_info
         return RewardResult(reward=math.prod(sub_rewards.values()), info=info)
 
     def _db_reward(self, task: Tau2BenchTask) -> float:
@@ -102,14 +98,14 @@ class Tau2BenchReward(RewardFunction[Tau2BenchTask]):
         )
 
     def _action_reward(self, task: Tau2BenchTask, messages: list[Message]) -> float:
-        """Return 1.0 iff every golden action is matched by some tool_use across agent + user-sim messages."""
+        """Return 1.0 iff every golden action is matched by some tool call across agent + user-sim messages."""
         golden = task.tau2_task.evaluation_criteria.actions or []
         if not golden:
             return 1.0
-        all_messages = messages + list(self._env.user_simulator.agent.messages)
+        # collect every toolUse block (assistant-role) from both sides of the dialogue as tau2 ToolCalls
         tool_calls = [
             _tau2.ToolCall(id=b["toolUse"]["toolUseId"], name=b["toolUse"]["name"], arguments=b["toolUse"]["input"])
-            for m in all_messages
+            for m in messages + list(self._env.user_simulator.agent.messages)
             if m.get("role") == "assistant"
             for b in m.get("content", [])
             if isinstance(b, dict) and "toolUse" in b
@@ -130,17 +126,16 @@ class Tau2BenchReward(RewardFunction[Tau2BenchTask]):
         haystacks = [t.lower().replace(",", "") for t in assistant_texts if t]
         return float(all(any(s.lower() in h for h in haystacks) for s in required))
 
-    async def _nl_assertion_reward(
-        self, task: Tau2BenchTask, result: RolloutResult
-    ) -> tuple[float, dict[str, Any] | None]:
-        """Return the NL_ASSERTION sub-reward and the judge's `info` (None when not judged).
+    async def _nl_assertion_reward(self, task: Tau2BenchTask, result: RolloutResult, info: dict[str, Any]) -> float:
+        """Return the NL_ASSERTION sub-reward, recording the judge's verdicts under `info["nl_judge"]`.
 
-        Defaults to 1.0 with no `info` when there are no assertions or no judge_model.
+        Defaults to 1.0 (nothing recorded) when there are no assertions or no judge_model.
         """
         if not (task.tau2_task.evaluation_criteria.nl_assertions or []):
-            return 1.0, None
+            return 1.0
         if self._nl_judge is None:
             logger.warning("NL_ASSERTION required but no judge_model; defaulting to 1.0")
-            return 1.0, None
+            return 1.0
         nl_result = await self._nl_judge.compute(task, result)
-        return nl_result.reward, nl_result.info
+        info["nl_judge"] = nl_result.info
+        return nl_result.reward
