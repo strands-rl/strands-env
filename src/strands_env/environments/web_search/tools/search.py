@@ -19,7 +19,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-from typing import Literal, TypeAlias
+from typing import Literal
 
 import aiohttp
 from strands import tool
@@ -35,7 +35,7 @@ MAX_RESULTS = 10
 GOOGLE_SERPER_DEV_URL = "https://google.serper.dev/search"
 GOOGLE_CUSTOM_SEARCH_URL = "https://www.googleapis.com/customsearch/v1"
 
-WebSearchAPIProvider: TypeAlias = Literal["serper", "google"]
+type WebSearchAPIProvider = Literal["serper", "google"]
 
 
 class WebSearchToolkit:

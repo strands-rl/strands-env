@@ -17,10 +17,9 @@ r"""Reward function for math problems using HuggingFace's `math-verify` for symb
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, override
 
 from math_verify import ExprExtractionConfig, LatexExtractionConfig, parse, verify
-from typing_extensions import override
 
 from strands_env.core.types import RewardFunction, RewardResult, RolloutResult, Task
 from strands_env.utils.decorators import with_timeout

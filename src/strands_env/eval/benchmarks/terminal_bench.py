@@ -19,9 +19,9 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
+from typing import override
 
 from harbor.models.task.task import Task as HarborTask
-from typing_extensions import override
 
 from strands_env.core import Task
 from strands_env.environments.harbor import HarborConfig

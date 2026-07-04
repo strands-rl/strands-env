@@ -18,13 +18,12 @@ from __future__ import annotations
 
 import subprocess
 from datetime import timedelta
-from typing import Any, Literal
+from typing import Any, Literal, override
 
 from mcp import ClientSession
 from mcp.types import TextContent
 from mcp.types import Tool as MCPToolDef
 from strands.types.tools import ToolResultContent
-from typing_extensions import override
 
 from strands_env.core.mcp_tool import MCPToolAdapter
 

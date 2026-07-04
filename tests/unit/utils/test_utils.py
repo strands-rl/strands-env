@@ -16,6 +16,7 @@
 
 import threading
 import time
+from datetime import UTC
 from unittest.mock import MagicMock, patch
 
 import boto3
@@ -97,7 +98,7 @@ class TestGetSessionWithRoleAssumption:
     @patch("strands_env.utils.aws.boto3.client")
     @patch("botocore.session.get_session")
     def test_assumes_role(self, mock_get_session, mock_boto3_client):
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         mock_sts = MagicMock()
         mock_sts.assume_role.return_value = {
@@ -105,7 +106,7 @@ class TestGetSessionWithRoleAssumption:
                 "AccessKeyId": "AKIA_TEST",
                 "SecretAccessKey": "secret_test",
                 "SessionToken": "token_test",
-                "Expiration": datetime.now(timezone.utc),
+                "Expiration": datetime.now(UTC),
             }
         }
         mock_boto3_client.return_value = mock_sts
@@ -122,7 +123,7 @@ class TestGetSessionWithRoleAssumption:
 
     @patch("strands_env.utils.aws.boto3.client")
     def test_has_refreshable_credentials(self, mock_boto3_client):
-        from datetime import datetime, timedelta, timezone
+        from datetime import datetime, timedelta
 
         from botocore.credentials import RefreshableCredentials
 
@@ -132,7 +133,7 @@ class TestGetSessionWithRoleAssumption:
                 "AccessKeyId": "AKIA_TEST",
                 "SecretAccessKey": "secret_test",
                 "SessionToken": "token_test",
-                "Expiration": datetime.now(timezone.utc) + timedelta(hours=1),
+                "Expiration": datetime.now(UTC) + timedelta(hours=1),
             }
         }
         mock_boto3_client.return_value = mock_sts

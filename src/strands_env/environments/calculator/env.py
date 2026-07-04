@@ -15,9 +15,9 @@
 """Simple math environment using a calculator tool."""
 
 from pathlib import Path
+from typing import Unpack, override
 
 from strands_tools.calculator import calculator
-from typing_extensions import Unpack, override
 
 from strands_env.core import Environment, EnvironmentConfig, ModelFactory, RewardFunction
 from strands_env.environments.calculator.reward import MathVerifyReward

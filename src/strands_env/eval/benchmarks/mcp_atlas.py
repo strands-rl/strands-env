@@ -20,8 +20,7 @@ import ast
 import json
 import logging
 from collections.abc import Iterable
-
-from typing_extensions import override
+from typing import override
 
 from strands_env.core import AsyncEnvFactory, Task
 from strands_env.eval import EvalSample, Evaluator

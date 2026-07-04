@@ -24,13 +24,12 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, override
 
 import e2b.api as _e2b_api
 from e2b.exceptions import AuthenticationException
 from harbor.environments.e2b import E2BEnvironment
 from harbor.models.trial.paths import EnvironmentPaths
-from typing_extensions import override
 
 if TYPE_CHECKING:
     from .env import PrebakedE2BConfig

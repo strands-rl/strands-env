@@ -29,9 +29,9 @@ Scoring (from MCP-Atlas):
 from __future__ import annotations
 
 import logging
+from typing import override
 
 from pydantic import BaseModel, Field
-from typing_extensions import override
 
 from strands_env.core.llm_judge_reward import LLMJudgeReward
 from strands_env.core.types import RewardResult, RolloutResult, Task

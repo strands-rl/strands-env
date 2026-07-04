@@ -22,11 +22,10 @@ the Strands agent interface.  It handles tool spec building; subclasses implemen
 from __future__ import annotations
 
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, override
 
 from strands.tools.tools import AgentTool, ToolResultEvent
 from strands.types.tools import ToolGenerator, ToolResult, ToolResultContent, ToolSpec, ToolUse
-from typing_extensions import override
 
 if TYPE_CHECKING:
     from mcp.types import Tool as MCPToolDef

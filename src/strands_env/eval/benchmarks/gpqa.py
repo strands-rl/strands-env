@@ -22,9 +22,9 @@ import re
 import sys
 import unicodedata
 from collections.abc import Iterable
+from typing import override
 
 from datasets import load_dataset
-from typing_extensions import override
 
 from strands_env.core import Task
 from strands_env.core.types import RewardFunction, RewardResult, RolloutResult

@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import TypeAlias
 
 import boto3
 from botocore.client import BaseClient
@@ -28,8 +27,8 @@ from strands_env.utils.decorators import cache_by
 
 logger = logging.getLogger(__name__)
 
-BotoClient: TypeAlias = BaseClient
-BotoClientConfig: TypeAlias = Config
+type BotoClient = BaseClient
+type BotoClientConfig = Config
 
 
 def resolve_region_name(region_name: str | None = None, profile_name: str | None = None) -> str:

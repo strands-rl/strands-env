@@ -18,11 +18,10 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterable
-from typing import Any
+from typing import Any, override
 
 from datasets import load_dataset
 from lm_eval.tasks.ifeval.utils import process_results
-from typing_extensions import override
 
 from strands_env.core import Task
 from strands_env.core.types import RewardFunction, RewardResult, RolloutResult

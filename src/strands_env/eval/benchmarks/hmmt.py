@@ -18,9 +18,9 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterable
+from typing import override
 
 from datasets import load_dataset
-from typing_extensions import override
 
 from strands_env.core import Task
 

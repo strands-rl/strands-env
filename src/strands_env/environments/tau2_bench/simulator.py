@@ -29,7 +29,7 @@ from __future__ import annotations
 
 import logging
 import re
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from strands import Agent
@@ -47,7 +47,7 @@ from .tool import Tau2BenchTool
 logger = logging.getLogger(__name__)
 
 
-class Tau2BenchTerminationReason(str, Enum):
+class Tau2BenchTerminationReason(StrEnum):
     """Why the tau2 dialogue ended, in tau2's own vocabulary.
 
     Notes:

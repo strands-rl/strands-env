@@ -17,9 +17,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal
-
-from typing_extensions import Unpack, override
+from typing import TYPE_CHECKING, Literal, Unpack, override
 
 from strands_env.core.environment import Environment, EnvironmentConfig
 from strands_env.utils.aws import get_client

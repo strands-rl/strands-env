@@ -24,11 +24,11 @@ import shutil
 import subprocess
 from datetime import timedelta
 from pathlib import Path
+from typing import NotRequired, Unpack, override
 
 import httpx
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
-from typing_extensions import NotRequired, Unpack, override
 
 from strands_env.core.environment import Environment, EnvironmentConfig
 from strands_env.core.models import ModelFactory

@@ -19,7 +19,7 @@ from __future__ import annotations
 import importlib
 from collections.abc import Callable
 from types import ModuleType
-from typing import TYPE_CHECKING, Any, TypeAlias, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from strands_env.core.environment import AsyncEnvFactory
 
@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from strands_env.eval import Evaluator
 
 #: Type for the create_env_factory function exported by hook modules.
-EnvFactoryCreator: TypeAlias = Callable[..., AsyncEnvFactory]
+type EnvFactoryCreator = Callable[..., AsyncEnvFactory]
 
 
 # ---------------------------------------------------------------------------

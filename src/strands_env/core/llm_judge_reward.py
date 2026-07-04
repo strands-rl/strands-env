@@ -19,13 +19,13 @@ from __future__ import annotations
 import itertools
 import logging
 from abc import abstractmethod
-from typing import Generic
+from typing import Generic, override
 
 from pydantic import BaseModel
 from strands import Agent
 from strands.models import Model
 from strands.types.exceptions import ModelThrottledException
-from typing_extensions import TypeVar, override
+from typing_extensions import TypeVar
 
 from .types import RewardFunction, RewardResult, RolloutResult, TaskT
 
@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 JudgmentFormat = TypeVar("JudgmentFormat", bound=BaseModel)
 
 
-class LLMJudgeReward(RewardFunction[TaskT], Generic[JudgmentFormat, TaskT]):
+class LLMJudgeReward(RewardFunction[TaskT], Generic[JudgmentFormat, TaskT]):  # noqa: UP046 — see Environment
     r"""Abstract base for LLM-as-judge reward functions.
 
     Args:

@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Literal, override
 
 import httpx
 from mcp.types import Tool as MCPToolDef
 from strands.types.tools import ToolResultContent
-from typing_extensions import override
 
 from strands_env.core.mcp_tool import MCPToolAdapter
 

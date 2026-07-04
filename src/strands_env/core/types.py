@@ -19,7 +19,7 @@ from __future__ import annotations
 import logging
 import uuid
 from abc import ABC, abstractmethod
-from enum import Enum
+from enum import StrEnum
 from typing import Any, Generic
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -81,7 +81,7 @@ class RewardFunction(ABC, Generic[TaskT]):
 # ---------------------------------------------------------------------------
 
 
-class TerminationReason(str, Enum):
+class TerminationReason(StrEnum):
     """Why an episode ended."""
 
     NOT_TERMINATED = "not_terminated"

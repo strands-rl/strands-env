@@ -16,8 +16,7 @@
 
 import asyncio
 from pathlib import Path
-
-from typing_extensions import Unpack, override
+from typing import Unpack, override
 
 from strands_env.core.environment import Environment, EnvironmentConfig
 from strands_env.core.models import ModelFactory

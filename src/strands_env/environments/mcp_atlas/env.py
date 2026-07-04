@@ -18,10 +18,10 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import Unpack, override
 
 import httpx
 from mcp.types import Tool as MCPToolDef
-from typing_extensions import Unpack, override
 
 from strands_env.core.environment import Environment, EnvironmentConfig
 from strands_env.core.models import ModelFactory

@@ -22,12 +22,11 @@ import json
 import logging
 import re
 from collections.abc import Iterable
-from typing import Any, Literal
+from typing import Any, Literal, override
 
 from datasets import load_dataset
 from pydantic import BaseModel, Field
 from strands.types.content import Message
-from typing_extensions import override
 
 from strands_env.core import RolloutResult, Task
 from strands_env.core.llm_judge_reward import LLMJudgeReward

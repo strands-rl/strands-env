@@ -20,11 +20,10 @@ import base64
 import hashlib
 import logging
 from collections.abc import Iterable
-from typing import Literal
+from typing import Literal, override
 
 import pandas as pd
 from pydantic import BaseModel, Field
-from typing_extensions import override
 
 from strands_env.core import RolloutResult, Task
 from strands_env.core.llm_judge_reward import LLMJudgeReward

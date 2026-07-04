@@ -20,7 +20,7 @@ import logging
 import time
 from collections.abc import Awaitable, Callable, Sequence
 from pathlib import Path
-from typing import Any, ClassVar, Generic, TypeAlias
+from typing import Any, ClassVar, Generic, Unpack
 
 from opentelemetry.util.types import AttributeValue
 from strands import Agent
@@ -28,7 +28,7 @@ from strands.agent.conversation_manager import ConversationManager, NullConversa
 from strands.handlers.callback_handler import PrintingCallbackHandler
 from strands.telemetry.metrics import EventLoopMetrics
 from strands_sglang import LoopLimiter
-from typing_extensions import TypedDict, Unpack
+from typing_extensions import TypedDict
 
 from .models import ModelFactory
 from .types import (
@@ -41,7 +41,7 @@ from .types import (
 logger = logging.getLogger(__name__)
 
 #: Type alias for environment factory function (async).
-AsyncEnvFactory: TypeAlias = Callable[[Any], Awaitable["Environment[Any]"]]
+type AsyncEnvFactory = Callable[[Any], Awaitable["Environment[Any]"]]
 
 
 class EnvironmentConfig(TypedDict, total=False):
@@ -60,7 +60,7 @@ class EnvironmentConfig(TypedDict, total=False):
     verbose: bool
 
 
-class Environment(Generic[TaskT]):
+class Environment(Generic[TaskT]):  # noqa: UP046 — PEP 695 syntax can't express TaskT's default until 3.13
     """Base RL rollout environment for Strands agents."""
 
     default_system_prompt_path: ClassVar[Path | None] = None

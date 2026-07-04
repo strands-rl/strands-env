@@ -17,11 +17,10 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, override
 
 from strands.tools.tools import AgentTool, ToolResultEvent
 from strands.types.tools import ToolGenerator, ToolResult, ToolResultContent, ToolSpec, ToolUse
-from typing_extensions import override
 
 from . import _tau2
 

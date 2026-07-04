@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import uuid
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal, TypeAlias
+from typing import TYPE_CHECKING, Literal, NotRequired, Unpack, override
 
 from harbor.environments.factory import EnvironmentFactory
 from harbor.models.environment_type import EnvironmentType
@@ -33,7 +33,7 @@ from harbor.models.task.config import EnvironmentConfig as TaskEnvironmentConfig
 from harbor.models.task.paths import TaskPaths
 from harbor.models.trial.paths import TrialPaths
 from strands import tool
-from typing_extensions import NotRequired, TypedDict, Unpack, override
+from typing_extensions import TypedDict
 
 from strands_env.core import Environment, ModelFactory, Task
 from strands_env.core.environment import EnvironmentConfig
@@ -43,7 +43,7 @@ from .reward import HarborReward
 if TYPE_CHECKING:
     from harbor.environments.base import BaseEnvironment
 
-    HarborEnvironment: TypeAlias = BaseEnvironment
+    type HarborEnvironment = BaseEnvironment
 
 
 class HarborConfig(EnvironmentConfig):
