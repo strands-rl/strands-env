@@ -92,10 +92,11 @@ class TerminalBenchEvaluator(Evaluator):
     @override
     def validate_sample(self, sample: EvalSample) -> bool:
         """Abort samples where reward is missing or verification failed, so they are retried on resume."""
-        reward = sample.result.reward_result
-        if reward is None:
-            return False
-        return reward.info.get("status") != "error"
+        reward_result = sample.result.reward_result
+        if reward_result is None:
+            # no reward_fn configured — deterministic, retrying can't help (run() warns about it)
+            return True
+        return reward_result.info.get("status") != "error"
 
     @override
     async def evaluate_sample(self, task: Task) -> EvalSample:

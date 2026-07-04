@@ -104,10 +104,10 @@ class BrowseCompEvaluator(Evaluator):
     @override
     def validate_sample(self, sample: EvalSample) -> bool:
         """Abort samples where the judge failed (e.g. throttling), so they are retried on resume."""
-        reward = sample.result.reward_result
-        if reward is None:
+        reward_result = sample.result.reward_result
+        if reward_result is None:
             return True
-        return reward.info.get("status") != "error"
+        return reward_result.info.get("status") != "error"
 
     @override
     def load_dataset(self) -> Iterable[Task]:

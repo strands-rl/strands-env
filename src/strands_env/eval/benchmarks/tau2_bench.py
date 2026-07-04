@@ -73,10 +73,10 @@ class Tau2BenchEvaluator(Evaluator):
     @override
     def validate_sample(self, sample: EvalSample) -> bool:
         """Abort samples with missing reward, NL judge error, or an aborted user-sim (all retryable)."""
-        reward = sample.result.reward_result
-        if reward is None:
+        reward_result = sample.result.reward_result
+        if reward_result is None:
             return False
-        nl_judge = reward.info.get("nl_judge")
+        nl_judge = reward_result.info.get("nl_judge")
         if nl_judge and nl_judge.get("status") == "error":
             return False
         if ((sample.result.metrics or {}).get("user_simulator") or {}).get("termination") == "aborted":

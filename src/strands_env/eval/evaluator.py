@@ -231,6 +231,15 @@ class Evaluator:
             with tqdm(total=total, desc=f"Evaluating {self.benchmark_name}", unit="sample", dynamic_ncols=True) as pbar:
                 await asyncio.gather(*[process(pid, sid, a, pbar) for pid, sid, a in to_process])
         self.save_results()
+
+        # A missing reward is deterministic (no reward_fn configured), so samples are kept, not
+        # retried — but metrics count them as incorrect, which must not go unnoticed.
+        rewardless = sum(
+            1 for ss in self.results.values() for s in ss if not s.aborted and s.result.reward_result is None
+        )
+        if rewardless:
+            n = sum(len(ss) for ss in self.results.values())
+            logger.warning("%d/%d samples have no reward_result — metrics treat them as incorrect", rewardless, n)
         return dict(self.results)
 
     def compute_metrics(self, results: dict[str, list[EvalSample]], log: bool = True) -> dict[str, float]:
