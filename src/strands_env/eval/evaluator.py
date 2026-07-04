@@ -24,13 +24,14 @@ from collections import defaultdict
 from collections.abc import Iterable
 from functools import partial
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Generic
 
 from pydantic import BaseModel
 from tqdm import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
 
-from strands_env.core import AsyncEnvFactory, RolloutResult, Task
+from strands_env.core import AsyncEnvFactory, RolloutResult
+from strands_env.core.types import TaskT
 
 from .metrics import MetricFunction, compute_pass_at_k
 
@@ -40,10 +41,10 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class EvalSample(BaseModel):
+class EvalSample(BaseModel, Generic[TaskT]):
     """Evaluation sample result."""
 
-    task: Task
+    task: TaskT
     """The task that was evaluated."""
 
     result: RolloutResult
@@ -53,7 +54,7 @@ class EvalSample(BaseModel):
     """Whether this sample was aborted (excluded from metrics, retried on resume)."""
 
 
-class Evaluator:
+class Evaluator(Generic[TaskT]):
     """Evaluator for running concurrent environment evaluations."""
 
     benchmark_name: str = ""
@@ -95,18 +96,18 @@ class Evaluator:
         self.keep_rollout = keep_rollout
 
         # Runtime state
-        self.results: dict[str, list[EvalSample]] = defaultdict(list)
+        self.results: dict[str, list[EvalSample[TaskT]]] = defaultdict(list)
         self.completed_ids: set[str] = set()
 
         # Strands' `recurse_event_loop` adds ~3 frames per tool iteration; the default
         # 1000-frame limit busts at ~iter 321 deep inside the OTel tracer's `json.dumps`.
         sys.setrecursionlimit(max(sys.getrecursionlimit(), 10_000))
 
-    def load_dataset(self) -> Iterable[Task]:
+    def load_dataset(self) -> Iterable[TaskT]:
         """Load dataset. Override in subclasses."""
         raise NotImplementedError("Subclasses must implement load_dataset()")
 
-    def validate_sample(self, sample: EvalSample) -> bool:
+    def validate_sample(self, _sample: EvalSample[TaskT]) -> bool:
         """Check if a completed sample is valid. Override with benchmark-specific logic.
 
         Return False to mark the sample as aborted (excluded from metrics, retried on resume).
@@ -140,7 +141,7 @@ class Evaluator:
             for line in f:
                 data = json.loads(line)
                 prompt_id = data.pop("prompt_id")
-                sample = EvalSample.model_validate(data)
+                sample: EvalSample[TaskT] = EvalSample.model_validate(data)
                 if sample.aborted:
                     n_aborted += 1
                     continue  # Aborted samples are retried on resume
@@ -161,7 +162,7 @@ class Evaluator:
                     data["prompt_id"] = prompt_id
                     f.write(json.dumps(data, ensure_ascii=False) + "\n")
 
-    async def evaluate_sample(self, task: Task) -> EvalSample:
+    async def evaluate_sample(self, task: TaskT) -> EvalSample[TaskT]:
         """Evaluate a single sample."""
         try:
             # Run evaluation in distributed or local mode
@@ -196,12 +197,12 @@ class Evaluator:
             logger.error("[%s]: evaluate_sample failed, aborting: %s", task.id, e)
             return EvalSample(task=task, result=RolloutResult(), aborted=True)
 
-    async def run(self, tasks: Iterable[Task]) -> dict[str, list[EvalSample]]:
+    async def run(self, tasks: Iterable[TaskT]) -> dict[str, list[EvalSample[TaskT]]]:
         """Run evaluation on tasks with `n_samples_per_prompt` each."""
         self.load_results()
 
         # Expand tasks to (prompt_id, sample_id, task) tuples
-        to_process: list[tuple[str, str, Task]] = []
+        to_process: list[tuple[str, str, TaskT]] = []
         for task in tasks:
             prompt_id = task.id
             for i in range(self.n_samples_per_prompt):
@@ -215,7 +216,7 @@ class Evaluator:
         save_counter = 0
         total = len(to_process)
 
-        async def process(prompt_id: str, sample_id: str, task: Task, pbar: tqdm) -> None:
+        async def process(prompt_id: str, sample_id: str, task: TaskT, pbar: tqdm) -> None:
             nonlocal save_counter
             async with semaphore:
                 sample = await self.evaluate_sample(task)

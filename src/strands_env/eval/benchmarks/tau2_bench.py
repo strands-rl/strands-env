@@ -23,7 +23,6 @@ from functools import partial
 from pathlib import Path
 from typing import Literal, override
 
-from strands_env.core import Task
 from strands_env.environments.tau2_bench import Tau2BenchTask, _tau2
 from strands_env.eval import Evaluator
 from strands_env.eval.evaluator import EvalSample
@@ -38,7 +37,7 @@ os.environ.setdefault("TAU2_DATA_DIR", str((DATA_DIR / "data").resolve()))
 logger = logging.getLogger(__name__)
 
 
-class Tau2BenchEvaluator(Evaluator):
+class Tau2BenchEvaluator(Evaluator[Tau2BenchTask]):
     """Base evaluator for tau2-bench; subclasses set `domain`."""
 
     benchmark_name: str = "tau2-bench"
@@ -56,7 +55,7 @@ class Tau2BenchEvaluator(Evaluator):
         )
 
     @override
-    def load_dataset(self) -> list[Task]:
+    def load_dataset(self) -> list[Tau2BenchTask]:
         """Enumerate tasks for `self.domain` and bundle statics into each Task."""
         if not self.data_dir.exists():
             self._download_dataset()
@@ -71,7 +70,7 @@ class Tau2BenchEvaluator(Evaluator):
         ]
 
     @override
-    def validate_sample(self, sample: EvalSample) -> bool:
+    def validate_sample(self, sample: EvalSample[Tau2BenchTask]) -> bool:
         """Abort samples with missing reward, NL judge error, or an aborted user-sim (all retryable)."""
         reward_result = sample.result.reward_result
         if reward_result is None:

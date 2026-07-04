@@ -24,7 +24,7 @@ import importlib
 import logging
 from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, TypeVar
 
 if TYPE_CHECKING:
     from .evaluator import Evaluator
@@ -32,13 +32,17 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # Registry: benchmark name -> Evaluator subclass
-_BENCHMARKS: dict[str, type[Evaluator]] = {}
+_BENCHMARKS: dict[str, type[Evaluator[Any]]] = {}
 # Unavailable modules: module_name -> error message
 _UNAVAILABLE: dict[str, str] = {}
 _DISCOVERED = False
 
 
-def register_eval(name: str) -> Callable[[type[Evaluator]], type[Evaluator]]:
+#: Bound to the class object itself so `register_eval` preserves the decorated class's exact type.
+EvaluatorT = TypeVar("EvaluatorT", bound="type[Evaluator[Any]]")
+
+
+def register_eval(name: str) -> Callable[[EvaluatorT], EvaluatorT]:
     """Decorator to register a benchmark evaluator.
 
     Example:
@@ -47,7 +51,7 @@ def register_eval(name: str) -> Callable[[type[Evaluator]], type[Evaluator]]:
             ...
     """
 
-    def decorator(cls: type[Evaluator]) -> type[Evaluator]:
+    def decorator(cls: EvaluatorT) -> EvaluatorT:
         if name in _BENCHMARKS:
             raise ValueError(f"Benchmark '{name}' is already registered")
         _BENCHMARKS[name] = cls
@@ -81,7 +85,7 @@ def _discover_benchmarks() -> None:
     _DISCOVERED = True
 
 
-def get_benchmark(name: str) -> type[Evaluator]:
+def get_benchmark(name: str) -> type[Evaluator[Any]]:
     """Get a registered benchmark evaluator by name.
 
     Args:
