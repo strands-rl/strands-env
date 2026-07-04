@@ -20,12 +20,13 @@ import logging
 import uuid
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Any
+from typing import Any, Generic
 
 from pydantic import BaseModel, ConfigDict, Field
 from strands.types.content import Message, Messages
 from strands.types.exceptions import ContextWindowOverflowException, EventLoopException, MaxTokensReachedException
 from strands_sglang import MaxMessagesReachedError, MaxToolCallsReachedError, MaxToolIterationsReachedError, Rollout
+from typing_extensions import TypeVar
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +51,10 @@ class Task(BaseModel):
     conversation_history: Messages = Field(default_factory=list, description="The conversation prior to the task.")
 
 
+#: The task type an environment (or reward function) consumes. Defaults to `Task` (PEP 696),
+TaskT = TypeVar("TaskT", bound=Task, default=Task)
+
+
 # ---------------------------------------------------------------------------
 # Reward (for a rollout)
 # ---------------------------------------------------------------------------
@@ -62,11 +67,11 @@ class RewardResult(BaseModel):
     info: dict[str, Any] = Field(default_factory=dict, description="Additional diagnostic information.")
 
 
-class RewardFunction(ABC):
+class RewardFunction(ABC, Generic[TaskT]):
     """Abstract reward function. Subclass and implement `compute`."""
 
     @abstractmethod
-    async def compute(self, task: Task, result: RolloutResult) -> RewardResult:
+    async def compute(self, task: TaskT, result: RolloutResult) -> RewardResult:
         """Return a `RewardResult` given the task and the rollout result."""
         ...
 

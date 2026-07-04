@@ -19,15 +19,15 @@ from __future__ import annotations
 import itertools
 import logging
 from abc import abstractmethod
-from typing import Generic, TypeVar
+from typing import Generic
 
 from pydantic import BaseModel
 from strands import Agent
 from strands.models import Model
 from strands.types.exceptions import ModelThrottledException
-from typing_extensions import override
+from typing_extensions import TypeVar, override
 
-from .types import RewardFunction, RewardResult, RolloutResult, Task
+from .types import RewardFunction, RewardResult, RolloutResult, TaskT
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 JudgmentFormat = TypeVar("JudgmentFormat", bound=BaseModel)
 
 
-class LLMJudgeReward(RewardFunction, Generic[JudgmentFormat]):
+class LLMJudgeReward(RewardFunction[TaskT], Generic[JudgmentFormat, TaskT]):
     r"""Abstract base for LLM-as-judge reward functions.
 
     Args:
@@ -58,7 +58,7 @@ class LLMJudgeReward(RewardFunction, Generic[JudgmentFormat]):
         class SimpleQAReward(LLMJudgeReward[SimpleQAJudgment]):
             judgment_format = SimpleQAJudgment
 
-            async def get_judge_prompt(self, task: Task, result: RolloutResult) -> str:
+            async def get_judge_prompt(self, task: TaskT, result: RolloutResult) -> str:
                 return f"Question: {task.message}\\nAnswer: {result.final_response}"
 
             async def get_reward(self, judgment: SimpleQAJudgment | str) -> float:
@@ -83,7 +83,7 @@ class LLMJudgeReward(RewardFunction, Generic[JudgmentFormat]):
         self.max_model_retries = max_model_retries
 
     @abstractmethod
-    async def get_judge_prompt(self, task: Task, result: RolloutResult) -> str:
+    async def get_judge_prompt(self, task: TaskT, result: RolloutResult) -> str:
         """Format the prompt for the judge model."""
         raise NotImplementedError("Subclasses must implement this method.")
 
@@ -93,7 +93,7 @@ class LLMJudgeReward(RewardFunction, Generic[JudgmentFormat]):
         raise NotImplementedError("Subclasses must implement this method.")
 
     @override
-    async def compute(self, task: Task, result: RolloutResult) -> RewardResult:
+    async def compute(self, task: TaskT, result: RolloutResult) -> RewardResult:
         try:
             prompt = await self.get_judge_prompt(task, result)
         except Exception as e:

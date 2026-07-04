@@ -20,7 +20,7 @@ import logging
 import time
 from collections.abc import Awaitable, Callable, Sequence
 from pathlib import Path
-from typing import Any, ClassVar, TypeAlias
+from typing import Any, ClassVar, Generic, TypeAlias
 
 from opentelemetry.util.types import AttributeValue
 from strands import Agent
@@ -34,14 +34,14 @@ from .models import ModelFactory
 from .types import (
     RewardFunction,
     RolloutResult,
-    Task,
+    TaskT,
     TerminationReason,
 )
 
 logger = logging.getLogger(__name__)
 
 #: Type alias for environment factory function (async).
-AsyncEnvFactory: TypeAlias = Callable[[Any], Awaitable["Environment"]]
+AsyncEnvFactory: TypeAlias = Callable[[Any], Awaitable["Environment[Any]"]]
 
 
 class EnvironmentConfig(TypedDict, total=False):
@@ -60,7 +60,7 @@ class EnvironmentConfig(TypedDict, total=False):
     verbose: bool
 
 
-class Environment:
+class Environment(Generic[TaskT]):
     """Base RL rollout environment for Strands agents."""
 
     default_system_prompt_path: ClassVar[Path | None] = None
@@ -69,7 +69,7 @@ class Environment:
         self,
         *,
         model_factory: ModelFactory,
-        reward_fn: RewardFunction | None = None,
+        reward_fn: RewardFunction[TaskT] | None = None,
         **config: Unpack[EnvironmentConfig],
     ):
         """Initialize an `Environment` instance."""
@@ -91,7 +91,7 @@ class Environment:
         self.trace_attributes: dict[str, AttributeValue] | None = self.config.get("trace_attributes")
         self.agent_name: str | None = self.config.get("agent_name")
 
-    async def reset(self, _task: Task) -> None:
+    async def reset(self, _task: TaskT) -> None:
         """Build the episode for `task`. Override for environment-specific init.
 
         Called by `rollout()` before the agent runs — gym-style, the task enters here.
@@ -106,7 +106,7 @@ class Environment:
         """
         pass
 
-    async def rollout(self, task: Task) -> RolloutResult:
+    async def rollout(self, task: TaskT) -> RolloutResult:
         """Run one episode: `reset(task)`, then the agent loop, then `cleanup()` (always).
 
         Template method — override `_rollout()` for environment-specific episode logic;
@@ -120,7 +120,7 @@ class Environment:
         finally:
             await self.cleanup()
 
-    async def _rollout(self, task: Task) -> RolloutResult:
+    async def _rollout(self, task: TaskT) -> RolloutResult:
         """Run the agent loop for one episode and return its trajectory, reward, and termination reason."""
         # 1. Build inputs and the agent.
         conversation_history = task.conversation_history
@@ -159,7 +159,7 @@ class Environment:
             messages=new_messages, rollout=rollout, metrics=metrics, termination_reason=termination_reason
         )
 
-    async def _compute_reward(self, task: Task, result: RolloutResult) -> None:
+    async def _compute_reward(self, task: TaskT, result: RolloutResult) -> None:
         """Compute and time the reward (if any), recording `reward_latency_s` in the metrics."""
         if self.reward_fn is None:
             return
