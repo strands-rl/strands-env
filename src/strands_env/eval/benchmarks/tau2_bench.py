@@ -46,12 +46,14 @@ class Tau2BenchEvaluator(Evaluator[Tau2BenchTask]):
     data_dir: Path = DATA_DIR
 
     def _download_dataset(self) -> None:
-        """Clone tau2-bench data files at `git_ref` (not bundled with the `tau2` pip wheel)."""
+        """Sparse-clone only `data/` at `git_ref` — the full repo is ~3 GB, mostly unrelated web assets."""
         self.data_dir.parent.mkdir(parents=True, exist_ok=True)
         subprocess.run(
-            ["git", "clone", "--depth", "1", "--branch", self.git_ref, self.git_url, str(self.data_dir)],
+            ["git", "clone", "--depth", "1", "--branch", self.git_ref, "--filter=blob:none", "--sparse",
+             self.git_url, str(self.data_dir)],
             check=True,
         )
+        subprocess.run(["git", "-C", str(self.data_dir), "sparse-checkout", "set", "data"], check=True)
 
     @override
     def load_dataset(self) -> list[Tau2BenchTask]:
