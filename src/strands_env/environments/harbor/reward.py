@@ -51,9 +51,6 @@ class HarborReward(RewardFunction["HarborTask"]):
                 environment=self._env.sandbox,
             )
             verifier_result = await asyncio.wait_for(verifier.verify(), timeout=timeout)
-
-            # Harbor's raw reward, as parsed from reward.json (first) or reward.txt. A missing
-            # "reward" key is malformed verifier output — fail loudly, never score 0 silently.
             if "reward" not in verifier_result.rewards:
                 raise ValueError(f"verifier reported no 'reward' key (got keys: {sorted(verifier_result.rewards)})")
             return RewardResult(reward=float(verifier_result.rewards["reward"]), info={"status": "success"})
