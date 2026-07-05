@@ -29,6 +29,17 @@ result = await env.rollout(task)
 await env.cleanup()  # Clean up code interpreter session
 ```
 
+## Configuration
+
+`AgentCoreCodeConfig` keys (passed as `**kwargs`):
+
+| Field | Default | Meaning |
+|---|---|---|
+| `mode` | `"code"` | Tools to expose: `"code"`, `"terminal"`, or `"code_and_terminal"` |
+| `session_timeout_seconds` | `3600` | Code interpreter session timeout in seconds |
+
+Base knobs (`system_prompt`, `max_tool_iters`, `max_tool_calls`, `max_parallel_tool_calls`, `max_messages`, `trace_attributes`, `agent_name`, `verbose`) come from `EnvironmentConfig`.
+
 ## Tools
 
 Depends on the configured mode:

@@ -45,11 +45,21 @@ task = HarborTask.from_task_dir("/path/to/task", trial_dir="/path/to/output")  #
 result = await env.rollout(task)  # reset (build + start container) -> episode -> reward -> cleanup
 ```
 
-`HarborTask` carries the dataset-authored sample: `task_id`, `task_dir`, `trial_dir`,
+## Configuration
+
+`HarborConfig` keys (passed as `**kwargs`):
+
+| Field | Default | Meaning |
+|---|---|---|
+| `backend` | `"docker"` | Sandbox backend: `"docker"` or `"e2b"` |
+| `exec_timeout` | `1200` | Per-command `sandbox.exec` timeout in seconds; also the verifier fallback |
+| `prebaked_e2b_config` | `{}` | e2b connection + template config (`domain`, `api_key`/`api_key_file`, `template_id`, `templates_json`); connection falls back to `E2B_DOMAIN`/`E2B_API_KEY` |
+
+Base knobs (`system_prompt`, `max_tool_iters`, `max_tool_calls`, `max_parallel_tool_calls`, `max_messages`, `trace_attributes`, `agent_name`, `verbose`) come from `EnvironmentConfig`.
+
+The per-sample payload rides `HarborTask`, not config: `task_id`, `task_dir`, `trial_dir`,
 `task_env_config`, an optional `verifier_timeout` (task.toml `[verifier]`), and an optional
-benchmark `system_prompt`. `HarborConfig` keeps the operator knobs: `backend`,
-`exec_timeout` (per-command `sandbox.exec` budget, also the verifier fallback), and
-`prebaked_e2b_config`.
+benchmark `system_prompt` override.
 
 ## Tools
 
@@ -71,4 +81,4 @@ The env ships two prompts:
 - `system_prompt.md` (default) — drives a structured problem-solving loop: analyze state, plan next steps, execute commands, verify results.
 - `system_prompt_swe.md` — a SWE-bench-tuned variant (exposed as `SWE_SYSTEM_PROMPT_PATH`).
 
-Benchmarks override the default via the serializable `system_prompt` config field — e.g. the `swebench-verified` evaluator injects `system_prompt_swe.md`.
+Benchmarks override the default per-task via `HarborTask.system_prompt` — e.g. the `swebench-verified` evaluator injects `system_prompt_swe.md`.

@@ -24,30 +24,29 @@ env = AgentWorldModelEnv(
     temp_dir="/path/to/temp_dir",
     max_tool_iters=10,
 )
-await env.reset()       # starts server + opens MCP session
-result = await env.rollout(task)
-await env.cleanup()     # closes session + kills server + removes temp dir
+result = await env.rollout(task)  # reset (start server + open MCP session) -> episode -> reward -> cleanup
 ```
 
 `AgentWorldModelReward` is used by default — no need to pass `reward_fn` unless you want a custom one.
 
-## AgentWorldModelConfig
+## Configuration
 
-`AgentWorldModelConfig` extends `EnvironmentConfig` with AWM-specific fields. All config
-fields are serializable (strings, ints) and passed as `**kwargs` to the constructor.
+`AgentWorldModelConfig` keys (passed as `**kwargs`):
 
-| Field | Type | Description |
+| Field | Default | Meaning |
 |---|---|---|
-| `scenario` | `str` | Scenario name |
-| `envs_path` | `str` | Path to gen_envs.jsonl (contains `scenario`, `db_path`, `full_code`) |
-| `work_db_path` | `str` | Working DB copy the server writes to |
-| `initial_db_path` | `str` | Read-only DB snapshot (for reward verification) |
-| `temp_dir` | `str` | Temp directory for server artifacts (removed on cleanup) |
-| `tool_call_timeout` | `int` | MCP tool call timeout in seconds (default: 60) |
+| `scenario` | required | Scenario name |
+| `envs_path` | required | Path to `gen_envs.jsonl` (contains `scenario`, `db_path`, `full_code`) |
+| `work_db_path` | required | Working DB copy the server writes to |
+| `initial_db_path` | required | Read-only DB snapshot (for reward verification) |
+| `temp_dir` | required | Temp directory for server artifacts (removed on cleanup) |
+| `tool_call_timeout` | `60` | MCP tool call timeout in seconds |
 
-## TaskContext Fields
+Base knobs (`system_prompt`, `max_tool_iters`, `max_tool_calls`, `max_parallel_tool_calls`, `max_messages`, `trace_attributes`, `agent_name`, `verbose`) come from `EnvironmentConfig`.
 
-The evaluator/trainer must prepare these fields on `TaskContext` before creating the environment:
+## Task Fields
+
+The evaluator/trainer must prepare these fields on the `Task` (as extras) before `rollout()`:
 
 | Field | Type | Set by | Used by |
 |---|---|---|---|

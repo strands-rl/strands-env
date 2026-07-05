@@ -58,9 +58,13 @@ The reward is benchmark material and is not injectable; episodes not ended by th
 
 ## Configuration
 
-Operator-authored config via `Tau2BenchConfig` (passed as `**kwargs`):
+`Tau2BenchConfig` keys (passed as `**kwargs`):
 
-- `max_steps` — step budget in tau2's sense, shared by agent and user-sim (default 100)
+| Field | Default | Meaning |
+|---|---|---|
+| `max_steps` | `100` | Step budget in tau2's sense: total message count across agent and user-sim |
+
+Base knobs (`system_prompt`, `max_tool_iters`, `max_tool_calls`, `max_parallel_tool_calls`, `max_messages`, `trace_attributes`, `agent_name`, `verbose`) come from `EnvironmentConfig`.
 
 Dataset-authored sample via `Tau2BenchTask` (passed to `rollout()`):
 

@@ -35,26 +35,24 @@ env = MCPAtlasEnv(
     model_factory=model_factory,
     http_client=http_client,
     reward_fn=reward_fn,
-    enabled_tools=["calculator_calculate", "fetch_fetch"],
 )
-await env.reset()       # fetches tools and applies filtering
-result = await env.rollout(task)
-await env.cleanup()     # clears tools (does NOT close the shared client)
+result = await env.rollout(task)  # reset (fetch + filter tools) -> episode -> reward -> cleanup
+await http_client.aclose()  # caller owns the shared client — close after all tasks
 ```
 
-## MCPAtlasConfig
+## Configuration
 
-`MCPAtlasConfig` extends `EnvironmentConfig` with MCP-Atlas-specific fields.
-All config fields are serializable and passed as `**kwargs` to the constructor.
+`MCPAtlasConfig` keys (passed as `**kwargs`):
 
-| Field | Type | Description |
+| Field | Default | Meaning |
 |---|---|---|
-| `enabled_tools` | `list[str]` | Tool names to enable (omit or empty = all tools) |
-| `tool_timeout` | `int` | HTTP timeout in seconds for tool and list-tools calls (default: 60) |
+| `tool_timeout` | `60` | HTTP timeout in seconds for `/list-tools` and `/call-tool` requests |
 
-## TaskContext Fields
+Base knobs (`system_prompt`, `max_tool_iters`, `max_tool_calls`, `max_parallel_tool_calls`, `max_messages`, `trace_attributes`, `agent_name`, `verbose`) come from `EnvironmentConfig`.
 
-The evaluator must prepare these fields on `TaskContext` (via `MCPAtlasTaskContext`):
+## Task Fields
+
+The dataset-authored sample arrives as `MCPAtlasTask`:
 
 | Field | Type | Used by |
 |---|---|---|

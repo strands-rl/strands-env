@@ -50,14 +50,18 @@ Depends on configuration:
 
 ## Configuration
 
-Serializable config via `WebSearchConfig` (passed as `**kwargs`):
+`WebSearchConfig` keys (passed as `**kwargs`):
 
-- `search_provider` — `"serper"` (default) or `"google"`
-- `search_timeout` — HTTP timeout in seconds (default 10)
-- `blocked_domains` — domains to exclude from results
-- `scrape_enabled` — enable web scraping (default `False`)
-- `scrape_timeout` — scrape HTTP timeout (default 30)
-- `scrape_token_budget` — max tokens of page content to keep (default 5000)
+| Field | Default | Meaning |
+|---|---|---|
+| `search_provider` | `"serper"` | Search API provider: `"serper"` or `"google"` |
+| `search_timeout` | `10` | Search HTTP timeout in seconds |
+| `blocked_domains` | `None` | Domains to exclude from search results |
+| `scrape_enabled` | `False` | Enable the scrape tool |
+| `scrape_timeout` | `50` | Scrape HTTP timeout in seconds |
+| `scrape_token_budget` | `20000` | Max tokens of scraped page content to keep |
+
+Base knobs (`system_prompt`, `max_tool_iters`, `max_tool_calls`, `max_parallel_tool_calls`, `max_messages`, `trace_attributes`, `agent_name`, `verbose`) come from `EnvironmentConfig`.
 
 Non-serializable params (named args):
 

@@ -15,6 +15,10 @@ env = CalculatorEnv(model_factory=model_factory)
 result = await env.rollout(task)
 ```
 
+## Configuration
+
+No environment-specific keys — base knobs (`system_prompt`, `max_tool_iters`, `max_tool_calls`, `max_parallel_tool_calls`, `max_messages`, `trace_attributes`, `agent_name`, `verbose`) come from `EnvironmentConfig`.
+
 ## Tools
 
 - **calculator** — Basic arithmetic operations (from `strands_tools`).
