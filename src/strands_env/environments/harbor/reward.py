@@ -55,12 +55,6 @@ class HarborReward(RewardFunction["HarborTask"]):
         sandbox = self._env.sandbox
         timeout = task.verifier_timeout if task.verifier_timeout is not None else self._env.exec_timeout
 
-        # harbor exec is a non-login `bash -c` (no ~/.profile), so user-local tools — like the
-        # uv that swebench images install into ~/.local/bin — are not on PATH. Expose them
-        # additively; the graded swebench baseline (70.8%, #78) relied on an equivalent PATH
-        # prepend in the pre-Verifier flow.
-        await sandbox.exec('ln -sf "$HOME/.local/bin/"* /usr/local/bin/ 2>/dev/null || true')
-
         verifier = Verifier(
             task=HarborTaskSpec(Path(task.task_dir)),
             trial_paths=task.trial_paths,
@@ -68,6 +62,8 @@ class HarborReward(RewardFunction["HarborTask"]):
         )
         result = await asyncio.wait_for(verifier.verify(), timeout=timeout)
 
-        # Harbor's raw reward, as parsed from reward.json (first) or reward.txt. Current
-        # datasets emit binary 0/1 by construction; partial-credit tasks pass through intact.
-        return float(result.rewards.get("reward", 0.0))
+        # Harbor's raw reward, as parsed from reward.json (first) or reward.txt. A missing
+        # "reward" key is malformed verifier output — fail loudly, never score 0 silently.
+        if "reward" not in result.rewards:
+            raise ValueError(f"verifier reported no 'reward' key (got keys: {sorted(result.rewards)})")
+        return float(result.rewards["reward"])

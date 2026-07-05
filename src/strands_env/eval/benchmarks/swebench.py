@@ -41,7 +41,7 @@ class SWEBenchVerifiedEvaluator(TerminalBenchEvaluator):
     """
 
     git_url = "https://github.com/laude-institute/harbor-datasets.git"
-    git_ref = "0d48cdd78e14a1e22afa09abcfc1bf210427d66f"
+    git_ref = "37db108843a49bb31a592e37a75e2c40dc3f9749"  # test.sh self-exports ~/.local/bin (uv fix)
     git_subdir = "datasets/swebench-verified"
     system_prompt_path: Path | None = SWE_SYSTEM_PROMPT_PATH
 
