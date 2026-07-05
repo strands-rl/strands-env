@@ -55,7 +55,7 @@ class HarborConfig(EnvironmentConfig):
             `E2B_DOMAIN` / `E2B_API_KEY` env vars.
     """
 
-    timeout: NotRequired[int]
+    exec_timeout: NotRequired[int]  # sandbox.exec timeout; also the verifier fallback
     backend: NotRequired[Literal["docker", "e2b"]]
     prebaked_e2b_config: NotRequired[PrebakedE2BConfig]
 
@@ -73,7 +73,7 @@ class HarborEnv(Environment[HarborTask]):
     ):
         """Initialize a `HarborEnv` instance."""
         super().__init__(model_factory=model_factory, **config)  # type: ignore[misc]
-        self.timeout: int = int(self.config.get("timeout", 1200))
+        self.exec_timeout: int = int(self.config.get("exec_timeout", 1200))
         self.backend: Literal["docker", "e2b"] = self.config.get("backend", "docker")
         self.prebaked_e2b_config: PrebakedE2BConfig = self.config.get("prebaked_e2b_config", {})
         self.sandbox: HarborEnvironment | None = None
@@ -83,6 +83,8 @@ class HarborEnv(Environment[HarborTask]):
     @override
     async def reset(self, task: HarborTask) -> None:
         """Build and start the sandbox for the task's bundle."""
+        if task.system_prompt is not None:
+            self.system_prompt = task.system_prompt
         task.trial_paths.mkdir()
         session_id = f"{task.task_id}-{uuid.uuid4().hex[:8]}"
 
@@ -126,7 +128,7 @@ class HarborEnv(Environment[HarborTask]):
         """
         if not self.sandbox:
             raise RuntimeError("Sandbox not initialized")
-        result = await self.sandbox.exec(command, timeout_sec=self.timeout)
+        result = await self.sandbox.exec(command, timeout_sec=self.exec_timeout)
         output = result.stdout or ""
         if result.stderr:
             output += f"\n[stderr]: {result.stderr}"

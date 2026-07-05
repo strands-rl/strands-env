@@ -61,7 +61,11 @@ class TerminalBenchEvaluator(Evaluator[HarborTask]):
 
     def _load_single_task(self, task_dir: Path) -> HarborTask:
         """Load a single task from a directory."""
-        task = HarborTask.from_task_dir(task_dir, trial_dir=self.output_path.parent / task_dir.name)
+        task = HarborTask.from_task_dir(
+            task_dir,
+            trial_dir=self.output_path.parent / task_dir.name,
+            system_prompt=self.system_prompt_path.read_text().strip() if self.system_prompt_path else None,
+        )
         task.task_env_config.memory_mb *= 2
         return task
 

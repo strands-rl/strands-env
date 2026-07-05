@@ -49,7 +49,7 @@ def test_harbor_config_embeds_in_pydantic_model():
         config: HarborConfig
 
     _Ctx.model_rebuild()
-    ctx = _Ctx(config={"backend": "docker", "timeout": 600})
+    ctx = _Ctx(config={"backend": "docker", "exec_timeout": 600})
     assert ctx.config["backend"] == "docker"
 
 

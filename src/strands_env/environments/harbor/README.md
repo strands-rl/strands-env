@@ -37,20 +37,19 @@ Both [Terminal-Bench](https://github.com/laude-institute/terminal-bench) and [SW
 ## Usage
 
 ```python
-from strands_env.environments.harbor import HarborEnv
+from strands_env.environments.harbor import HarborEnv, HarborTask
 
-env = HarborEnv(
-    model_factory=model_factory,
-    task_id="task-001",
-    task_dir="/path/to/task",
-    trial_dir="/path/to/output",
-    timeout=1200,
-)
+env = HarborEnv(model_factory=model_factory)  # capability only: backend / exec_timeout / prebaked_e2b_config
 
-await env.reset()       # Build and start container
-result = await env.rollout(task)  # task.message = task.instruction
-await env.cleanup()     # Stop and delete container
+task = HarborTask.from_task_dir("/path/to/task", trial_dir="/path/to/output")  # reads task.toml
+result = await env.rollout(task)  # reset (build + start container) -> episode -> reward -> cleanup
 ```
+
+`HarborTask` carries the dataset-authored sample: `task_id`, `task_dir`, `trial_dir`,
+`task_env_config`, an optional `verifier_timeout` (task.toml `[verifier]`), and an optional
+benchmark `system_prompt`. `HarborConfig` keeps the operator knobs: `backend`,
+`exec_timeout` (per-command `sandbox.exec` budget, also the verifier fallback), and
+`prebaked_e2b_config`.
 
 ## Tools
 

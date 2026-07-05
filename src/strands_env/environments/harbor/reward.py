@@ -52,7 +52,7 @@ class HarborReward(RewardFunction["HarborTask"]):
         sandbox = self._env.sandbox
         task_paths = task.task_paths
         trial_paths = task.trial_paths
-        timeout = self._env.timeout
+        timeout = task.verifier_timeout if task.verifier_timeout is not None else self._env.exec_timeout
 
         # Upload and run tests.
         await sandbox.upload_dir(source_dir=task_paths.tests_dir, target_dir="/tests")

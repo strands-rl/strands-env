@@ -68,7 +68,10 @@ class PrebakedE2BEnvironment(E2BEnvironment):
         """Resolve a Harbor task name to its e2b template id."""
         templates_path = self._config.get("templates_json") or os.environ.get("E2B_TEMPLATES_PATH")
         if templates_path is None:
-            raise RuntimeError("E2B_TEMPLATES_PATH not set and no templates_path provided.")
+            raise RuntimeError(
+                "No template source: set prebaked_e2b_config['template_id'] (explicit pin), "
+                "prebaked_e2b_config['templates_json'] (lookup map), or the E2B_TEMPLATES_PATH env var."
+            )
         templates = json.loads(Path(templates_path).read_text())
         # Accept both Harbor's `<benchmark>/<task>` form and the bare dir name.
         candidates = [self.template_key, self.template_key.split("/")[-1]]

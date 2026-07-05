@@ -138,7 +138,7 @@ class TestResolveTemplateId:
     def test_missing_env_var_and_path_raises_runtimeerror(self, monkeypatch):
         """No `templates_json` + unset env var raises an actionable RuntimeError."""
         monkeypatch.delenv("E2B_TEMPLATES_PATH", raising=False)
-        with pytest.raises(RuntimeError, match="E2B_TEMPLATES_PATH not set"):
+        with pytest.raises(RuntimeError, match="No template source"):
             _resolve_template_id("fix-git", {})
 
     def test_unknown_task_raises_keyerror(self, templates: Path):

@@ -33,9 +33,13 @@ class HarborTask(Task):
     task_id: str = Field(description="Harbor task name (also keys e2b template lookups).")
     task_dir: str = Field(description="Path to the task bundle (task.toml, environment/, tests/).")
     trial_dir: str = Field(description="Output directory for this trial's artifacts (evaluator-authored layout).")
+    verifier_timeout: int | None = Field(
+        default=None, description="Verifier budget (seconds) from task.toml [verifier]; None = env's exec_timeout."
+    )
     task_env_config: TaskEnvironmentConfig = Field(
         default_factory=TaskEnvironmentConfig, description="Harbor container settings from task.toml [environment]."
     )
+    system_prompt: str | None = Field(default=None, description="Task-specific system prompt override (e.g. tb2, swe).")
 
     @property
     def task_paths(self) -> TaskPaths:
@@ -48,7 +52,9 @@ class HarborTask(Task):
         return TrialPaths(Path(self.trial_dir))
 
     @classmethod
-    def from_task_dir(cls, task_dir: str | Path, *, trial_dir: str | Path) -> HarborTask:
+    def from_task_dir(
+        cls, task_dir: str | Path, *, trial_dir: str | Path, system_prompt: str | None = None
+    ) -> HarborTask:
         """Build a `HarborTask` from an on-disk Harbor task bundle (reads `task.toml`)."""
         spec = HarborTaskSpec(Path(task_dir))
         return cls(
@@ -58,4 +64,6 @@ class HarborTask(Task):
             task_dir=str(Path(task_dir).resolve()),
             trial_dir=str(trial_dir),
             task_env_config=spec.config.environment,
+            verifier_timeout=int(spec.config.verifier.timeout_sec),
+            system_prompt=system_prompt,
         )
