@@ -43,7 +43,7 @@ class HarborReward(RewardFunction["HarborTask"]):
     async def compute(self, task: HarborTask, result: RolloutResult) -> RewardResult:
         """Run harbor's Verifier in the sandbox and return its reward."""
         try:
-            assert self._env.sandbox is not None, "Sandbox not initialized"
+            assert self._env.sandbox is not None, "Sandbox was not initialized"
             timeout = task.verifier_timeout if task.verifier_timeout is not None else self._env.exec_timeout
             verifier = Verifier(
                 task=HarborTaskSpec(Path(task.task_dir)),
@@ -51,8 +51,7 @@ class HarborReward(RewardFunction["HarborTask"]):
                 environment=self._env.sandbox,
             )
             verifier_result = await asyncio.wait_for(verifier.verify(), timeout=timeout)
-            if "reward" not in verifier_result.rewards:
-                raise ValueError(f"verifier reported no 'reward' key (got keys: {sorted(verifier_result.rewards)})")
+            # reward.json is unvalidated upstream; loud indexing raises on a missing key, never a silent 0
             return RewardResult(reward=float(verifier_result.rewards["reward"]), info={"status": "success"})
         except Exception as e:
             logger.exception("Verification failed due to %s: %s", type(e).__name__, str(e))
