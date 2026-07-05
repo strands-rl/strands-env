@@ -41,9 +41,7 @@ SealQAReward = SimpleQAReward
 class SealQAEvaluator(Evaluator):
     """Base evaluator for SealQA benchmarks."""
 
-    benchmark_name: str = "sealqa"
-    dataset_path: str = "vtllms/sealqa"
-    dataset_config: str = ""
+    hf_dataset_path = "vtllms/sealqa"
 
     @override
     def validate_sample(self, sample: EvalSample) -> bool:
@@ -60,7 +58,7 @@ class SealQAEvaluator(Evaluator):
         Yields:
             Task objects with question text, ground truth, and task metadata.
         """
-        dataset = load_dataset(self.dataset_path, name=self.dataset_config, split="test", streaming=True)
+        dataset = load_dataset(self.hf_dataset_path, name=self.hf_dataset_config, split="test", streaming=True)
 
         for i, row in enumerate(dataset):
             question, answer = row.get("question"), row.get("answer")
@@ -84,13 +82,11 @@ class SealQAEvaluator(Evaluator):
 class Seal0Evaluator(SealQAEvaluator):
     """SealQA Seal-0 benchmark (111 core questions)."""
 
-    benchmark_name = "sealqa-seal-0"
-    dataset_config = "seal_0"
+    hf_dataset_config = "seal_0"
 
 
 @register_eval("sealqa-seal-hard")
 class SealHardEvaluator(SealQAEvaluator):
     """SealQA Seal-Hard benchmark (254 difficult questions)."""
 
-    benchmark_name = "sealqa-seal-hard"
-    dataset_config = "seal_hard"
+    hf_dataset_config = "seal_hard"

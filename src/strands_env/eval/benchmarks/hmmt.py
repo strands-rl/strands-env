@@ -33,9 +33,6 @@ logger = logging.getLogger(__name__)
 class HMMTEvaluator(Evaluator):
     """Base evaluator for HMMT math competition problems."""
 
-    benchmark_name: str = "hmmt"
-    dataset_path: str = ""
-
     @override
     def load_dataset(self) -> Iterable[Task]:
         """Load HMMT dataset from HuggingFace (streaming).
@@ -43,7 +40,7 @@ class HMMTEvaluator(Evaluator):
         Yields:
             Task objects with problem text and ground truth.
         """
-        dataset = load_dataset(self.dataset_path, split="train", streaming=True)
+        dataset = load_dataset(self.hf_dataset_path, split="train", streaming=True)
 
         for i, row in enumerate(dataset):
             problem, answer = row.get("problem"), row.get("answer")
@@ -61,21 +58,18 @@ class HMMTEvaluator(Evaluator):
 class HMMTFeb2025Evaluator(HMMTEvaluator):
     """HMMT February 2025 benchmark."""
 
-    benchmark_name = "hmmt-feb-2025"
-    dataset_path = "MathArena/hmmt_feb_2025"
+    hf_dataset_path = "MathArena/hmmt_feb_2025"
 
 
 @register_eval("hmmt-nov-2025")
 class HMMTNov2025Evaluator(HMMTEvaluator):
     """HMMT November 2025 benchmark."""
 
-    benchmark_name = "hmmt-nov-2025"
-    dataset_path = "MathArena/hmmt_nov_2025"
+    hf_dataset_path = "MathArena/hmmt_nov_2025"
 
 
 @register_eval("hmmt-feb-2026")
 class HMMTFeb2026Evaluator(HMMTEvaluator):
     """HMMT February 2026 benchmark."""
 
-    benchmark_name = "hmmt-feb-2026"
-    dataset_path = "MathArena/hmmt_feb_2026"
+    hf_dataset_path = "MathArena/hmmt_feb_2026"

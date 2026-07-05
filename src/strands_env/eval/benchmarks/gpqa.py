@@ -128,8 +128,7 @@ class GPQAEvaluator(Evaluator):
     per-sample deterministic seed for reproducibility.
     """
 
-    benchmark_name: str = "gpqa"
-    dataset_path: str = "Idavidrein/gpqa"
+    hf_dataset_path = "Idavidrein/gpqa"
 
     CHOICE_LETTERS: ClassVar[tuple[str, ...]] = ("A", "B", "C", "D")
 
@@ -157,13 +156,11 @@ class GPQAEvaluator(Evaluator):
             Task objects with formatted multiple-choice question and ground truth.
         """
         try:
-            dataset = load_dataset(
-                self.dataset_path, self.benchmark_name.replace("-", "_"), split="train", streaming=True
-            )
+            dataset = load_dataset(self.hf_dataset_path, self.hf_dataset_config, split="train", streaming=True)
         except Exception as e:
             if "gated" in str(e).lower():
                 raise PermissionError(
-                    f"{self.dataset_path} is a gated dataset. "
+                    f"{self.hf_dataset_path} is a gated dataset. "
                     "Accept the license at https://huggingface.co/datasets/Idavidrein/gpqa "
                     "then authenticate via `huggingface-cli login` or set the HF_TOKEN env var."
                 ) from e
@@ -219,25 +216,18 @@ class GPQAEvaluator(Evaluator):
 class GPQADiamondEvaluator(GPQAEvaluator):
     """GPQA Diamond subset (198 expert-validated questions)."""
 
-    benchmark_name = "gpqa-diamond"
+    hf_dataset_config = "gpqa_diamond"
 
 
 @register_eval("gpqa-main")
 class GPQAMainEvaluator(GPQAEvaluator):
     """GPQA Main subset (448 questions)."""
 
-    benchmark_name = "gpqa-main"
-
-
-@register_eval("gpqa-experts")
-class GPQAExpertsEvaluator(GPQAEvaluator):
-    """GPQA Experts subset (expert-only validated questions)."""
-
-    benchmark_name = "gpqa-experts"
+    hf_dataset_config = "gpqa_main"
 
 
 @register_eval("gpqa-extended")
 class GPQAExtendedEvaluator(GPQAEvaluator):
     """GPQA Extended subset (546 questions)."""
 
-    benchmark_name = "gpqa-extended"
+    hf_dataset_config = "gpqa_extended"

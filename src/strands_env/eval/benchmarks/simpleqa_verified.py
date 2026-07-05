@@ -146,8 +146,7 @@ class SimpleQAReward(LLMJudgeReward[SimpleQAJudgment]):
 class SimpleQAVerifiedEvaluator(Evaluator):
     """Base evaluator for SimpleQA-Verified benchmarks."""
 
-    benchmark_name: str = "simpleqa-verified"
-    dataset_path: str = "google/simpleqa-verified"
+    hf_dataset_path = "google/simpleqa-verified"
 
     @override
     def validate_sample(self, sample: EvalSample) -> bool:
@@ -164,7 +163,7 @@ class SimpleQAVerifiedEvaluator(Evaluator):
         Yields:
             Task objects with problem text and ground truth.
         """
-        dataset = load_dataset(self.dataset_path, split="eval", streaming=True)
+        dataset = load_dataset(self.hf_dataset_path, split="eval", streaming=True)
 
         for i, row in enumerate(dataset):
             problem, answer = row.get("problem"), row.get("answer")

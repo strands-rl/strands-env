@@ -120,8 +120,7 @@ class IFEvalEvaluator(Evaluator):
     on the environment.
     """
 
-    benchmark_name: str = "ifeval"
-    dataset_path: str = "google/IFEval"
+    hf_dataset_path = "google/IFEval"
 
     @override
     def load_dataset(self) -> Iterable[Task]:
@@ -131,7 +130,7 @@ class IFEvalEvaluator(Evaluator):
             Task objects. Each `Task` stores the IFEval `key`,
             `instruction_id_list`, and `ifeval_kwargs` as extras.
         """
-        dataset = load_dataset(self.dataset_path, split="train", streaming=True)
+        dataset = load_dataset(self.hf_dataset_path, split="train", streaming=True)
 
         for i, row in enumerate(dataset):
             prompt = row.get("prompt")

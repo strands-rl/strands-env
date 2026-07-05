@@ -99,8 +99,6 @@ class BrowseCompReward(LLMJudgeReward[BrowseCompJudgment]):
 class BrowseCompEvaluator(Evaluator):
     """Evaluator for BrowseComp benchmark."""
 
-    benchmark_name: str = "browsecomp"
-
     @override
     def validate_sample(self, sample: EvalSample) -> bool:
         """Abort samples where the judge failed (e.g. throttling), so they are retried on resume."""

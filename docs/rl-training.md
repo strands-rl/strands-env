@@ -19,7 +19,7 @@ from slime.rollout.sglang_rollout import GenerateState
 from slime.utils.types import Sample
 from strands_sglang import get_client_from_slime_args
 
-from strands_env.core import Task, TaskContext
+from strands_env.core import Task
 from strands_env.core.models import sglang_model_factory
 
 async def generate_and_rm(args, sample: Sample, sampling_params) -> Sample:
@@ -33,10 +33,7 @@ async def generate_and_rm(args, sample: Sample, sampling_params) -> Sample:
 
     env = YourEnv(model_factory=model_factory, reward_fn=YourRewardFunction())
     prompt = sample.prompt if isinstance(sample.prompt, str) else sample.prompt[0]["content"]
-    task = Task(
-        message=prompt,
-        context=TaskContext(ground_truth=sample.label, conversation_history=[]),
-    )
+    task = Task(message=prompt, ground_truth=sample.label)
     result = await env.rollout(task)
 
     # Extract TITO data for training
@@ -56,8 +53,6 @@ async def generate_and_rm(args, sample: Sample, sampling_params) -> Sample:
     )
     sample.reward = result.reward_result.reward
     sample.result = result  # for custom rollout logging
-
-    await env.cleanup()
     return sample
 ```
 
@@ -77,5 +72,5 @@ A complete worked example lives at `examples/slime/retool/generate_with_agentcor
 - **Connection pooling**: `get_client_from_slime_args(args)` provides `lru_cache`-backed connection pooling across rollouts for efficient GPU utilization
 - **Token trajectories**: `RolloutResult.rollout` (a `Rollout`) contains token IDs, a loss mask, and logprobs for on-policy training (SGLang backend only)
 - **Model factory pattern**: Each `rollout()` creates a fresh model instance for clean token tracking state
-- **Cleanup**: Call `await env.cleanup()` at the end of each rollout for envs that hold external resources (e.g. `AgentCoreCodeEnv`, `MCPEnvironment`, `HarborEnv`)
+- **Cleanup**: `rollout()` is a template method — it runs `reset(task)` first and `cleanup()` in a `finally`, so external resources are released even when the episode fails; no manual lifecycle calls needed
 - **Custom rollout logging**: Attach `result` to the sample and use `strands_env.utils.slime_logger.RolloutLogger` (see the retool example) to log per-step metrics via slime's `--custom-rollout-log-function-path`

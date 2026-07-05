@@ -33,9 +33,6 @@ logger = logging.getLogger(__name__)
 class AIMEEvaluator(Evaluator):
     """Base evaluator for AIME math competition problems."""
 
-    benchmark_name: str = "aime"
-    dataset_path: str = ""
-
     @override
     def load_dataset(self) -> Iterable[Task]:
         """Load AIME dataset from HuggingFace (streaming).
@@ -43,7 +40,7 @@ class AIMEEvaluator(Evaluator):
         Yields:
             Task objects with problem text and ground truth.
         """
-        dataset = load_dataset(self.dataset_path, split="train", streaming=True)
+        dataset = load_dataset(self.hf_dataset_path, split="train", streaming=True)
 
         for i, row in enumerate(dataset):
             problem, answer = row.get("problem"), row.get("answer")
@@ -61,21 +58,18 @@ class AIMEEvaluator(Evaluator):
 class AIME2024Evaluator(AIMEEvaluator):
     """AIME 2024 benchmark."""
 
-    benchmark_name = "aime-2024"
-    dataset_path = "HuggingFaceH4/aime_2024"
+    hf_dataset_path = "HuggingFaceH4/aime_2024"
 
 
 @register_eval("aime-2025")
 class AIME2025Evaluator(AIMEEvaluator):
     """AIME 2025 benchmark."""
 
-    benchmark_name = "aime-2025"
-    dataset_path = "MathArena/aime_2025"
+    hf_dataset_path = "MathArena/aime_2025"
 
 
 @register_eval("aime-2026")
 class AIME2026Evaluator(AIMEEvaluator):
     """AIME 2026 benchmark."""
 
-    benchmark_name = "aime-2026"
-    dataset_path = "MathArena/aime_2026"
+    hf_dataset_path = "MathArena/aime_2026"

@@ -40,8 +40,6 @@ class TerminalBenchTask(Task):
 class TerminalBenchEvaluator(Evaluator):
     """Base evaluator for Harbor-format benchmarks (loads a directory of task subdirs)."""
 
-    benchmark_name: str = "terminal-bench"
-    git_url: str = ""
     tasks_subdir: str = "."  # subdirectory within `data_dir` if any
     system_prompt_path: Path | None = None  # optional benchmark-specific system prompt
 
@@ -122,7 +120,6 @@ class TerminalBench21Evaluator(TerminalBenchEvaluator):
     `configs/` folder of leaderboard agent configs), so the task root differs from Terminal-Bench-2.
     """
 
-    benchmark_name = "terminal-bench-2.1"
     git_url = "https://github.com/harbor-framework/terminal-bench-2-1.git"
     tasks_subdir = "tasks"
 
@@ -131,7 +128,6 @@ class TerminalBench21Evaluator(TerminalBenchEvaluator):
 class TerminalBench2Evaluator(TerminalBenchEvaluator):
     """Evaluator for Terminal-Bench-2 benchmark."""
 
-    benchmark_name = "terminal-bench-2"
     git_url = "https://github.com/laude-institute/terminal-bench-2.git"
 
 
@@ -139,7 +135,6 @@ class TerminalBench2Evaluator(TerminalBenchEvaluator):
 class TerminalBench1Evaluator(TerminalBenchEvaluator):
     """Evaluator for Terminal-Bench-1 benchmark (migrated to Harbor format)."""
 
-    benchmark_name = "terminal-bench-1"
     git_url = "https://github.com/laude-institute/terminal-bench.git"
 
     def _rename_solution_yaml_files(self, tasks_dir: Path) -> None:

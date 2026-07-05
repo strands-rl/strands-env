@@ -40,10 +40,9 @@ logger = logging.getLogger(__name__)
 class Tau2BenchEvaluator(Evaluator[Tau2BenchTask]):
     """Base evaluator for tau2-bench; subclasses set `domain`."""
 
-    benchmark_name: str = "tau2-bench"
     domain: Literal["airline", "retail", "telecom"]
-    git_url: str = "https://github.com/sierra-research/tau2-bench.git"
-    git_ref: str = "v1.0.0"
+    git_url = "https://github.com/sierra-research/tau2-bench.git"
+    git_ref = "v1.0.0"
     data_dir: Path = DATA_DIR
 
     def _download_dataset(self) -> None:
@@ -96,7 +95,6 @@ class Tau2BenchEvaluator(Evaluator[Tau2BenchTask]):
 class Tau2BenchRetailEvaluator(Tau2BenchEvaluator):
     """tau2-bench retail domain (114 tasks)."""
 
-    benchmark_name = "tau2-bench-retail"
     domain = "retail"
 
 
@@ -104,7 +102,6 @@ class Tau2BenchRetailEvaluator(Tau2BenchEvaluator):
 class Tau2BenchAirlineEvaluator(Tau2BenchEvaluator):
     """tau2-bench airline domain (50 tasks)."""
 
-    benchmark_name = "tau2-bench-airline"
     domain = "airline"
 
 
@@ -112,5 +109,4 @@ class Tau2BenchAirlineEvaluator(Tau2BenchEvaluator):
 class Tau2BenchTelecomEvaluator(Tau2BenchEvaluator):
     """tau2-bench telecom domain (114 tasks, sub-sampled from 2285)."""
 
-    benchmark_name = "tau2-bench-telecom"
     domain = "telecom"

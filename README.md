@@ -57,12 +57,12 @@ class CodingEnv(Environment):
 ### Run It
 
 ```python
-from strands_env.core import Task, TaskContext
+from strands_env.core import Task
 
 env = CodingEnv(model_factory=factory, reward_fn=reward_fn)
 result = await env.rollout(Task(
     message="Write Python to compute the 10th Fibonacci number, then run it.",
-    context=TaskContext(ground_truth="55"),
+    ground_truth="55",
 ))
 
 result.rollout              # Rollout(token_ids=..., loss_mask=..., ...); token-level rollout if using SGLang backend

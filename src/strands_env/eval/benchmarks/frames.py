@@ -87,8 +87,7 @@ class FramesReward(LLMJudgeReward[FramesJudgment]):
 class FramesEvaluator(Evaluator):
     """Evaluator for FRAMES benchmark."""
 
-    benchmark_name: str = "frames"
-    dataset_path: str = "google/frames-benchmark"
+    hf_dataset_path = "google/frames-benchmark"
 
     @override
     def validate_sample(self, sample: EvalSample) -> bool:
@@ -105,7 +104,7 @@ class FramesEvaluator(Evaluator):
         Yields:
             Task objects with question, wiki links in task context, and ground truth.
         """
-        dataset = load_dataset(self.dataset_path, split="test")
+        dataset = load_dataset(self.hf_dataset_path, split="test")
 
         for i, row in enumerate(dataset):
             prompt, answer = row.get("Prompt"), row.get("Answer")

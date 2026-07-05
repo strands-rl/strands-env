@@ -24,9 +24,9 @@ from collections import defaultdict
 from collections.abc import Iterable
 from functools import partial
 from pathlib import Path
-from typing import TYPE_CHECKING, Generic
+from typing import TYPE_CHECKING, ClassVar, Generic
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from tqdm import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
 
@@ -44,21 +44,20 @@ logger = logging.getLogger(__name__)
 class EvalSample(BaseModel, Generic[TaskT]):
     """Evaluation sample result."""
 
-    task: TaskT
-    """The task that was evaluated."""
-
-    result: RolloutResult
-    """The result of the rollout (trajectory, reward, termination reason)."""
-
-    aborted: bool = False
-    """Whether this sample was aborted (excluded from metrics, retried on resume)."""
+    task: TaskT = Field(..., description="The task that was evaluated.")
+    result: RolloutResult = Field(..., description="The rollout result.")
+    aborted: bool = Field(default=False, description="Whether this sample was aborted.")
 
 
 class Evaluator(Generic[TaskT]):
     """Evaluator for running concurrent environment evaluations."""
 
-    benchmark_name: str = ""
-    """Benchmark identifier. Override in subclasses."""
+    # Basic benchmark identity variables.
+    benchmark_name: ClassVar[str] = ""
+    hf_dataset_path: ClassVar[str] = ""  # HuggingFace dataset id, if any
+    hf_dataset_config: ClassVar[str] = ""  # HF config/subset within the dataset, if any
+    git_url: ClassVar[str] = ""  # git repo the data files are cloned from, if any
+    git_ref: ClassVar[str] = ""  # tag/branch/commit pin for git_url ("" = default branch HEAD)
 
     def __init__(
         self,

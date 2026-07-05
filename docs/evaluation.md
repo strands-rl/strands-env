@@ -163,20 +163,18 @@ Create a Python file that exports `EvaluatorClass`:
 # my_evaluator.py
 from collections.abc import Iterable
 
-from strands_env.core import Task, TaskContext
+from strands_env.core import Task
 from strands_env.eval import Evaluator
 
 class MyEvaluator(Evaluator):
-    benchmark_name = "my-benchmark"
+    benchmark_name = "my-benchmark"  # set explicitly — hook-file evaluators bypass the registry
 
     def load_dataset(self) -> Iterable[Task]:
         for item in load_my_data():
             yield Task(
+                id=item["id"],
                 message=item["prompt"],
-                context=TaskContext(
-                    id=item["id"],
-                    ground_truth=item["answer"],
-                ),
+                ground_truth=item["answer"],
             )
 
 EvaluatorClass = MyEvaluator
@@ -195,24 +193,24 @@ To add a built-in benchmark, create a module in `src/strands_env/eval/benchmarks
 # src/strands_env/eval/benchmarks/my_benchmark.py
 from collections.abc import Iterable
 
-from strands_env.core import Task, TaskContext
+from strands_env.core import Task
 
 from ..evaluator import Evaluator
 from ..registry import register_eval
 
-@register_eval("my-benchmark")
+@register_eval("my-benchmark")  # the registry key doubles as benchmark_name (injected)
 class MyEvaluator(Evaluator):
-    benchmark_name = "my-benchmark"
+    # identity card: declarative data-provenance pointers ("" = not applicable)
+    hf_dataset_path = "my-org/my-dataset"
+    hf_dataset_config = "hard-subset"
 
     def load_dataset(self) -> Iterable[Task]:
         """Load dataset and return Tasks for evaluation."""
         for item in load_my_data():
             yield Task(
+                id=item["id"],
                 message=item["prompt"],
-                context=TaskContext(
-                    id=item["id"],
-                    ground_truth=item["answer"],
-                ),
+                ground_truth=item["answer"],
             )
 ```
 

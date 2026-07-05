@@ -61,7 +61,7 @@ DEFAULT_SERVERS = frozenset(
 class MCPAtlasEvaluator(Evaluator[MCPAtlasTask]):
     """Evaluator for MCP-Atlas benchmark."""
 
-    benchmark_name = "mcp-atlas"
+    hf_dataset_path = "ScaleAI/MCP-Atlas"
 
     def __init__(
         self,
@@ -105,7 +105,7 @@ class MCPAtlasEvaluator(Evaluator[MCPAtlasTask]):
         """Load MCP-Atlas tasks from HuggingFace, filter by available servers."""
         from datasets import load_dataset
 
-        ds = load_dataset("ScaleAI/MCP-Atlas", split="train")
+        ds = load_dataset(self.hf_dataset_path, split="train")
 
         tasks = []
         skipped = 0
@@ -125,7 +125,7 @@ class MCPAtlasEvaluator(Evaluator[MCPAtlasTask]):
 
             tasks.append(
                 MCPAtlasTask(
-                    id=row["TASK"],
+                    id=f"{self.benchmark_name}_{row['TASK']}",
                     message=row["PROMPT"],
                     enabled_tools=enabled_tools,
                     gtfa_claims=gtfa_claims,

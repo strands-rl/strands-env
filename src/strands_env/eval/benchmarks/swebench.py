@@ -41,9 +41,8 @@ class SWEBenchVerifiedEvaluator(TerminalBenchEvaluator):
     a sparse checkout of the swebench-verified subdir from harbor-datasets.
     """
 
-    benchmark_name = "swebench-verified"
     git_url = "https://github.com/laude-institute/harbor-datasets.git"
-    git_commit = "0d48cdd78e14a1e22afa09abcfc1bf210427d66f"
+    git_ref = "0d48cdd78e14a1e22afa09abcfc1bf210427d66f"
     git_subdir = "datasets/swebench-verified"
     system_prompt_path: Path | None = SWE_SYSTEM_PROMPT_PATH
 
@@ -90,7 +89,7 @@ class SWEBenchVerifiedEvaluator(TerminalBenchEvaluator):
             check=True,
         )
         subprocess.run(
-            ["git", "-C", str(repo_dir), "checkout", self.git_commit],
+            ["git", "-C", str(repo_dir), "checkout", self.git_ref],
             check=True,
         )
 

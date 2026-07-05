@@ -54,6 +54,8 @@ def register_eval(name: str) -> Callable[[EvaluatorT], EvaluatorT]:
     def decorator(cls: EvaluatorT) -> EvaluatorT:
         if name in _BENCHMARKS:
             raise ValueError(f"Benchmark '{name}' is already registered")
+        if not cls.benchmark_name:
+            cls.benchmark_name = name  # the registry key is the identity; inject unless set explicitly
         _BENCHMARKS[name] = cls
         return cls
 

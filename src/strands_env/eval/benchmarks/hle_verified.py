@@ -114,8 +114,7 @@ class HLEVerifiedEvaluator(Evaluator):
     `json.image` field is non-empty (i.e. multimodal).
     """
 
-    benchmark_name: str = "hle-verified-gold"
-    dataset_path: str = "skylenage-ai/HLE-Verified"
+    hf_dataset_path = "skylenage-ai/HLE-Verified"
     text_only: bool = False
 
     _DATA_URL_RE: ClassVar[re.Pattern[str]] = re.compile(
@@ -164,7 +163,7 @@ class HLEVerifiedEvaluator(Evaluator):
             `Message` (text + image content block). When `text_only` is set,
             samples whose nested `json.image` field is non-empty are skipped.
         """
-        dataset = load_dataset(self.dataset_path, split="train", streaming=True)
+        dataset = load_dataset(self.hf_dataset_path, split="train", streaming=True)
 
         for i, row in enumerate(dataset):
             if row.get("Verified_Classes") != "Gold subset":
@@ -209,7 +208,6 @@ class HLEVerifiedEvaluator(Evaluator):
 class HLEVerifiedGoldEvaluator(HLEVerifiedEvaluator):
     """HLE-Verified Gold subset with 668 fully validated items, includes multimodal."""
 
-    benchmark_name = "hle-verified-gold"
     text_only = False
 
 
@@ -217,5 +215,4 @@ class HLEVerifiedGoldEvaluator(HLEVerifiedEvaluator):
 class HLEVerifiedGoldTextEvaluator(HLEVerifiedEvaluator):
     """HLE-Verified Gold subset with 575 text-only samples."""
 
-    benchmark_name = "hle-verified-gold-text"
     text_only = True
