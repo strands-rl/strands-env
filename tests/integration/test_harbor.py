@@ -64,6 +64,10 @@ def task_dir(tmp_path_factory, docker_available):
 
     verifier_dir = EnvironmentPaths.verifier_dir
     task = tmp_path_factory.mktemp("harbor_task")
+    # harbor's Verifier reads the bundle spec; empty task.toml = all defaults, and
+    # instruction.md is required by the bundle contract (unused here — tests inject messages).
+    (task / "task.toml").write_text("")
+    (task / "instruction.md").write_text("Run the command the user asks for.")
 
     env_dir = task / "environment"
     env_dir.mkdir()
@@ -111,6 +115,11 @@ class TestHarborEnv:
         assert_rollout(result)
         assert_token_usage(result)
         assert result.metrics["per_tool_metrics"]["execute_command"]["calls"] >= 1
+        # The verifier ran and delivered a reward file to the host trial dir. status is the
+        # pipeline assertion (deterministic); the reward VALUE is agent quality (stochastic) —
+        # this line stays red if artifact delivery breaks (e.g. the harbor 0.13 mount regression).
+        assert result.reward_result is not None
+        assert result.reward_result.info["status"] == "success", result.reward_result.info
 
         # Reward: test.sh always writes 1 to reward.txt, validating the full pipeline
         # (upload tests → run test.sh → download results → parse reward)
