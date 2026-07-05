@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterable
-from typing import Any, Literal, override
+from typing import Literal, override
 
 from datasets import load_dataset
 from pydantic import BaseModel, Field
@@ -59,13 +59,6 @@ class FramesJudgment(BaseModel):
         ...,
         description="TRUE if the ground truth answer is present in the predicted answer, FALSE otherwise.",
     )
-
-
-class FramesTask(Task):
-    """`Task` with FRAMES row metadata (kept for reporting/analysis)."""
-
-    wiki_links: Any = None
-    reasoning_types: Any = None
 
 
 class FramesReward(LLMJudgeReward[FramesJudgment]):
@@ -120,10 +113,10 @@ class FramesEvaluator(Evaluator):
                 logger.warning("Row %s: missing Prompt/Answer, skipped", i)
                 continue
 
-            yield FramesTask(
+            yield Task(
                 id=f"{self.benchmark_name}_{i}",
                 message=str(prompt),
                 ground_truth=str(answer),
-                wiki_links=row["wiki_links"],
-                reasoning_types=row["reasoning_types"],
+                # untyped metadata bag, kept in saved results for analysis
+                **{"wiki_links": row["wiki_links"], "reasoning_types": row["reasoning_types"]},
             )

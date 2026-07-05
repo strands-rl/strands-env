@@ -129,9 +129,29 @@ Each environment is a package: `env.py` holds the `Environment` subclass, plus d
 - Use single backticks `` `xx` `` in docstrings (not Sphinx-style double backticks)
 - `__init__` docstrings should be `"""Initialize a `ClassName` instance."""`
 - Conventional commits (feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert)
-- Python 3.10+ required
+- Python 3.12+ required (CI tests 3.12 and 3.13)
 - asyncio_mode = "auto" for pytest-asyncio
 - Async-first: all Environment methods that interact with Agent are async
+
+### Class Attribute Conventions
+
+Three forms, chosen by where the value's storage lives and whether the name binds a single value:
+
+- **Bare class-body annotation** (`tau2_env: Tau2Environment`) — instance attribute born later
+  (usually in `reset(task)`), PEP 526's "instance variable without default". Non-Optional for mypy;
+  accessing before birth raises AttributeError loudly. Never `ClassVar`.
+- **`NAME: ClassVar[T] = value` (UPPER_SNAKE)** — true constant: one value program-wide, readers may
+  inline it mentally; `ClassVar` forbids instance shadowing (a fidelity hazard for benchmark
+  material like prompts and stop patterns). `DEFAULT_*` uppercase = the single canonical fallback
+  value. On pydantic models/dataclasses `ClassVar` is mandatory (else it becomes a field).
+- **`name: T = value` (lowercase)** — subclass-overridable knob (`benchmark_name`, `domain`,
+  `default_system_prompt_path`): the value is polymorphic across subclasses, so it is not a
+  constant to the reader. Declare (with annotation) once where the name is introduced — usually the
+  base class; subclasses override with bare assignments, no re-annotation (the declaration is
+  inherited and mypy checks assignments against it). Add `ClassVar` when per-instance variation has
+  its own channel (e.g. `system_prompt` config vs `default_system_prompt_path`).
+
+Enum members are the exception to everything above: bare UPPER assignments, never annotated.
 
 ## Releases
 

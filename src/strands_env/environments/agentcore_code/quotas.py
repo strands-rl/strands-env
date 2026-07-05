@@ -19,7 +19,7 @@ from __future__ import annotations
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
-from typing import Any
+from typing import Any, ClassVar
 
 from aiolimiter import AsyncLimiter
 
@@ -41,10 +41,10 @@ class CodeInterpreterQuotas:
         - [AWS Bedrock AgentCore default quotas](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/bedrock-agentcore-limits.html)
     """
 
-    DEFAULT_SESSION_CONCURRENCY = 1000
-    DEFAULT_START_TPS = 30
-    DEFAULT_INVOKE_TPS = 30
-    DEFAULT_STOP_TPS = 30
+    DEFAULT_SESSION_CONCURRENCY: ClassVar[int] = 1000
+    DEFAULT_START_TPS: ClassVar[int] = 30
+    DEFAULT_INVOKE_TPS: ClassVar[int] = 30
+    DEFAULT_STOP_TPS: ClassVar[int] = 30
 
     def __init__(
         self,

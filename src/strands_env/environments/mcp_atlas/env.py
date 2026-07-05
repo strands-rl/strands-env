@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import NotRequired, Unpack, override
+from typing import ClassVar, NotRequired, Unpack, override
 
 import httpx
 from mcp.types import Tool as MCPToolDef
@@ -50,7 +50,7 @@ class MCPAtlasEnv(Environment[MCPAtlasTask]):
         - ``cleanup()`` clears the tool list only.
     """
 
-    DEFAULT_DOCKER_URL = "http://localhost:1984"
+    DEFAULT_DOCKER_URL: ClassVar[str] = "http://localhost:1984"
 
     default_system_prompt_path = Path(__file__).parent / "system_prompt.md"
 

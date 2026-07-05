@@ -22,7 +22,7 @@ import re
 import sys
 import unicodedata
 from collections.abc import Iterable
-from typing import override
+from typing import ClassVar, override
 
 from datasets import load_dataset
 
@@ -56,13 +56,13 @@ class GPQAReward(RewardFunction):
 
     #: Primary regex — matches `(A)` through `(Z)` with parentheses (case-sensitive,
     #: matching lm-evaluation-harness where ``ignore_case`` only applies to choice text).
-    PRIMARY_PATTERN: re.Pattern[str] = re.compile(r"\(([A-Z])\)")
+    PRIMARY_PATTERN: ClassVar[re.Pattern[str]] = re.compile(r"\(([A-Z])\)")
 
     #: Fallback regex — bare letter after a colon, e.g. `Answer: B`.
-    COLON_PATTERN: re.Pattern[str] = re.compile(r":[\s]*([A-D])")
+    COLON_PATTERN: ClassVar[re.Pattern[str]] = re.compile(r":[\s]*([A-D])")
 
     #: Punctuation translation table matching lm-evaluation-harness.
-    PUNCT_TBL: dict[int, None] = dict.fromkeys(
+    PUNCT_TBL: ClassVar[dict[int, None]] = dict.fromkeys(
         i for i in range(sys.maxunicode) if unicodedata.category(chr(i)).startswith("P")
     )
 
@@ -131,7 +131,7 @@ class GPQAEvaluator(Evaluator):
     benchmark_name: str = "gpqa"
     dataset_path: str = "Idavidrein/gpqa"
 
-    CHOICE_LETTERS: tuple[str, ...] = ("A", "B", "C", "D")
+    CHOICE_LETTERS: ClassVar[tuple[str, ...]] = ("A", "B", "C", "D")
 
     @staticmethod
     def preprocess(text: str | None) -> str:

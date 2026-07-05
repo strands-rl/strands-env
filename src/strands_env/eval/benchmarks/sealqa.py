@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterable
-from typing import Any, override
+from typing import override
 
 from datasets import load_dataset
 
@@ -36,17 +36,6 @@ SealQAReward = SimpleQAReward
 # ---------------------------------------------------------------------------
 # Evaluators — Seal-0 and Seal-Hard
 # ---------------------------------------------------------------------------
-
-
-class SealQATask(Task):
-    """`Task` with SealQA row metadata (kept for reporting/analysis)."""
-
-    freshness: Any = None
-    question_types: Any = None
-    effective_year: Any = None
-    search_results: Any = None
-    topic: Any = None
-    urls: Any = None
 
 
 class SealQAEvaluator(Evaluator):
@@ -79,16 +68,15 @@ class SealQAEvaluator(Evaluator):
                 logger.warning("Row %s: missing question/answer, skipped", i)
                 continue
 
-            yield SealQATask(
+            yield Task(
                 id=f"{self.benchmark_name}_{i}",
                 message=str(question),
                 ground_truth=str(answer),
-                freshness=row.get("freshness"),
-                question_types=row.get("question_types"),
-                effective_year=row.get("effective_year"),
-                search_results=row.get("search_results"),
-                topic=row.get("topic"),
-                urls=row.get("urls"),
+                # untyped metadata bag, kept in saved results for analysis
+                **{
+                    k: row.get(k)
+                    for k in ("freshness", "question_types", "effective_year", "search_results", "topic", "urls")
+                },
             )
 
 

@@ -22,7 +22,7 @@ import json
 import logging
 import re
 from collections.abc import Iterable
-from typing import Any, Literal, override
+from typing import Any, ClassVar, Literal, override
 
 from datasets import load_dataset
 from pydantic import BaseModel, Field
@@ -118,8 +118,10 @@ class HLEVerifiedEvaluator(Evaluator):
     dataset_path: str = "skylenage-ai/HLE-Verified"
     text_only: bool = False
 
-    _DATA_URL_RE = re.compile(r"^data:image/(?P<fmt>[^;]+);base64,(?P<payload>.*)$", re.IGNORECASE)
-    _SUPPORTED_IMAGE_FORMATS = frozenset({"png", "jpeg", "gif", "webp"})
+    _DATA_URL_RE: ClassVar[re.Pattern[str]] = re.compile(
+        r"^data:image/(?P<fmt>[^;]+);base64,(?P<payload>.*)$", re.IGNORECASE
+    )
+    _SUPPORTED_IMAGE_FORMATS: ClassVar[frozenset[str]] = frozenset({"png", "jpeg", "gif", "webp"})
 
     @override
     def validate_sample(self, sample: EvalSample) -> bool:

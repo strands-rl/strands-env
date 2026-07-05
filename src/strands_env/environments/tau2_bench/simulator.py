@@ -30,7 +30,7 @@ from __future__ import annotations
 import logging
 import re
 from enum import StrEnum
-from typing import Any
+from typing import Any, ClassVar
 
 from strands import Agent
 from strands.agent.conversation_manager import NullConversationManager
@@ -68,9 +68,9 @@ class Tau2BenchUserSimulator(HookProvider):
     `invoke_async()`.
     """
 
-    GREETING_MESSAGE: str = "Hi! How can I help you today?"
-    SYSTEM_PROMPT_TEMPLATE: str = "{guidelines}\n\n<scenario>\n{scenario}\n</scenario>"
-    STOP_PATTERN: re.Pattern[str] = re.compile(r"###(STOP|TRANSFER|OUT-OF-SCOPE)###")
+    GREETING_MESSAGE: ClassVar[str] = "Hi! How can I help you today?"
+    SYSTEM_PROMPT_TEMPLATE: ClassVar[str] = "{guidelines}\n\n<scenario>\n{scenario}\n</scenario>"
+    STOP_PATTERN: ClassVar[re.Pattern[str]] = re.compile(r"###(STOP|TRANSFER|OUT-OF-SCOPE)###")
 
     def __init__(
         self,

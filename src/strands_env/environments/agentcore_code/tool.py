@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from strands import tool
 
@@ -37,8 +37,8 @@ class CodeInterpreterToolkit:
           `cleanup` when done to close the session.
     """
 
-    CODE_INTERPRETER_ID = "aws.codeinterpreter.v1"
-    DEFAULT_SESSION_TIMEOUT_SECONDS = 3600
+    CODE_INTERPRETER_ID: ClassVar[str] = "aws.codeinterpreter.v1"
+    DEFAULT_SESSION_TIMEOUT_SECONDS: ClassVar[int] = 3600
 
     def __init__(
         self,

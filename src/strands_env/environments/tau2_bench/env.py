@@ -68,7 +68,10 @@ class Tau2BenchConfig(EnvironmentConfig):
 class Tau2BenchEnv(Environment[Tau2BenchTask]):
     """Tau2-bench environment with user-simulator driving the multi-turn dialogue."""
 
+    # instance variables without default values and to be set in `reset(task)`
     user_simulator: Tau2BenchUserSimulator
+    agent_tools: list[Tau2BenchTool]
+    user_tools: list[Tau2BenchTool]
 
     def __init__(
         self,
@@ -83,8 +86,6 @@ class Tau2BenchEnv(Environment[Tau2BenchTask]):
 
         self.max_steps: int = self.config.get("max_steps", 100)
         self.user_model_factory = user_model_factory
-        self.agent_tools: list = []
-        self.user_tools: list = []
 
         judge_model = judge_model_factory() if judge_model_factory else None
         self.reward_fn: Tau2BenchReward = Tau2BenchReward(env=self, judge_model=judge_model)
@@ -96,11 +97,14 @@ class Tau2BenchEnv(Environment[Tau2BenchTask]):
         tau2_env = task.tau2_env
         self.system_prompt = SYSTEM_PROMPT_TEMPLATE.format(domain_policy=tau2_env.policy)
         self.agent_tools = [Tau2BenchTool(t, tau2_env, "assistant") for t in tau2_env.tools.get_tools().values()]
-        if tau2_env.user_tools:
-            self.user_tools = [
+        self.user_tools = (
+            [
                 Tau2BenchTool(t, tau2_env, "user")
                 for t in tau2_env.user_tools.get_tools(include=tau2_task.user_tools).values()
             ]
+            if tau2_env.user_tools
+            else []
+        )
         self.user_simulator = Tau2BenchUserSimulator(
             model=self.user_model_factory(),
             scenario=str(tau2_task.user_scenario),
