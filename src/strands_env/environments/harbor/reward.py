@@ -16,10 +16,13 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
+from pathlib import Path
 from typing import TYPE_CHECKING
 
-from harbor.models.trial.paths import EnvironmentPaths
+from harbor.models.task.task import Task as HarborTaskSpec
+from harbor.verifier.verifier import Verifier
 
 from strands_env.core.types import RewardFunction, RewardResult, RolloutResult
 
@@ -31,7 +34,7 @@ logger = logging.getLogger(__name__)
 
 
 class HarborReward(RewardFunction["HarborTask"]):
-    """Execute test scripts in Docker and compute binary reward (0 or 1)."""
+    """Run harbor's Verifier in the sandbox and return its reward."""
 
     def __init__(self, env: HarborEnv) -> None:
         """Initialize a `HarborReward` instance."""
@@ -47,30 +50,24 @@ class HarborReward(RewardFunction["HarborTask"]):
             return RewardResult(reward=0.0, info={"status": "error", "message": str(e)})
 
     async def _run_verification(self, task: HarborTask) -> float:
-        """Upload tests, execute `test.sh`, download results, and parse reward."""
+        """Run harbor's own Verifier and return its reward."""
         assert self._env.sandbox is not None, "Sandbox not initialized"
         sandbox = self._env.sandbox
-        task_paths = task.task_paths
-        trial_paths = task.trial_paths
         timeout = task.verifier_timeout if task.verifier_timeout is not None else self._env.exec_timeout
 
-        # Upload and run tests.
-        await sandbox.upload_dir(source_dir=task_paths.tests_dir, target_dir="/tests")
-        test_cmd = (
-            'export PATH="$HOME/.local/bin:$PATH" && '
-            f"bash /tests/test.sh 2>&1 | tee {EnvironmentPaths.verifier_dir}/test-stdout.txt"
+        # harbor exec is a non-login `bash -c` (no ~/.profile), so user-local tools — like the
+        # uv that swebench images install into ~/.local/bin — are not on PATH. Expose them
+        # additively; the graded swebench baseline (70.8%, #78) relied on an equivalent PATH
+        # prepend in the pre-Verifier flow.
+        await sandbox.exec('ln -sf "$HOME/.local/bin/"* /usr/local/bin/ 2>/dev/null || true')
+
+        verifier = Verifier(
+            task=HarborTaskSpec(Path(task.task_dir)),
+            trial_paths=task.trial_paths,
+            environment=sandbox,
         )
-        await sandbox.exec(test_cmd, timeout_sec=timeout)
+        result = await asyncio.wait_for(verifier.verify(), timeout=timeout)
 
-        # Download results if not using mounted volumes
-        if not sandbox.capabilities.mounted:
-            await sandbox.download_dir(
-                source_dir=str(EnvironmentPaths.verifier_dir),
-                target_dir=trial_paths.verifier_dir,
-            )
-
-        # Parse reward (1.0 if reward.txt contains value >= 1, else 0.0)
-        reward_path = trial_paths.reward_text_path
-        if reward_path.exists() and reward_path.stat().st_size > 0:
-            return 1.0 if float(reward_path.read_text().strip()) >= 1.0 else 0.0
-        raise RuntimeError(f"verification produced no reward file at {reward_path}")
+        # Harbor's raw reward, as parsed from reward.json (first) or reward.txt. Current
+        # datasets emit binary 0/1 by construction; partial-credit tasks pass through intact.
+        return float(result.rewards.get("reward", 0.0))
