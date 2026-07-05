@@ -21,23 +21,14 @@ import subprocess
 from pathlib import Path
 from typing import override
 
-from harbor.models.task.task import Task as HarborTask
-
-from strands_env.core import Task
-from strands_env.environments.harbor import HarborConfig
+from strands_env.environments.harbor import HarborTask
 from strands_env.eval import Evaluator
 from strands_env.eval.evaluator import EvalSample
 
 from ..registry import register_eval
 
 
-class TerminalBenchTask(Task):
-    """`Task` carrying the Harbor task config."""
-
-    config: HarborConfig
-
-
-class TerminalBenchEvaluator(Evaluator):
+class TerminalBenchEvaluator(Evaluator[HarborTask]):
     """Base evaluator for Harbor-format benchmarks (loads a directory of task subdirs)."""
 
     tasks_subdir: str = "."  # subdirectory within `data_dir` if any
@@ -57,7 +48,7 @@ class TerminalBenchEvaluator(Evaluator):
         )
 
     @override
-    def load_dataset(self) -> list[Task]:
+    def load_dataset(self) -> list[HarborTask]:
         """Load Harbor-format tasks."""
         if not self.data_dir.exists():
             self._download_dataset()
@@ -68,27 +59,14 @@ class TerminalBenchEvaluator(Evaluator):
                 tasks.append(self._load_single_task(task_dir))
         return tasks
 
-    def _load_single_task(self, task_dir: Path) -> Task:
+    def _load_single_task(self, task_dir: Path) -> HarborTask:
         """Load a single task from a directory."""
-        task = HarborTask(task_dir)
-        task.config.environment.memory_mb *= 2
-        config: HarborConfig = {
-            "task_id": task.name,
-            "task_dir": str(task_dir.resolve()),
-            "trial_dir": str(self.output_path.parent / task.name),
-            "task_env_config": task.config.environment,
-            "timeout": int(task.config.verifier.timeout_sec),
-        }
-        if self.system_prompt_path is not None:
-            config["system_prompt"] = self.system_prompt_path.read_text().strip()
-        return TerminalBenchTask(
-            id=task.name,
-            message=task.instruction,
-            config=config,
-        )
+        task = HarborTask.from_task_dir(task_dir, trial_dir=self.output_path.parent / task_dir.name)
+        task.task_env_config.memory_mb *= 2
+        return task
 
     @override
-    def validate_sample(self, sample: EvalSample) -> bool:
+    def validate_sample(self, sample: EvalSample[HarborTask]) -> bool:
         """Abort samples where reward is missing or verification failed, so they are retried on resume."""
         reward_result = sample.result.reward_result
         if reward_result is None:
@@ -97,16 +75,15 @@ class TerminalBenchEvaluator(Evaluator):
         return reward_result.info.get("status") != "error"
 
     @override
-    async def evaluate_sample(self, task: Task) -> EvalSample:
+    async def evaluate_sample(self, task: HarborTask) -> EvalSample[HarborTask]:
         """Override to create sample-specific output directories for pass@k."""
-        assert isinstance(task, TerminalBenchTask)
         sample_idx = int(task.id.rsplit("_", 1)[1]) if "_" in task.id else 0
-        task.config["trial_dir"] = str(self.output_path.parent / task.config["task_id"] / str(sample_idx))
+        task.trial_dir = str(self.output_path.parent / task.task_id / str(sample_idx))
 
         sample = await super().evaluate_sample(task)
 
         # Save agent messages
-        agent_dir = Path(task.config["trial_dir"]) / "agent"
+        agent_dir = Path(task.trial_dir) / "agent"
         agent_dir.mkdir(parents=True, exist_ok=True)
         (agent_dir / "messages.json").write_text(json.dumps(sample.result.messages, indent=2, default=str))
         return sample
@@ -143,7 +120,7 @@ class TerminalBench1Evaluator(TerminalBenchEvaluator):
             solution_yaml.rename(solution_yaml.with_suffix(".yaml.bak"))
 
     @override
-    def load_dataset(self) -> list[Task]:
+    def load_dataset(self) -> list[HarborTask]:
         """Load and migrate Terminal Bench-1 tasks to Harbor format."""
         if not self.data_dir.exists():
             self._download_dataset()

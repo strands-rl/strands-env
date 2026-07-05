@@ -31,22 +31,31 @@ from pydantic import BaseModel
 pytest.importorskip("harbor", reason="harbor>=0.13.2 required for HarborConfig")
 
 from strands_env.environments.harbor.env import HarborConfig  # noqa: E402
+from strands_env.environments.harbor.task import HarborTask  # noqa: E402
 
 
 def test_harbor_config_type_hints_resolve():
     """`HarborConfig` annotations resolve at runtime (incl. `prebaked_e2b_config`)."""
     hints = typing.get_type_hints(HarborConfig)
     assert "prebaked_e2b_config" in hints
-    assert "task_env_config" in hints
+    assert "backend" in hints
     assert "trace_attributes" in hints  # inherited from EnvironmentConfig
 
 
 def test_harbor_config_embeds_in_pydantic_model():
-    """`HarborConfig` can back a Pydantic field (the terminal-bench TaskContext shape)."""
+    """`HarborConfig` can back a Pydantic field — its annotations must resolve at runtime (#141)."""
 
     class _Ctx(BaseModel):
         config: HarborConfig
 
     _Ctx.model_rebuild()
-    ctx = _Ctx(config={"task_id": "t", "task_dir": "/d", "trial_dir": "/o"})
-    assert ctx.config["task_id"] == "t"
+    ctx = _Ctx(config={"backend": "docker", "timeout": 600})
+    assert ctx.config["backend"] == "docker"
+
+
+def test_harbor_task_round_trips():
+    """`HarborTask` carries the per-sample payload and survives JSON transport."""
+    task = HarborTask(message="fix the bug", task_id="t", task_dir="/d", trial_dir="/o")
+    again = HarborTask.model_validate_json(task.model_dump_json())
+    assert again.task_id == "t"
+    assert again.trial_dir == "/o"

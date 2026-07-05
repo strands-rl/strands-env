@@ -25,8 +25,7 @@ import subprocess
 from pathlib import Path
 from typing import override
 
-from strands_env.core import Task
-from strands_env.environments.harbor import SWE_SYSTEM_PROMPT_PATH
+from strands_env.environments.harbor import SWE_SYSTEM_PROMPT_PATH, HarborTask
 from strands_env.eval.benchmarks.terminal_bench import TerminalBenchEvaluator
 
 from ..registry import register_eval
@@ -106,7 +105,7 @@ class SWEBenchVerifiedEvaluator(TerminalBenchEvaluator):
             pass
 
     @override
-    def load_dataset(self) -> list[Task]:
+    def load_dataset(self) -> list[HarborTask]:
         """Load swebench-verified Harbor tasks (one Task per task directory)."""
         # Same as the parent, but be explicit about the README/LICENSE filter:
         # the swebench-verified dir contains task subdirs only after the

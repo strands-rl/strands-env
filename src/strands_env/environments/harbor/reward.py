@@ -21,36 +21,37 @@ from typing import TYPE_CHECKING
 
 from harbor.models.trial.paths import EnvironmentPaths
 
-from strands_env.core.types import RewardFunction, RewardResult, RolloutResult, Task
+from strands_env.core.types import RewardFunction, RewardResult, RolloutResult
 
 if TYPE_CHECKING:
     from .env import HarborEnv
+    from .task import HarborTask
 
 logger = logging.getLogger(__name__)
 
 
-class HarborReward(RewardFunction):
+class HarborReward(RewardFunction["HarborTask"]):
     """Execute test scripts in Docker and compute binary reward (0 or 1)."""
 
     def __init__(self, env: HarborEnv) -> None:
         """Initialize a `HarborReward` instance."""
         self._env = env
 
-    async def compute(self, task: Task, result: RolloutResult) -> RewardResult:
+    async def compute(self, task: HarborTask, result: RolloutResult) -> RewardResult:
         """Run verification tests in Docker and return a binary reward."""
         try:
-            reward = await self._run_verification()
+            reward = await self._run_verification(task)
             return RewardResult(reward=reward, info={"status": "success"})
         except Exception as e:
             logger.exception("Verification failed due to %s: %s", type(e).__name__, str(e))
             return RewardResult(reward=0.0, info={"status": "error", "message": str(e)})
 
-    async def _run_verification(self) -> float:
+    async def _run_verification(self, task: HarborTask) -> float:
         """Upload tests, execute `test.sh`, download results, and parse reward."""
         assert self._env.sandbox is not None, "Sandbox not initialized"
         sandbox = self._env.sandbox
-        task_paths = self._env.task_paths
-        trial_paths = self._env.trial_paths
+        task_paths = task.task_paths
+        trial_paths = task.trial_paths
         timeout = self._env.timeout
 
         # Upload and run tests.

@@ -19,7 +19,9 @@ from __future__ import annotations
 from pathlib import Path
 
 from harbor.models.task.config import EnvironmentConfig as TaskEnvironmentConfig
+from harbor.models.task.paths import TaskPaths
 from harbor.models.task.task import Task as HarborTaskSpec
+from harbor.models.trial.paths import TrialPaths
 from pydantic import Field
 
 from strands_env.core import Task
@@ -30,12 +32,23 @@ class HarborTask(Task):
 
     task_id: str = Field(description="Harbor task name (also keys e2b template lookups).")
     task_dir: str = Field(description="Path to the task bundle (task.toml, environment/, tests/).")
+    trial_dir: str = Field(description="Output directory for this trial's artifacts (evaluator-authored layout).")
     task_env_config: TaskEnvironmentConfig = Field(
         default_factory=TaskEnvironmentConfig, description="Harbor container settings from task.toml [environment]."
     )
 
+    @property
+    def task_paths(self) -> TaskPaths:
+        """Harbor's view of the task bundle. A plain property — cheap, and never stale."""
+        return TaskPaths(Path(self.task_dir))
+
+    @property
+    def trial_paths(self) -> TrialPaths:
+        """Harbor's view of the trial output dir. Not cached: `trial_dir` is rewritten per pass@k sample."""
+        return TrialPaths(Path(self.trial_dir))
+
     @classmethod
-    def from_task_dir(cls, task_dir: str | Path) -> HarborTask:
+    def from_task_dir(cls, task_dir: str | Path, *, trial_dir: str | Path) -> HarborTask:
         """Build a `HarborTask` from an on-disk Harbor task bundle (reads `task.toml`)."""
         spec = HarborTaskSpec(Path(task_dir))
         return cls(
@@ -43,5 +56,6 @@ class HarborTask(Task):
             message=spec.instruction,
             task_id=spec.name,
             task_dir=str(Path(task_dir).resolve()),
+            trial_dir=str(trial_dir),
             task_env_config=spec.config.environment,
         )

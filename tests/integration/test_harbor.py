@@ -27,8 +27,8 @@ import pytest
 
 pytest.importorskip("harbor", reason="harbor>=0.1.43 required for harbor env integration tests")
 
-from strands_env.core.types import Task, TerminationReason
-from strands_env.environments.harbor import HarborEnv
+from strands_env.core.types import TerminationReason
+from strands_env.environments.harbor import HarborEnv, HarborTask
 
 from .conftest import assert_rollout, assert_successful_rollout, assert_token_usage
 
@@ -77,14 +77,24 @@ def task_dir(tmp_path_factory, docker_available):
 
 
 @pytest.fixture
-def harbor_env(model_factory, task_dir, tmp_path):
-    """HarborEnv — each rollout() builds and tears down its own sandbox."""
-    return HarborEnv(
-        model_factory=model_factory,
-        task_id="test-task",
-        task_dir=str(task_dir),
-        trial_dir=str(tmp_path / "trial"),
-    )
+def harbor_env(model_factory):
+    """HarborEnv — capability only; each rollout() builds and tears down its own sandbox."""
+    return HarborEnv(model_factory=model_factory)
+
+
+@pytest.fixture
+def make_task(task_dir, tmp_path):
+    """Build a `HarborTask` for the fixture task bundle."""
+
+    def _make(message: str) -> HarborTask:
+        return HarborTask(
+            message=message,
+            task_id="test-task",
+            task_dir=str(task_dir),
+            trial_dir=str(tmp_path / "trial"),
+        )
+
+    return _make
 
 
 # ---------------------------------------------------------------------------
@@ -93,9 +103,9 @@ def harbor_env(model_factory, task_dir, tmp_path):
 
 
 class TestHarborEnv:
-    async def test_rollout_with_docker_reward(self, harbor_env):
+    async def test_rollout_with_docker_reward(self, harbor_env, make_task):
         """Full pipeline: agent runs command in Docker, result is complete, reward comes from test.sh."""
-        result = await harbor_env.rollout(Task(message="Run 'echo hello world' in the terminal."))
+        result = await harbor_env.rollout(make_task("Run 'echo hello world' in the terminal."))
 
         assert_successful_rollout(result)
         assert_rollout(result)
@@ -107,45 +117,37 @@ class TestHarborEnv:
         assert result.reward_result is not None
         assert result.reward_result.reward == 1.0
 
-    async def test_multi_turn_conversation(self, harbor_env):
+    async def test_multi_turn_conversation(self, harbor_env, make_task):
         """Agent uses conversation history from a prior turn to maintain context."""
-        result1 = await harbor_env.rollout(Task(message="Run 'echo hello' in the terminal."))
+        result1 = await harbor_env.rollout(make_task("Run 'echo hello' in the terminal."))
         assert result1.termination_reason == TerminationReason.TASK_COMPLETE
 
-        result2 = await harbor_env.rollout(
-            Task(
-                message="Now run 'echo world'.",
-                conversation_history=result1.messages,
-            ),
-        )
+        task2 = make_task("Now run 'echo world'.")
+        task2.conversation_history = result1.messages
+        result2 = await harbor_env.rollout(task2)
         assert result2.termination_reason == TerminationReason.TASK_COMPLETE
 
     async def test_tool_iteration_limit(self, model_factory, task_dir, tmp_path):
         """max_tool_iters terminates the agent after the specified number of tool rounds."""
-        env = HarborEnv(
-            model_factory=model_factory,
-            task_id="test-iter-limit",
-            task_dir=str(task_dir),
-            trial_dir=str(tmp_path / "trial"),
-            system_prompt=FORCE_TOOL_PROMPT,
-            max_tool_iters=1,
+        env = HarborEnv(model_factory=model_factory, system_prompt=FORCE_TOOL_PROMPT, max_tool_iters=1)
+        task = HarborTask(
+            message=MANY_STEPS_PROMPT, task_id="test-iter-limit", task_dir=str(task_dir), trial_dir=str(tmp_path / "t1")
         )
-        result = await env.rollout(Task(message=MANY_STEPS_PROMPT))
+        result = await env.rollout(task)
 
         assert result.termination_reason == TerminationReason.MAX_TOOL_ITERATIONS_REACHED
         assert result.metrics["tool_iters"] <= 1
 
     async def test_max_tool_calls_limit(self, model_factory, task_dir, tmp_path):
         """max_tool_calls terminates the agent after the specified total tool invocations."""
-        env = HarborEnv(
-            model_factory=model_factory,
+        env = HarborEnv(model_factory=model_factory, system_prompt=FORCE_TOOL_PROMPT, max_tool_calls=1)
+        task = HarborTask(
+            message=MANY_STEPS_PROMPT,
             task_id="test-calls-limit",
             task_dir=str(task_dir),
-            trial_dir=str(tmp_path / "trial"),
-            system_prompt=FORCE_TOOL_PROMPT,
-            max_tool_calls=1,
+            trial_dir=str(tmp_path / "t2"),
         )
-        result = await env.rollout(Task(message=MANY_STEPS_PROMPT))
+        result = await env.rollout(task)
 
         assert result.termination_reason == TerminationReason.MAX_TOOL_CALLS_REACHED
         assert result.metrics["tool_calls"] >= 1
