@@ -33,11 +33,11 @@ from harbor.models.task.config import EnvironmentConfig as TaskEnvironmentConfig
 from harbor.models.task.paths import TaskPaths
 from harbor.models.trial.paths import TrialPaths
 from strands import tool
-from typing_extensions import TypedDict
 
 from strands_env.core import Environment, ModelFactory, Task
 from strands_env.core.environment import EnvironmentConfig
 
+from .e2b import PrebakedE2BConfig, PrebakedE2BEnvironment
 from .reward import HarborReward
 
 if TYPE_CHECKING:
@@ -64,21 +64,6 @@ class HarborConfig(EnvironmentConfig):
     backend: NotRequired[Literal["docker", "e2b"]]
     task_env_config: NotRequired[TaskEnvironmentConfig]
     prebaked_e2b_config: NotRequired[PrebakedE2BConfig]
-
-
-class PrebakedE2BConfig(TypedDict, total=False):
-    """Connection + template config for the e2b backend (all fields optional)."""
-
-    # e2b cluster API domain (env: E2B_DOMAIN).
-    domain: str
-    # e2b API key (env: E2B_API_KEY); prefer `api_key_file` to keep it out of config.
-    api_key: str
-    # Read the e2b API key from this file instead of inlining it.
-    api_key_file: str
-    # Template to boot; falls back to a `templates_json` lookup by task name.
-    template_id: str
-    # {task_name: template_id} JSON map (env: E2B_TEMPLATES_PATH).
-    templates_json: str
 
 
 class HarborEnv(Environment):
@@ -123,11 +108,9 @@ class HarborEnv(Environment):
                     task_env_config=self.task_env_config,
                 )
             case "e2b":
-                from .e2b import PrebakedE2BEnvironment
-
                 # we use prebaked e2b for self-hosting on e.g., AWS
                 self.sandbox = PrebakedE2BEnvironment(
-                    task_id=self.task_id,
+                    template_key=self.task_id,
                     prebaked_e2b_config=self.prebaked_e2b_config,
                     # below are the same as harbor's E2BEnvironment
                     environment_dir=self.task_paths.environment_dir,

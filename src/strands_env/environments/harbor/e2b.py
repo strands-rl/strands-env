@@ -24,32 +24,41 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, override
+from typing import Any, TypedDict, override
 
 import e2b.api as _e2b_api
 from e2b.exceptions import AuthenticationException
 from harbor.environments.e2b import E2BEnvironment
 from harbor.models.trial.paths import EnvironmentPaths
 
-if TYPE_CHECKING:
-    from .env import PrebakedE2BConfig
+
+class PrebakedE2BConfig(TypedDict, total=False):
+    """Connection + template config for the e2b backend (all fields optional)."""
+
+    domain: str  # e2b cluster API domain (env: E2B_DOMAIN).
+    api_key: str  # e2b API key (env: E2B_API_KEY); prefer `api_key_file` to keep it out of config.
+    api_key_file: str  # Read the e2b API key from this file instead of inlining it.
+    template_id: str  # Template to boot; falls back to a `templates_json` lookup by task name.
+    templates_json: str  # {task_name: template_id} JSON map (env: E2B_TEMPLATES_PATH).
 
 
 class PrebakedE2BEnvironment(E2BEnvironment):
     """E2BEnvironment that boots from a pre-baked template, skipping Harbor's auto-build.
 
-    Identical to `E2BEnvironment` plus a keyword-only `template_id` pinning the
-    already-baked template to boot from. Retries are inherited from the base.
+    The template to boot is resolved at construction: an explicit `template_id` in
+    `prebaked_e2b_config` wins, else `templates_json` is looked up by `template_key`
+    (typically the Harbor task name). Retries are inherited from the base.
     """
 
-    def __init__(self, task_id: str, prebaked_e2b_config: PrebakedE2BConfig, *args: Any, **kwargs: Any) -> None:
+    def __init__(self, template_key: str, prebaked_e2b_config: PrebakedE2BConfig, *args: Any, **kwargs: Any) -> None:
         """Initialize a `PrebakedE2BEnvironment` instance.
 
         Resolves the pinned template id from `prebaked_e2b_config` (an explicit
-        `template_id`, else a `templates.json` lookup by `task_id`) and exports the
-        e2b connection env vars; `*args`/`**kwargs` forward to `E2BEnvironment.__init__`.
+        `template_id`, else a `templates.json` lookup by `template_key` — typically the
+        Harbor task name) and exports the e2b connection env vars; `*args`/`**kwargs`
+        forward to `E2BEnvironment.__init__`.
         """
-        self.task_id = task_id
+        self.template_key = template_key
         self._config = prebaked_e2b_config
         self._template_id = self._config.get("template_id") or self._resolve_template_id()
         self._set_e2b_env_vars()
@@ -62,14 +71,18 @@ class PrebakedE2BEnvironment(E2BEnvironment):
             raise RuntimeError("E2B_TEMPLATES_PATH not set and no templates_path provided.")
         templates = json.loads(Path(templates_path).read_text())
         # Accept both Harbor's `<benchmark>/<task>` form and the bare dir name.
-        candidates = [self.task_id, self.task_id.split("/")[-1]]
+        candidates = [self.template_key, self.template_key.split("/")[-1]]
         for name in candidates:
             if name in templates:
                 return templates[name]
-        raise KeyError(f"Task {self.task_id!r} has no matching template; tried: {candidates}.")
+        raise KeyError(f"Template key {self.template_key!r} has no match; tried: {candidates}.")
 
     def _set_e2b_env_vars(self) -> None:
-        """Write `domain`/`api_key` into the env vars harbor's E2BEnvironment + SDK read."""
+        """Write `domain`/`api_key` into the env vars harbor's E2BEnvironment + SDK read.
+
+        Process-global by necessity — the e2b SDK has no per-instance config channel, so
+        concurrent envs pointing at different clusters would race (last writer wins).
+        """
         if domain := self._config.get("domain"):
             os.environ["E2B_DOMAIN"] = domain
         if api_key := self._config.get("api_key"):
@@ -82,7 +95,8 @@ class PrebakedE2BEnvironment(E2BEnvironment):
 
     @override
     async def start(self, force_build: bool) -> None:
-        # Skip the build path; boot from the pinned template id.
+        # Skip the build path; boot from the pinned template id. `_template_name` is a
+        # private attr of harbor's base — an upstream rename breaks this adapter.
         self._template_name = self._template_id
         if force_build:
             self.logger.warning(
