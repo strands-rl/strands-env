@@ -46,10 +46,7 @@ class HarborReward(RewardFunction["HarborTask"]):
         try:
             assert self._env.sandbox is not None, "sandbox not initialized"
             timeout = task.verifier_timeout if task.verifier_timeout is not None else self._env.exec_timeout
-            # The verifier's output redirect needs its target dir; mounted backends (docker)
-            # materialize it via the bind mount, non-mounted ones (e2b) need it created.
             await self._env.sandbox.exec(f"mkdir -p {EnvironmentPaths.verifier_dir}")
-
             verifier = Verifier(
                 task=HarborTaskSpec(Path(task.task_dir)),
                 trial_paths=task.trial_paths,
