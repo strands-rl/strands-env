@@ -49,7 +49,7 @@ All config fields are serializable and passed as `**kwargs` to the constructor.
 
 | Field | Type | Description |
 |---|---|---|
-| `enabled_tools` | `list[str]` | Tool names to enable (omit or empty = all tools) |
+| `enabled_tools` | `list[str]` | Tool names to enable (strict filter — empty enables none) |
 | `tool_timeout` | `int` | HTTP timeout in seconds for tool and list-tools calls (default: 60) |
 
 ## TaskContext Fields

@@ -34,8 +34,8 @@ if TYPE_CHECKING:
 class AgentCoreCodeConfig(EnvironmentConfig, total=False):
     """Serializable configuration for `AgentCoreCodeEnv`."""
 
-    mode: Literal["code", "terminal", "code_and_terminal"]
-    session_timeout_seconds: int
+    mode: Literal["code", "terminal", "code_and_terminal"]  # which tools to expose (default "code")
+    session_timeout_seconds: int  # sandbox session lifetime (default 3600)
 
 
 class AgentCoreCodeEnv(Environment):
@@ -57,7 +57,16 @@ class AgentCoreCodeEnv(Environment):
         quotas: CodeInterpreterQuotas | None = None,
         **config: Unpack[AgentCoreCodeConfig],
     ):
-        """Initialize a `AgentCoreCodeEnv` instance."""
+        """Initialize an `AgentCoreCodeEnv` instance.
+
+        Args:
+            model_factory: Factory for the agent's model.
+            reward_fn: Optional reward function (None = inference-only).
+            client: boto3 `bedrock-agentcore` client; None creates a default one.
+            quotas: Shared `CodeInterpreterQuotas` — pass one instance to all envs
+                to enforce account-wide session/TPS limits; None = per-env quotas.
+            **config: See `AgentCoreCodeConfig`.
+        """
         super().__init__(model_factory=model_factory, reward_fn=reward_fn, **config)  # type: ignore[misc]
         self.mode: str = self.config.get("mode", "code")
         self._toolkit = CodeInterpreterToolkit(

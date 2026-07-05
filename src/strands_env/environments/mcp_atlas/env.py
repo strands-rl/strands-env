@@ -43,11 +43,11 @@ class MCPAtlasEnv(Environment[MCPAtlasTask]):
     """MCP-Atlas benchmark environment backed by a Docker container.
 
     Notes:
-        - A shared ``httpx.AsyncClient`` is passed in at construction time;
+        - A shared `httpx.AsyncClient` is passed in at construction time;
           the caller owns its lifecycle (create once, close after all tasks).
-        - ``reset()`` fetches tools from the container and applies per-task
-          filtering.
-        - ``cleanup()`` clears the tool list only.
+        - `reset()` fetches tools from the container and applies the task's
+          `enabled_tools` filter strictly (an empty filter enables no tools).
+        - `cleanup()` clears the tool list only.
     """
 
     DEFAULT_DOCKER_URL: ClassVar[str] = "http://localhost:1984"
@@ -63,7 +63,17 @@ class MCPAtlasEnv(Environment[MCPAtlasTask]):
         cached_tools: list[dict] | None = None,
         **config: Unpack[MCPAtlasConfig],
     ):
-        """Initialize a `MCPAtlasEnv` instance."""
+        """Initialize an `MCPAtlasEnv` instance.
+
+        Args:
+            model_factory: Factory for the agent's model.
+            http_client: Shared client for the MCP-Atlas container (see `create_client`);
+                the caller owns its lifecycle.
+            reward_fn: Optional reward function (None = inference-only).
+            cached_tools: Pre-fetched `/list-tools` response; skips the fetch in `reset()`.
+                Share one across envs to avoid refetching per episode.
+            **config: See `MCPAtlasConfig`.
+        """
         super().__init__(
             model_factory=model_factory,
             reward_fn=reward_fn,
@@ -84,7 +94,7 @@ class MCPAtlasEnv(Environment[MCPAtlasTask]):
         """Create an `httpx.AsyncClient` configured for the MCP-Atlas container.
 
         The caller owns the returned client's lifecycle and should close it
-        when done (e.g. via ``async with`` or explicit ``aclose()``).
+        when done (e.g. via `async with` or explicit `aclose()`).
 
         Args:
             base_url: Base URL of the MCP-Atlas Docker container.
@@ -114,7 +124,7 @@ class MCPAtlasEnv(Environment[MCPAtlasTask]):
 
     @override
     def get_tools(self) -> list:
-        """Return the MCP tools discovered during ``reset()``."""
+        """Return the MCP tools discovered during `reset()`."""
         return list(self._tools)
 
     @override

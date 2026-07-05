@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""The dataset-authored MCP-Atlas sample type."""
+"""The per-sample input type for `MCPAtlasEnv`."""
 
 from __future__ import annotations
 

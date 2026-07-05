@@ -47,7 +47,7 @@ if TYPE_CHECKING:
 
 
 class HarborConfig(EnvironmentConfig):
-    """Operator-authored configuration for `HarborEnv` (the sample itself arrives as `HarborTask`).
+    """Serializable configuration for `HarborEnv`.
 
     Backends:
         - "docker": Local Docker via `harbor`'s native `DockerEnvironment`.

@@ -24,7 +24,7 @@ from strands_env.environments.calculator.reward import MathVerifyReward
 
 
 class CalculatorEnv(Environment):
-    """Simple math environment using a calculator tool."""
+    """Math environment: a `calculator` tool, with `MathVerifyReward` as the default reward."""
 
     default_system_prompt_path = Path(__file__).parent / "system_prompt.md"
 
@@ -40,4 +40,5 @@ class CalculatorEnv(Environment):
 
     @override
     def get_tools(self) -> list:
+        """Return the `calculator` tool from `strands_tools`."""
         return [calculator]

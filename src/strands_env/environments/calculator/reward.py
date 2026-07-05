@@ -104,6 +104,7 @@ class MathVerifyReward(RewardFunction):
 
     @override
     async def compute(self, task: Task, result: RolloutResult) -> RewardResult:
+        """Score `result.final_response` against `task.ground_truth` by symbolic equivalence."""
         ground_truth = task.ground_truth
         if not isinstance(ground_truth, str) or not ground_truth.strip():
             return RewardResult(reward=0.0, info={"reason": "invalid_ground_truth"})

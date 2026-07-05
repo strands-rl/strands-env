@@ -99,7 +99,7 @@ class Environment(Generic[TaskT]):
         Notes:
             - This is the right place for resource-heavy or async initialization
             (e.g., spinning up containers, creating sessions, connecting to services).
-            - Keep `__init__` limited to storing operator-authored config and lightweight
+            - Keep `__init__` limited to storing run-level config and lightweight
             state — it is synchronous and cannot `await`.
             - Paired with `cleanup`, which tears down what `reset` sets up and must
             tolerate partially-initialized state (`reset` may fail midway).

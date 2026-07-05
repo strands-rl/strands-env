@@ -29,14 +29,14 @@ class WebSearchConfig(EnvironmentConfig, total=False):
     """Serializable configuration for `WebSearchEnv`."""
 
     # Search
-    search_provider: WebSearchAPIProvider
-    search_timeout: int
-    blocked_domains: list[str]
+    search_provider: WebSearchAPIProvider  # default "serper"
+    search_timeout: int  # seconds per search API call (default 10)
+    blocked_domains: list[str]  # appended to queries as -site: exclusions
 
     # Scrape
-    scrape_enabled: bool
-    scrape_timeout: int
-    scrape_token_budget: int
+    scrape_enabled: bool  # default False — no scrape tool unless enabled
+    scrape_timeout: int  # seconds per page fetch (default 50)
+    scrape_token_budget: int  # max page tokens kept for summarization (default 20000)
 
 
 class WebSearchEnv(Environment):
@@ -54,7 +54,19 @@ class WebSearchEnv(Environment):
         summarizer_model_factory: ModelFactory | None = None,
         **config: Unpack[WebSearchConfig],
     ):
-        """Initialize a `WebSearchEnv` instance."""
+        """Initialize a `WebSearchEnv` instance.
+
+        Args:
+            model_factory: Factory for the agent's model.
+            reward_fn: Optional reward function (None = inference-only).
+            search_concurrency: Cap on concurrent search API calls. Pass a shared
+                `asyncio.Semaphore` to enforce one budget across many envs; an int
+                creates a per-env semaphore.
+            scrape_concurrency: Same as `search_concurrency`, for page fetches.
+            summarizer_model_factory: Model factory for the scrape tool's structured
+                summarization; without it the scrape tool returns raw page content.
+            **config: See `WebSearchConfig`.
+        """
         super().__init__(model_factory=model_factory, reward_fn=reward_fn, **config)  # type: ignore[misc]
 
         self.search_toolkit = WebSearchToolkit(

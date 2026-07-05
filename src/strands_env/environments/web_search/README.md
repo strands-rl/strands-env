@@ -56,8 +56,8 @@ Serializable config via `WebSearchConfig` (passed as `**kwargs`):
 - `search_timeout` — HTTP timeout in seconds (default 10)
 - `blocked_domains` — domains to exclude from results
 - `scrape_enabled` — enable web scraping (default `False`)
-- `scrape_timeout` — scrape HTTP timeout (default 30)
-- `scrape_token_budget` — max tokens of page content to keep (default 5000)
+- `scrape_timeout` — scrape HTTP timeout (default 50)
+- `scrape_token_budget` — max tokens of page content to keep (default 20000)
 
 Non-serializable params (named args):
 

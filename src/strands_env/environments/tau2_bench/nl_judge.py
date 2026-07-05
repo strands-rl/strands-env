@@ -68,7 +68,7 @@ class NLAssertion(BaseModel):
 
 
 class NLJudgment(BaseModel):
-    """Mirrors tau2's expected JSON wrapper: ``{"results": [...]}``."""
+    """Mirrors tau2's expected JSON wrapper: `{"results": [...]}`."""
 
     results: list[NLAssertion]
 
@@ -85,6 +85,7 @@ class Tau2BenchNLAssertionReward(LLMJudgeReward[NLJudgment, Tau2BenchTask]):
 
     @override
     async def get_judge_prompt(self, task: Tau2BenchTask, result: RolloutResult) -> str:
+        """Render the full dialogue (greeting exchange included) and the expected outcomes."""
         assertions = list(task.tau2_task.evaluation_criteria.nl_assertions or [])
         messages = list(task.conversation_history) + list(result.messages)
         lines = []
@@ -100,6 +101,7 @@ class Tau2BenchNLAssertionReward(LLMJudgeReward[NLJudgment, Tau2BenchTask]):
 
     @override
     async def get_reward(self, judgment: NLJudgment | str) -> float:
+        """All assertions must pass; a `str` judgment (judge parse failure) scores 0.0."""
         if not isinstance(judgment, NLJudgment):
             return self.default_reward  # 0.0 by default
         return float(all(r.met_expectation for r in judgment.results))

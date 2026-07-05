@@ -98,21 +98,21 @@ class ClaimJudgment(BaseModel):
 class MCPAtlasReward(LLMJudgeReward[ClaimJudgment, MCPAtlasTask]):
     """Per-claim LLM-as-judge reward for MCP-Atlas benchmark.
 
-    Overrides ``compute()`` to evaluate multiple claims per rollout via
-    ``super().compute()`` and aggregate into a binary reward based on
-    the 0.75 pass threshold.
+    Overrides `compute()` to judge each GTFA claim individually (one
+    `super().compute()` call per claim) and aggregate the mean coverage
+    score into a binary reward at the 0.75 pass threshold.
     """
 
     judgment_format = ClaimJudgment
 
     @override
     async def get_judge_prompt(self, task: MCPAtlasTask, result: RolloutResult) -> str:
-        """Format the prompt for the current claim being evaluated."""
+        """Format the prompt for the current claim (`_current_claim`/`_response` are set by `compute()`'s loop)."""
         return CLAIM_EVALUATION_PROMPT.format(claim=self._current_claim, response=self._response)
 
     @override
     async def get_reward(self, judgment: ClaimJudgment | str) -> float:
-        """Convert a single claim judgment to a score."""
+        """Convert a claim judgment to its coverage score; a `str` (judge parse failure) scores 0.0."""
         if isinstance(judgment, str):
             return 0.0
         return COVERAGE_SCORES.get(judgment.coverage_outcome, 0.0)

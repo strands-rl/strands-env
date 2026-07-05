@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""The dataset-authored Harbor sample type."""
+"""The per-sample input type for `HarborEnv`."""
 
 from __future__ import annotations
 
@@ -32,7 +32,9 @@ class HarborTask(Task):
 
     task_id: str = Field(description="Harbor task name (also keys e2b template lookups).")
     task_dir: str = Field(description="Path to the task bundle (task.toml, environment/, tests/).")
-    trial_dir: str = Field(description="Output directory for this trial's artifacts (evaluator-authored layout).")
+    trial_dir: str = Field(
+        description="Output directory for this trial's artifacts (the evaluator decides the layout)."
+    )
     verifier_timeout: int | None = Field(
         default=None, description="Verifier budget (seconds) from task.toml [verifier]; None = env's exec_timeout."
     )
