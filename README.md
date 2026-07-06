@@ -96,10 +96,10 @@ Ready-to-use environments under `src/strands_env/environments/`. Each ships with
 | Environment | Description |
 | --- | --- |
 | [`calculator`](src/strands_env/environments/calculator/README.md) | Calculator tool with symbolic-equivalence reward for math reasoning. |
-| [`harbor`](src/strands_env/environments/harbor/README.md) | Run [Harbor](https://github.com/laude-institute/harbor)-format tasks in sandboxes. Supports training like [SETA](https://github.com/camel-ai/seta) and evaluation like [Terminal-Bench](https://www.tbench.ai/) and [SWE-bench](https://www.swebench.com/). |
-| [`tau2_bench`](src/strands_env/environments/tau2_bench/README.md) | [tau2-bench](https://github.com/sierra-research/tau2-bench) customer-service dialogues (airline/retail/telecom) driven by an LLM user-simulator. |
 | [`agentcore_code`](src/strands_env/environments/agentcore_code/README.md) | Python / shell execution via AWS Bedrock AgentCore Code Interpreter. |
 | [`web_search`](src/strands_env/environments/web_search/README.md) | Google search + Jina page scraping with optional LLM summarization, enlightened by [OpenSeeker](https://github.com/rui-ye/OpenSeeker). |
+| [`harbor`](src/strands_env/environments/harbor/README.md) | Run [Harbor](https://github.com/laude-institute/harbor)-format tasks in sandboxes. Supports training like [SETA](https://github.com/camel-ai/seta) and evaluation like [Terminal-Bench](https://www.tbench.ai/) and [SWE-bench](https://www.swebench.com/). |
+| [`tau2_bench`](src/strands_env/environments/tau2_bench/README.md) | [tau2-bench](https://github.com/sierra-research/tau2-bench) customer-service dialogues (airline/retail/telecom) driven by an LLM user-simulator. |
 | [`mcp_atlas`](src/strands_env/environments/mcp_atlas/README.md) | [MCP-Atlas](https://github.com/scaleapi/mcp-atlas) benchmark runner across 36 MCP servers with 500 tasks. |
 | [`agent_world_model`](src/strands_env/environments/agent_world_model/README.md) | [AgentWorldModel](https://github.com/scaleapi/agent-world-model) tasks with 1000 synthetic FastAPI + SQLite environments exposed as MCP tools. |
 
