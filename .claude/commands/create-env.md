@@ -4,31 +4,37 @@ The user provides the environment name as $ARGUMENTS (e.g., `my_env`). If not pr
 
 Create the following files under `src/strands_env/environments/<name>/`:
 
-1. **`__init__.py`** — License header + docstring + re-export of the environment class from `env.py`.
+1. **`__init__.py`** — License header + docstring + re-exports (env class, config, and task class if any).
 
 2. **`env.py`** — License header + minimal `Environment` subclass:
-   - Import `Environment` from `strands_env.core.environment`
-   - Set `default_system_prompt_path = Path(__file__).parent / "system_prompt.md"`
-   - Override `get_tools()` returning an empty list with a TODO comment
-   - Override `async def reset(self)` with a TODO comment — resource-heavy or async initialization (e.g., spinning up containers, creating sessions, connecting to services) belongs here, not in `__init__`. `__init__` should only store config and lightweight state. `reset()` is async and called per-episode, making it the right place for setup that needs `await` or fresh-per-episode state.
-   - Class name should be `<Name>Env` (e.g., `my_env` → `MyEnvEnv`, `agentcore_code` → `AgentCoreCodeEnv`)
+   - `class <Name>Config(EnvironmentConfig)` — run-level knobs only (each field gets an inline comment with its default). Per-sample values do NOT go here — they belong on the task type.
+   - `class <Name>Env(Environment)` — or `Environment[<Name>Task]` when the env has a typed task; the generic parametrization auto-derives `task_cls`.
+   - `__init__` stores run-level config and lightweight state only (sync, no `await`). No docstring unless parameters carry semantics (then a full `Args:` section).
+   - `async def reset(self, task)` — episode init from the typed sample: containers, sessions, per-episode scratch (`mkdtemp`, cloned working state). Paired with `cleanup()`, which must tolerate partially-initialized state.
+   - Override `get_tools()` returning an empty list with a TODO comment.
+   - Class name: `my_env` → `MyEnvEnv`, `agentcore_code` → `AgentCoreCodeEnv`.
 
-3. **`system_prompt.md`** — A placeholder with a TODO comment for the user to fill in.
+3. **`task.py`** (only if the env has per-sample fields — the bar is "real types or real consumers"):
+   - Module docstring: `"""The per-sample input type for `<Name>Env`."""`
+   - `class <Name>Task(Task)` — class docstring says what one sample IS; declared fields with `Field(description=...)` carrying semantics. Tasks may own data-derived views of their fields (path wrappers), never scoring behavior.
 
-4. **`requirements.txt`** — A comment `# No additional dependencies` (user adds deps as needed).
+4. **`system_prompt.md`** — A placeholder with a TODO comment.
 
-5. **`README.md`** — Template with these sections:
-   - `# <Name> Environment` — one-line placeholder description
-   - `## Setup` — placeholder
-   - `## Usage` — placeholder code snippet with the env class
-   - `## Tools` — placeholder
-   - `## Reward` — placeholder
-   - `## System Prompt` — placeholder
+5. **`requirements.txt`** — `# No additional dependencies` (user adds deps as needed).
 
-Use the existing environments (calculator, agentcore_code, harbor) as style references. Match the license header used in existing files.
+6. **`README.md`** — the house skeleton:
+   - `# <Name> Environment` — one-paragraph description
+   - `## Setup` (only if extra deps/creds)
+   - `## Usage` — capability-only construction + typed task + `result = await env.rollout(task)` (never manual `reset()`/`cleanup()`)
+   - `## Configuration` — table (Field | Default | Meaning) + one line pointing base knobs at `EnvironmentConfig`
+   - `## Task Fields` — table (typed-task envs only)
+   - `## Tools`
+   - `## Reward`
+   - `## System Prompt` or `## Lifecycle` (only where reset/cleanup is non-trivial)
+
+Follow CLAUDE.md's "Docstring Style" and "Class Attribute Conventions" sections. Use harbor and agent_world_model as style references (the most recently normalized). Match the license header used in existing files.
 
 After creating the files, remind the user to:
-- Implement `get_tools()` in `env.py`
-- Put resource-heavy or async initialization in `reset()`, not `__init__` (e.g., starting containers, creating API sessions). `__init__` is sync-only and should just store config.
-- Write the system prompt in `system_prompt.md`
+- Implement `get_tools()` and `reset(task)`/`cleanup()`
+- Write the system prompt
 - Add the env to `src/strands_env/environments/__init__.py` if it should be a public export

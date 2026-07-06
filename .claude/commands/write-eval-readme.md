@@ -1,6 +1,6 @@
 Write or update a README.md for an eval benchmark directory.
 
-The user provides the eval directory path as $ARGUMENTS (e.g., `examples/eval/aime_code`). If not provided, ask.
+The user provides the eval directory path as $ARGUMENTS (e.g., `examples/eval/aime`). If not provided, ask.
 
 ## Steps
 
@@ -33,9 +33,9 @@ The user provides the eval directory path as $ARGUMENTS (e.g., `examples/eval/ai
 
 {Prerequisites. If none beyond base install, write: "No additional setup required beyond `strands-env`."}
 
-## Files
+## Environments
 
-{Bulleted list of files in the directory with one-line descriptions.}
+{Table (File | Description) of the env hook modules — each row is an environment option mapping to the `--env` flag (e.g. chat-only vs tools).}
 
 ## Usage
 
@@ -58,7 +58,7 @@ See `python -m strands_env.eval --help` for all CLI options.
 
 Use these existing eval READMEs as style references:
 
-- `examples/eval/aime_code/README.md`
+- `examples/eval/aime/README.md`
 - `examples/eval/simple_math/README.md`
 - `examples/eval/terminal_bench/README.md`
 
