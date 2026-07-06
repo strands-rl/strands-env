@@ -13,7 +13,7 @@ A framework for building agent environments for RL training and evaluation with 
 
 An **agent environment** takes a task and runs the agent to completion over multiple turns, producing a **rollout result** — the trajectory, reward, and termination reason for that task. With `strands-env`, you can:
 
-- **Define Environments** — Subclass `Environment`, add `@tool` functions, plug in `RewardFunction`
+- **Define Environments** — Subclass `Environment`, add `@tool` functions, plug in `RewardFunction`; typed `Task` subclasses carry per-sample fields
 - **RL Training** — Token-level trajectories (TITO) for on-policy training with [strands-sglang](https://github.com/horizon-rl/strands-sglang)
 - **Benchmarking** — CLI and `Evaluator` with checkpointing, resume, and custom metrics
 
@@ -95,8 +95,9 @@ Ready-to-use environments under `src/strands_env/environments/`. Each ships with
 
 | Environment | Description |
 | --- | --- |
-| [`calculator`](src/strands_env/environments/calculator/README.md) | Simple environment with a calculator tool for math reasoning. |
+| [`calculator`](src/strands_env/environments/calculator/README.md) | Calculator tool with symbolic-equivalence reward for math reasoning. |
 | [`harbor`](src/strands_env/environments/harbor/README.md) | Run [Harbor](https://github.com/laude-institute/harbor)-format tasks in sandboxes. Supports training like [SETA](https://github.com/camel-ai/seta) and evaluation like [Terminal-Bench](https://www.tbench.ai/) and [SWE-bench](https://www.swebench.com/). |
+| [`tau2_bench`](src/strands_env/environments/tau2_bench/README.md) | [tau2-bench](https://github.com/sierra-research/tau2-bench) customer-service dialogues (airline/retail/telecom) driven by an LLM user-simulator. |
 | [`agentcore_code`](src/strands_env/environments/agentcore_code/README.md) | Python / shell execution via AWS Bedrock AgentCore Code Interpreter. |
 | [`web_search`](src/strands_env/environments/web_search/README.md) | Google search + Jina page scraping with optional LLM summarization, enlightened by [OpenSeeker](https://github.com/rui-ye/OpenSeeker). |
 | [`mcp_atlas`](src/strands_env/environments/mcp_atlas/README.md) | [MCP-Atlas](https://github.com/scaleapi/mcp-atlas) benchmark runner across 36 MCP servers with 500 tasks. |
