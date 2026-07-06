@@ -64,17 +64,19 @@ class EnvironmentConfig(TypedDict, total=False):
 class Environment(Generic[TaskT]):
     """Base RL rollout environment for Strands agents."""
 
-    default_system_prompt_path: ClassVar[Path | None] = None
-    #: Concrete task type, auto-derived from the generic parametrization (see `__init_subclass__`).
     task_cls: ClassVar[type[Task]] = Task
+    default_system_prompt_path: ClassVar[Path | None] = None
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         """Derive `task_cls` from `class XxxEnv(Environment[XxxTask])` — one declaration, no drift."""
         super().__init_subclass__(**kwargs)
+        # `__orig_bases__` keeps the unerased `Environment[XxxTask]` (absent for plain
+        # subclasses, which then inherit the parent's task_cls)
         for base in getattr(cls, "__orig_bases__", ()):
             origin = get_origin(base)
             if isinstance(origin, type) and issubclass(origin, Environment):
                 (arg,) = get_args(base)
+                # skip TypeVars: a generic intermediate layer must not overwrite task_cls
                 if isinstance(arg, type) and issubclass(arg, Task):
                     cls.task_cls = arg
 
