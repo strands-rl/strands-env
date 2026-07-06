@@ -29,7 +29,7 @@ Integration tests validate the **full pipeline** with a real LLM. Each test shou
 - `test_step_metrics` — Metrics dict has expected keys (`message_count`, `tool_iters`, `model_calls`, etc.)
 - `test_reward_computation` — Reward function returns expected values for known inputs
 - `test_tool_iteration_limit` — Respects `max_tool_iters` setting
-- `test_conversation_history` — Multi-turn works with history passed in `TaskContext`
+- `test_conversation_history` — Multi-turn works with history passed in `Task.conversation_history`
 
 Do NOT duplicate unit test coverage. Integration tests are expensive (real LLM calls) — keep them focused.
 
