@@ -61,7 +61,7 @@ class EnvironmentActor:
             JSON string, reconstruct via `RolloutResult.model_validate_json()`.
         """
         task = Task.model_validate_json(task_json)
-        env = await self.env_factory(task)
+        env = await self.env_factory()
         result = await env.rollout(task)
         return result.model_dump_json()
 
@@ -77,7 +77,7 @@ class EnvironmentActor:
         """
         task = Task.model_validate_json(task_json)
         result = RolloutResult.model_validate_json(result_json)
-        env = await self.env_factory(task)
+        env = await self.env_factory()
         try:
             if env.reward_fn is None:
                 raise ValueError("Environment has no reward function configured")

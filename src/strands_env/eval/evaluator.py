@@ -169,7 +169,7 @@ class Evaluator(Generic[TaskT]):
                 result = await self.env_actor_pool.rollout(task)
             else:
                 assert self.env_factory is not None
-                env = await self.env_factory(task)
+                env = await self.env_factory()
                 result = await env.rollout(task)
             # Clean up the token-level rollout if not needed to reduce verbosity
             if not self.keep_rollout:

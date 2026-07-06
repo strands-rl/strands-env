@@ -40,8 +40,8 @@ from .types import (
 
 logger = logging.getLogger(__name__)
 
-#: Type alias for environment factory function (async).
-type AsyncEnvFactory = Callable[[Any], Awaitable["Environment[Any]"]]
+#: Zero-arg async environment factory; the sample arrives via `rollout(task)`.
+type AsyncEnvFactory = Callable[[], Awaitable["Environment[Any]"]]
 
 
 class EnvironmentConfig(TypedDict, total=False):

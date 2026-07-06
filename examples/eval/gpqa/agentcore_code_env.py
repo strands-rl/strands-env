@@ -29,7 +29,7 @@ def create_env_factory(model_config: dict, **env_config):
     reward_fn = GPQAReward()
     client = get_client(service_name="bedrock-agentcore", role_arn=env_config.get("agentcore_role_arn"))
 
-    async def env_factory(_task):
+    async def env_factory():
         return AgentCoreCodeEnv(
             model_factory=model_factory, reward_fn=reward_fn, mode="code", client=client, quotas=QUOTAS, **env_config
         )

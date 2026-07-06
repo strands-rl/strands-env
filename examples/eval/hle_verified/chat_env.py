@@ -43,7 +43,7 @@ def create_env_factory(model_config: dict, **env_config):
         )
     reward_fn = HLEReward(judge_model=judge_models, max_model_retries=env_config.get("max_judge_retries", 3))
 
-    async def env_factory(_task):
+    async def env_factory():
         return Environment(model_factory=model_factory, reward_fn=reward_fn, **env_config)
 
     return env_factory

@@ -36,7 +36,7 @@ class TestEvaluator:
         """Factory mode: rollout() called once per sample (it owns reset/cleanup internally)."""
         mock_env.rollout.return_value = RolloutResult()
 
-        async def factory(task):
+        async def factory():
             return mock_env
 
         tasks = [Task(id=f"p{i}", message=f"q{i}") for i in range(3)]
@@ -52,7 +52,7 @@ class TestEvaluator:
         """Each task is duplicated n_samples_per_prompt times."""
         mock_env.rollout.return_value = RolloutResult()
 
-        async def factory(task):
+        async def factory():
             return mock_env
 
         tasks = [Task(id="p1", message="q")]
@@ -68,16 +68,17 @@ class TestEvaluator:
         sample_ids = [s.task.id for s in results["p1"]]
         assert len(set(sample_ids)) == 5
 
-    async def test_factory_receives_task(self, tmp_path):
-        """Factory receives the task for per-sample configuration."""
+    async def test_task_flows_to_rollout(self, tmp_path):
+        """The factory is zero-arg; the sample reaches the env via `rollout(task)`."""
         received_tasks = []
 
-        async def factory(task):
+        async def rollout(task):
             received_tasks.append(task)
+            return RolloutResult()
+
+        async def factory():
             env = MagicMock()
-            env.reset = AsyncMock()
-            env.rollout = AsyncMock(return_value=RolloutResult())
-            env.cleanup = AsyncMock()
+            env.rollout = AsyncMock(side_effect=rollout)
             return env
 
         tasks = [Task(message="q1"), Task(message="q2")]
@@ -103,7 +104,7 @@ class TestEvaluator:
             concurrent_count -= 1
             return RolloutResult()
 
-        async def factory(task):
+        async def factory():
             env = MagicMock()
             env.reset = AsyncMock()
             env.rollout = mock_rollout
@@ -120,7 +121,7 @@ class TestEvaluator:
     async def test_empty_tasks(self, mock_env, tmp_path):
         """Empty tasks produces empty results."""
 
-        async def factory(task):
+        async def factory():
             return mock_env
 
         evaluator = Evaluator(env_factory=factory, output_path=tmp_path / "results.jsonl")
@@ -135,7 +136,7 @@ class TestEvaluator:
         rollout.add_prompt([1])
         rollout.add_response([2, 3], logprobs=[-0.5, -0.3])
 
-        async def factory(task):
+        async def factory():
             env = MagicMock()
             env.reset = AsyncMock()
             env.rollout = AsyncMock(
@@ -152,7 +153,7 @@ class TestEvaluator:
     async def test_rollout_error_aborts_sample(self, tmp_path):
         """A raising rollout() marks the sample aborted (cleanup guarantee lives in Environment.rollout)."""
 
-        async def factory(task):
+        async def factory():
             env = MagicMock()
             env.rollout = AsyncMock(side_effect=RuntimeError("rollout failed"))
             return env
@@ -173,7 +174,7 @@ class TestCheckpoint:
         mock_env.rollout.return_value = RolloutResult()
         output_path = tmp_path / "results.jsonl"
 
-        async def factory(task):
+        async def factory():
             return mock_env
 
         evaluator = Evaluator(env_factory=factory, output_path=output_path, save_interval=1)
@@ -188,7 +189,7 @@ class TestCheckpoint:
         mock_env.rollout.return_value = RolloutResult()
         output_path = tmp_path / "results.jsonl"
 
-        async def factory(task):
+        async def factory():
             return mock_env
 
         # First run - complete s1
@@ -225,7 +226,7 @@ class TestValidateSample:
             "p3": [make_sample(0.0, 4, aborted=True)],
         }
 
-        async def factory(task):
+        async def factory():
             return MagicMock()
 
         evaluator = Evaluator(env_factory=factory, output_path=tmp_path / "results.jsonl")
@@ -242,7 +243,7 @@ class TestValidateSample:
             def validate_sample(self, sample):
                 return False
 
-        async def factory(task):
+        async def factory():
             nonlocal rollout_count
             rollout_count += 1
             env = MagicMock()
@@ -273,7 +274,7 @@ class TestValidateSample:
             "p2": [make_sample(1.0, 2)],
         }
 
-        async def factory(task):
+        async def factory():
             return MagicMock()
 
         evaluator = Evaluator(env_factory=factory, output_path=tmp_path / "results.jsonl")
@@ -292,7 +293,7 @@ class TestValidateSample:
 
         call_count = 0
 
-        async def factory(task):
+        async def factory():
             nonlocal call_count
             call_count += 1
             reward = RewardResult(reward=1.0) if call_count == 2 else None
@@ -327,7 +328,7 @@ class TestComputeMetrics:
     async def test_default_metrics(self, tmp_path):
         """Default metric_fns includes pass@k."""
 
-        async def factory(task):
+        async def factory():
             env = MagicMock()
             env.reset = AsyncMock()
             env.rollout = AsyncMock(
@@ -438,7 +439,7 @@ class TestDistributedEvaluation:
         mock_pool.rollout = AsyncMock(return_value=RolloutResult())
         factory_called = False
 
-        async def factory(task):
+        async def factory():
             nonlocal factory_called
             factory_called = True
 
