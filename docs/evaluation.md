@@ -109,7 +109,7 @@ def create_env_factory(model_config: dict, **env_config):
     """Create an async environment factory."""
     model_factory = build_model_factory(model_config)
 
-    async def env_factory(task):
+    async def env_factory():
         return YourEnvironment(model_factory=model_factory, **env_config)
 
     return env_factory
@@ -127,7 +127,7 @@ def create_env_factory(model_config: dict, **env_config):
     model_factory = build_model_factory(model_config)
     reward_fn = MathVerifyReward()
 
-    async def env_factory(_task):
+    async def env_factory():
         return CalculatorEnv(model_factory=model_factory, reward_fn=reward_fn, **env_config)
 
     return env_factory
@@ -145,7 +145,7 @@ def create_env_factory(model_config: dict, **env_config):
     model_factory = build_model_factory(model_config)
     reward_fn = MathVerifyReward()
 
-    async def env_factory(_task):
+    async def env_factory():
         return AgentCoreCodeEnv(model_factory=model_factory, reward_fn=reward_fn, mode="code", **env_config)
 
     return env_factory

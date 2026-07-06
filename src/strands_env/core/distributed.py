@@ -60,8 +60,8 @@ class EnvironmentActor:
         Returns:
             JSON string, reconstruct via `RolloutResult.model_validate_json()`.
         """
-        task = Task.model_validate_json(task_json)
         env = await self.env_factory()
+        task = env.task_cls.model_validate_json(task_json)  # restore the env's typed task from the wire
         result = await env.rollout(task)
         return result.model_dump_json()
 
@@ -75,9 +75,9 @@ class EnvironmentActor:
         Returns:
             JSON string, reconstruct via `RewardResult.model_validate_json()`.
         """
-        task = Task.model_validate_json(task_json)
         result = RolloutResult.model_validate_json(result_json)
         env = await self.env_factory()
+        task = env.task_cls.model_validate_json(task_json)  # restore the env's typed task from the wire
         try:
             if env.reward_fn is None:
                 raise ValueError("Environment has no reward function configured")

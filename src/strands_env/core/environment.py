@@ -20,7 +20,7 @@ import logging
 import time
 from collections.abc import Awaitable, Callable, Sequence
 from pathlib import Path
-from typing import Any, ClassVar, Generic, Unpack
+from typing import Any, ClassVar, Generic, Unpack, get_args, get_origin
 
 from opentelemetry.util.types import AttributeValue
 from strands import Agent
@@ -34,6 +34,7 @@ from .models import ModelFactory
 from .types import (
     RewardFunction,
     RolloutResult,
+    Task,
     TaskT,
     TerminationReason,
 )
@@ -64,6 +65,18 @@ class Environment(Generic[TaskT]):
     """Base RL rollout environment for Strands agents."""
 
     default_system_prompt_path: ClassVar[Path | None] = None
+    #: Concrete task type, auto-derived from the generic parametrization (see `__init_subclass__`).
+    task_cls: ClassVar[type[Task]] = Task
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        """Derive `task_cls` from `class XxxEnv(Environment[XxxTask])` — one declaration, no drift."""
+        super().__init_subclass__(**kwargs)
+        for base in getattr(cls, "__orig_bases__", ()):
+            origin = get_origin(base)
+            if isinstance(origin, type) and issubclass(origin, Environment):
+                (arg,) = get_args(base)
+                if isinstance(arg, type) and issubclass(arg, Task):
+                    cls.task_cls = arg
 
     def __init__(
         self,

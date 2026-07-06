@@ -336,3 +336,48 @@ class TestEnvironmentConfigTypeHints:
 
         hints = typing.get_type_hints(EnvironmentConfig)
         assert "trace_attributes" in hints
+
+
+class TestTaskCls:
+    """task_cls auto-derivation from the generic parametrization."""
+
+    def test_derived_from_parametrization(self):
+        class MyTask(Task):
+            flavor: str = "x"
+
+        class MyEnv(Environment[MyTask]):
+            pass
+
+        assert MyEnv.task_cls is MyTask
+
+    def test_inherited_by_unparametrized_subclass(self):
+        class MyTask(Task):
+            pass
+
+        class MyEnv(Environment[MyTask]):
+            pass
+
+        class MySubEnv(MyEnv):
+            pass
+
+        assert MySubEnv.task_cls is MyTask
+
+    def test_bare_env_defaults_to_task(self):
+        class BareEnv(Environment):
+            pass
+
+        assert BareEnv.task_cls is Task
+
+    def test_wire_round_trip_restores_typed_task(self):
+        """The actor-side pattern: env.task_cls revives the typed sample from JSON."""
+
+        class MyTask(Task):
+            payload: int
+
+        class MyEnv(Environment[MyTask]):
+            pass
+
+        task = MyTask(message="q", payload=7)
+        revived = MyEnv.task_cls.model_validate_json(task.model_dump_json())
+        assert isinstance(revived, MyTask)
+        assert revived.payload == 7
