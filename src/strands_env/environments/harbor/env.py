@@ -14,11 +14,8 @@
 
 """Harbor task environment for container management and test execution.
 
-Runs any Harbor-format task (a directory with `task.toml`, `environment/Dockerfile`,
-`tests/test.sh`) in an isolated Docker container or self-hosted e2b sandbox. The agent gets a single
-`execute_command` tool; `HarborReward` runs `tests/test.sh` for a binary reward.
-Terminal-Bench and SWE-bench tasks share this exact contract, so both run on this
-environment — they differ only in their dataset and system prompt (set per-benchmark).
+Runs a Harbor-format task in an isolated sandbox (Docker or self-hosted e2b): the agent
+solves it via a single `execute_command` tool and `tests/test.sh` grades the result.
 """
 
 from __future__ import annotations
