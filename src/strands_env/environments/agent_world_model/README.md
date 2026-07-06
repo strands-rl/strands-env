@@ -53,6 +53,10 @@ Base knobs (`system_prompt`, `max_tool_iters`, ...) come from `EnvironmentConfig
 | `verify_code` | Python source defining `verify_task_completion(...)` |
 | `initial_db_path` | Pristine SQLite snapshot; the episode's working DB is cloned from it |
 
+## Tools
+
+Dynamic — discovered per episode from the scenario's FastAPI server via MCP (`fastapi_mcp`); each endpoint of the synthetic world becomes one tool.
+
 ## Reward
 
 `AgentWorldModelReward` runs the task's `verify_task_completion(initial_db_path, final_db_path, final_answer)` via `exec()`. Each scenario has a unique verification function (from `gen_verifier.pure_code.jsonl`) that checks:

@@ -34,7 +34,7 @@ env = WebSearchEnv(
 )
 
 result = await env.rollout(task)
-await env.cleanup()  # Close HTTP sessions
+await env.cleanup()  # close shared HTTP sessions once, after ALL rollouts (sessions are reused across episodes)
 ```
 
 ## Tools
@@ -50,20 +50,16 @@ Depends on configuration:
 
 ## Configuration
 
-Serializable config via `WebSearchConfig` (passed as `**kwargs`):
+| Field | Default | Meaning |
+|---|---|---|
+| `search_provider` | `"serper"` | `"serper"` or `"google"` |
+| `search_timeout` | `10` | Seconds per search API call |
+| `blocked_domains` | — | Appended to queries as `-site:` exclusions |
+| `scrape_enabled` | `False` | Expose the scrape tool |
+| `scrape_timeout` | `50` | Seconds per page fetch |
+| `scrape_token_budget` | `20000` | Max page tokens kept for summarization |
 
-- `search_provider` — `"serper"` (default) or `"google"`
-- `search_timeout` — HTTP timeout in seconds (default 10)
-- `blocked_domains` — domains to exclude from results
-- `scrape_enabled` — enable web scraping (default `False`)
-- `scrape_timeout` — scrape HTTP timeout (default 50)
-- `scrape_token_budget` — max tokens of page content to keep (default 20000)
-
-Non-serializable params (named args):
-
-- `search_concurrency` — `Semaphore` or `int` for search rate limiting (default 10)
-- `scrape_concurrency` — `Semaphore` or `int` for scrape rate limiting (default 10)
-- `summarizer_model_factory` — model factory for LLM-based content summarization
+Base knobs come from `EnvironmentConfig`. Non-serializable named args: `search_concurrency` / `scrape_concurrency` (a shared `Semaphore` = one budget across envs, an `int` = per-env cap), `summarizer_model_factory` (without it the scrape tool returns raw page content).
 
 ## Reward
 

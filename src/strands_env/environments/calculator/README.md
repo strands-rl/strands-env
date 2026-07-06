@@ -19,9 +19,13 @@ result = await env.rollout(task)
 
 - **calculator** — Basic arithmetic operations (from `strands_tools`).
 
+## Configuration
+
+No env-specific keys — base knobs (`system_prompt`, `max_tool_iters`, ...) come from `EnvironmentConfig`.
+
 ## Reward
 
-No built-in reward function. Supply a custom `reward_fn` or use with an evaluator (e.g., exact-match on `\boxed{}` answers).
+`MathVerifyReward` is the default: parses the model's `\boxed{}` answer and checks symbolic equivalence against `task.ground_truth` via HuggingFace `math-verify`. Supply `reward_fn` to override.
 
 ## System Prompt
 

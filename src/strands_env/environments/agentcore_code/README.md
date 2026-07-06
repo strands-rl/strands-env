@@ -25,9 +25,17 @@ env = AgentCoreCodeEnv(
     mode="code",  # "code", "terminal", or "code_and_terminal"
 )
 
-result = await env.rollout(task)
-await env.cleanup()  # Clean up code interpreter session
+result = await env.rollout(task)  # reset -> episode -> reward -> cleanup (session closed)
 ```
+
+## Configuration
+
+| Field | Default | Meaning |
+|---|---|---|
+| `mode` | `"code"` | Which tools to expose: `"code"`, `"terminal"`, or `"code_and_terminal"` |
+| `session_timeout_seconds` | `3600` | Sandbox session lifetime |
+
+Base knobs come from `EnvironmentConfig`. Non-serializable named args: `client` (boto3 `bedrock-agentcore` client; default created on demand), `quotas` (share one `CodeInterpreterQuotas` across envs for account-wide limits).
 
 ## Tools
 

@@ -19,47 +19,36 @@ docker run -d -p 1984:1984 --env-file .env ghcr.io/scaleapi/mcp-atlas:1.2.5
 Create a shared HTTP client via `MCPAtlasEnv.create_client()` and pass it to the environment.
 
 ```python
-from strands_env.environments.mcp_atlas import MCPAtlasEnv
+from strands_env.environments.mcp_atlas import MCPAtlasEnv, MCPAtlasTask
 
 # Create a shared client (caller owns lifecycle — close when done)
-http_client = MCPAtlasEnv.create_client()
+http_client = MCPAtlasEnv.create_client()  # or create_client(base_url=..., max_connections=...)
 
-# Or with custom URL / connection pool settings
-http_client = MCPAtlasEnv.create_client(
-    base_url="http://my-host:1984",
-    max_connections=<max_connections>,
-    max_keepalive_connections=<max_keepalive_connections>,
-)
+env = MCPAtlasEnv(model_factory=model_factory, http_client=http_client, reward_fn=reward_fn)
 
-env = MCPAtlasEnv(
-    model_factory=model_factory,
-    http_client=http_client,
-    reward_fn=reward_fn,
+task = MCPAtlasTask(
+    message=prompt,
     enabled_tools=["calculator_calculate", "fetch_fetch"],
+    gtfa_claims=claims,
 )
-await env.reset()       # fetches tools and applies filtering
-result = await env.rollout(task)
-await env.cleanup()     # clears tools (does NOT close the shared client)
+result = await env.rollout(task)  # reset (fetch + filter tools) -> episode -> reward -> cleanup
+await http_client.aclose()        # once, after ALL rollouts
 ```
 
-## MCPAtlasConfig
+## Configuration
 
-`MCPAtlasConfig` extends `EnvironmentConfig` with MCP-Atlas-specific fields.
-All config fields are serializable and passed as `**kwargs` to the constructor.
-
-| Field | Type | Description |
+| Field | Default | Meaning |
 |---|---|---|
-| `enabled_tools` | `list[str]` | Tool names to enable (strict filter — empty enables none) |
-| `tool_timeout` | `int` | HTTP timeout in seconds for tool and list-tools calls (default: 60) |
+| `tool_timeout` | `60` | HTTP timeout in seconds for tool and list-tools calls |
 
-## TaskContext Fields
+Base knobs come from `EnvironmentConfig`. Non-serializable named args: `http_client` (shared, caller-owned), `cached_tools` (pre-fetched `/list-tools` response — share one across envs to skip per-episode refetch).
 
-The evaluator must prepare these fields on `TaskContext` (via `MCPAtlasTaskContext`):
+## Task Fields
 
-| Field | Type | Used by |
-|---|---|---|
-| `enabled_tools` | `list[str]` | env (tool filtering) |
-| `gtfa_claims` | `list[str]` | reward (per-claim evaluation) |
+| Field | Meaning |
+|---|---|
+| `enabled_tools` | Tool names to enable (strict filter — empty enables none) |
+| `gtfa_claims` | Ground-truth final-answer claims for the per-claim judge reward |
 
 ## Reward
 
@@ -81,6 +70,6 @@ The `coverage_score` is the mean across claims. Returns binary reward: 1.0 if `c
 
 ## Lifecycle
 
-- **`reset()`** — POSTs `/list-tools` to the MCP-Atlas server, filters tools by `enabled_tools`, wraps them as `MCPAtlasTool` instances.
+- **`reset(task)`** — POSTs `/list-tools` to the MCP-Atlas server (or uses `cached_tools`), filters by `task.enabled_tools`, wraps them as `MCPAtlasTool` instances.
 - **`rollout(task)`** — Runs the Strands agent with MCP tools. Each tool call POSTs to `/call-tool`.
 - **`cleanup()`** — Clears the tool list. The shared HTTP client is **not** closed (the caller owns its lifecycle).

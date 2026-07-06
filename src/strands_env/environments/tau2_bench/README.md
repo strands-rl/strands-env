@@ -58,18 +58,15 @@ The reward is benchmark material and is not injectable; episodes not ended by th
 
 ## Configuration
 
-Operator-authored config via `Tau2BenchConfig` (passed as `**kwargs`):
+| Field | Default | Meaning |
+|---|---|---|
+| `max_steps` | `100` | Step budget in tau2's sense, shared by agent and user-sim |
 
-- `max_steps` — step budget in tau2's sense, shared by agent and user-sim (default 100)
+Base knobs come from `EnvironmentConfig`. Non-serializable named args: `agent_model_factory` (the model under test), `user_model_factory` (drives the user-simulator), `judge_model_factory` (optional; NL-assertion judge only).
 
-Dataset-authored sample via `Tau2BenchTask` (passed to `rollout()`):
+## Task Fields
 
-- `domain` — `"airline"`, `"retail"`, or `"telecom"`
-- `config` — one tau2 `Task` serialized to a dict; lazily parsed (`task.tau2_task`) and built into the
-  live world (`task.tau2_env`) as cached properties — the episode and the reward share the same instance
-
-Non-serializable params (named args):
-
-- `agent_model_factory` — model factory for the agent under test
-- `user_model_factory` — model factory for the user-simulator
-- `judge_model_factory` — optional model factory for the NL-assertion judge
+| Field | Meaning |
+|---|---|
+| `domain` | `"airline"`, `"retail"`, or `"telecom"` |
+| `config` | One tau2 `Task` serialized to a dict — lazily parsed (`task.tau2_task`) and built into the live world (`task.tau2_env`) as cached properties, so the episode and the reward share the same instance |

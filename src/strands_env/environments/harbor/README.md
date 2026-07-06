@@ -45,11 +45,28 @@ task = HarborTask.from_task_dir("/path/to/task", trial_dir="/path/to/output")  #
 result = await env.rollout(task)  # reset (build + start container) -> episode -> reward -> cleanup
 ```
 
-`HarborTask` carries the dataset-authored sample: `task_id`, `task_dir`, `trial_dir`,
-`task_env_config`, an optional `verifier_timeout` (task.toml `[verifier]`), and an optional
-benchmark `system_prompt`. `HarborConfig` keeps the operator knobs: `backend`,
-`exec_timeout` (per-command `sandbox.exec` budget, also the verifier fallback), and
-`prebaked_e2b_config`.
+## Configuration
+
+| Field | Default | Meaning |
+|---|---|---|
+| `backend` | `"docker"` | `"docker"` or `"e2b"` |
+| `exec_timeout` | `1200` | Seconds per `sandbox.exec` command; also the verifier fallback |
+| `prebaked_e2b_config` | `{}` | e2b connection + template map (see `PrebakedE2BConfig`) |
+
+Base knobs come from `EnvironmentConfig`.
+
+## Task Fields
+
+| Field | Meaning |
+|---|---|
+| `task_id` | Harbor task name (also keys e2b template lookups) |
+| `task_dir` | Path to the task bundle (`task.toml`, `environment/`, `tests/`) |
+| `trial_dir` | Output directory for this trial's artifacts (the evaluator decides the layout) |
+| `task_env_config` | Container settings from `task.toml` `[environment]` |
+| `verifier_timeout` | Verifier budget from `task.toml` `[verifier]`; `None` = `exec_timeout` |
+| `system_prompt` | Optional benchmark prompt override (e.g. the SWE-bench-tuned prompt) |
+
+`HarborTask.from_task_dir()` is the canonical bundle→task mapping; `task.task_paths` / `task.trial_paths` expose harbor's own path views.
 
 ## Tools
 
@@ -57,12 +74,7 @@ benchmark `system_prompt`. `HarborConfig` keeps the operator knobs: `backend`,
 
 ## Reward
 
-Built-in `HarborReward` (binary 0/1):
-1. Uploads `tests/` to the container
-2. Runs `test.sh`
-3. Parses `reward.txt` output — returns 1.0 if the value is >= 1, else 0.0
-
-Supply a custom `reward_fn` to override.
+Built-in `HarborReward` delegates to harbor's own `Verifier`: uploads `tests/`, runs `test.sh`, and reports the reward as parsed from `reward.json` (first) or `reward.txt` — raw passthrough, no binarization (current datasets emit 0/1 by construction). `info["status"]` is `"success"` whenever the verifier ran; `"error"` only for verification-machinery failures.
 
 ## System Prompt
 
@@ -71,4 +83,4 @@ The env ships two prompts:
 - `system_prompt.md` (default) — drives a structured problem-solving loop: analyze state, plan next steps, execute commands, verify results.
 - `system_prompt_swe.md` — a SWE-bench-tuned variant (exposed as `SWE_SYSTEM_PROMPT_PATH`).
 
-Benchmarks override the default via the serializable `system_prompt` config field — e.g. the `swebench-verified` evaluator injects `system_prompt_swe.md`.
+Benchmarks override per task via `HarborTask.system_prompt` — e.g. the `swebench-verified` evaluator stamps `system_prompt_swe.md` onto every task, so the prompt survives any custom factory.
