@@ -38,8 +38,8 @@ class SimpleMathEvaluator(Evaluator):
         Replace this with your actual dataset loading logic.
         Each Task should have:
         - message: The problem prompt
-        - context.id: Unique problem ID
-        - context.ground_truth: Expected answer
+        - id: Unique problem ID
+        - ground_truth: Expected answer
         """
         # Example problems - replace with your dataset
         problems = [

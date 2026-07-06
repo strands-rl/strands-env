@@ -1,6 +1,6 @@
 # SWE-bench
 
-[SWE-bench Verified](https://www.swebench.com/) benchmark using `HarborEnv`. The `swebench-verified` evaluator injects a SWE-bench-tuned system prompt into each task's config. Each task runs in an isolated container with the agent fixing the repository at `/testbed` via `execute_command` tool calls.
+[SWE-bench Verified](https://www.swebench.com/) benchmark using `HarborEnv`. The `swebench-verified` evaluator stamps a SWE-bench-tuned system prompt onto each `HarborTask`. Each task runs in an isolated container with the agent fixing the repository at `/testbed` via `execute_command` tool calls.
 
 ## Variants
 

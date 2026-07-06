@@ -14,8 +14,8 @@
 
 """Environment hook for SWE-bench Verified evaluation with `HarborEnv`.
 
-The `swebench-verified` benchmark injects a SWE-bench-tuned `system_prompt`
-into each task's config, so this hook just instantiates the generic `HarborEnv`.
+The `swebench-verified` benchmark stamps a SWE-bench-tuned prompt onto each
+`HarborTask.system_prompt`, so this hook just instantiates the generic `HarborEnv`.
 """
 
 from __future__ import annotations
