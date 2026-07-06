@@ -28,7 +28,7 @@ from strands_env.core import Task
 
 
 class HarborTask(Task):
-    """Rollout input for `HarborEnv`: one Harbor-format task bundle."""
+    """One Harbor-format task bundle on disk, plus where this trial writes its outputs."""
 
     task_id: str = Field(description="Harbor task name (also keys e2b template lookups).")
     task_dir: str = Field(description="Path to the task bundle (task.toml, environment/, tests/).")

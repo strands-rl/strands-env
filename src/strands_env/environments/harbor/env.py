@@ -15,7 +15,7 @@
 """Harbor task environment for container management and test execution.
 
 Runs a Harbor-format task in an isolated sandbox (Docker or self-hosted e2b): the agent
-solves it via a single `execute_command` tool and `tests/test.sh` grades the result.
+solves it via a single `execute_command` tool and Harbor's `Verifier` grades the result.
 """
 
 from __future__ import annotations

@@ -22,7 +22,7 @@ from strands_env.core import Task
 
 
 class AgentWorldModelTask(Task):
-    """Rollout input for `AgentWorldModelEnv`."""
+    """One AgentWorldModel sample: scenario, verifier code, and the pristine DB snapshot."""
 
     scenario: str = Field(description="Scenario name in `gen_envs.jsonl` (which synthetic world to boot).")
     task_idx: int = Field(description="Task index within the scenario (used in logs).")
