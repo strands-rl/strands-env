@@ -15,7 +15,6 @@ class MCPAtlasTool(MCPToolAdapter):
     """MCP tool that calls the MCP-Atlas container's REST API."""
 
     def __init__(self, mcp_tool: MCPToolDef, http_client: httpx.AsyncClient, timeout: int = 60):
-        """Initialize a `MCPAtlasTool` instance."""
         super().__init__(mcp_tool)
         self._http_client = http_client
         self._call_timeout = timeout

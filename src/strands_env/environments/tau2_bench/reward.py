@@ -40,7 +40,6 @@ class Tau2BenchReward(RewardFunction[Tau2BenchTask]):
     """Final reward = product of sub-rewards selected by `tau2_task.reward_basis`."""
 
     def __init__(self, env: Tau2BenchEnv, judge_model: Model | list[Model] | None = None) -> None:
-        """Initialize a `Tau2BenchReward` instance."""
         self._env = env
         self._nl_judge = Tau2BenchNLAssertionReward(env, judge_model) if judge_model is not None else None
 

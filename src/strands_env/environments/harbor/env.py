@@ -73,7 +73,6 @@ class HarborEnv(Environment[HarborTask]):
         model_factory: ModelFactory,
         **config: Unpack[HarborConfig],
     ):
-        """Initialize a `HarborEnv` instance."""
         super().__init__(model_factory=model_factory, **config)  # type: ignore[misc]
         self.exec_timeout: int = int(self.config.get("exec_timeout", 1200))
         self.backend: Literal["docker", "e2b"] = self.config.get("backend", "docker")

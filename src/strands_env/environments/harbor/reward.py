@@ -38,7 +38,6 @@ class HarborReward(RewardFunction["HarborTask"]):
     """Run harbor's Verifier in the sandbox and return its reward."""
 
     def __init__(self, env: HarborEnv) -> None:
-        """Initialize a `HarborReward` instance."""
         self._env = env
 
     async def compute(self, task: HarborTask, result: RolloutResult) -> RewardResult:

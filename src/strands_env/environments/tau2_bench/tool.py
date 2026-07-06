@@ -33,7 +33,6 @@ class Tau2BenchTool(AgentTool):
     """Strands `AgentTool` dispatching via tau2's `Environment.get_response` (which runs `sync_tools`)."""
 
     def __init__(self, tool: Tau2Tool, env: Tau2Environment, requestor: Literal["assistant", "user"]):
-        """Initialize a `Tau2BenchTool` instance."""
         super().__init__()
         self._tool = tool
         self._env = env

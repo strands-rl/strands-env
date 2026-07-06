@@ -35,7 +35,6 @@ class CalculatorEnv(Environment):
         reward_fn: RewardFunction | None = None,
         **config: Unpack[EnvironmentConfig],
     ):
-        """Initialize a `CalculatorEnv` instance."""
         super().__init__(model_factory=model_factory, reward_fn=reward_fn or MathVerifyReward(), **config)
 
     @override

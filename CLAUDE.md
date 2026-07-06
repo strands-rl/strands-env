@@ -133,7 +133,19 @@ Each environment is a package: `env.py` holds the `Environment` subclass, plus d
 - asyncio_mode = "auto" for pytest-asyncio
 - Async-first: all Environment methods that interact with Agent are async
 
-### Class Attribute Conventions
+### Docstring Style
+
+Concise but informative — a docstring that restates the identifier is worse than none.
+
+- **Module**: one line, what the file contains ("The per-sample input type for `XxxEnv`."). A paragraph only for load-bearing context (e.g. an import-time trap).
+- **Class**: one-line summary; facts the signature can't show (lifecycle, resource ownership) go in `Notes:`.
+- **Config TypedDicts**: first line "Serializable configuration for `XxxEnv`."; each field gets an inline comment with its default (`# seconds per MCP tool call (default 60)`) — the default otherwise hides in a distant `.get()`.
+- **`__init__`**: NO docstring when parameters are self-evident (D107 is disabled — its presence is the signal). Write a full `Args:` section only when parameters carry semantics: ownership, sharing, fallback behavior.
+- **Methods**: one imperative line saying what the signature can't; overrides state what this implementation does differently.
+- **Task classes**: "Rollout input for `XxxEnv`." + `Field(description=...)` per field. Tasks may own data-derived views of their fields (path wrappers, world materialization) but never scoring behavior — that lives on `RewardFunction`.
+- **Mechanics**: single backticks, no Sphinx roles, no design-session jargon ("operator-authored" → plain reader terms); comments state constraints, not narration.
+
+## Class Attribute Conventions
 
 Three forms, chosen by where the value's storage lives and whether the name binds a single value:
 

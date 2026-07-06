@@ -76,7 +76,6 @@ class LLMJudgeReward(RewardFunction[TaskT], Generic[JudgmentFormat, TaskT]):
         default_reward: float = 0.0,
         max_model_retries: int = 1,
     ) -> None:
-        """Initialize a `LLMJudgeReward` instance."""
         self.judge_models = itertools.cycle(judge_model if isinstance(judge_model, list) else [judge_model])
         self.system_prompt = system_prompt
         self.default_reward = default_reward

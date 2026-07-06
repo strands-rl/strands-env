@@ -85,7 +85,6 @@ class Environment(Generic[TaskT]):
         reward_fn: RewardFunction[TaskT] | None = None,
         **config: Unpack[EnvironmentConfig],
     ):
-        """Initialize an `Environment` instance."""
         self.model_factory = model_factory
         self.reward_fn = reward_fn
 

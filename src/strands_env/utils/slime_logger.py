@@ -67,7 +67,6 @@ class RolloutLogger:
         max_rollouts: int = 3000,
         log_per_tool_metrics: bool = False,
     ) -> None:
-        """Initialize a `RolloutLogger` instance."""
         self.backend = backend
         self.n_rollouts_per_step = n_rollouts_per_step
         self.log_per_tool_metrics = log_per_tool_metrics

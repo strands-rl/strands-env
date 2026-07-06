@@ -79,7 +79,6 @@ class Tau2BenchNLAssertionReward(LLMJudgeReward[NLJudgment, Tau2BenchTask]):
     judgment_format = NLJudgment
 
     def __init__(self, env: Tau2BenchEnv, judge_model: Model | list[Model]) -> None:
-        """Initialize a `Tau2BenchNLAssertionReward` instance."""
         super().__init__(judge_model=judge_model, system_prompt=NL_JUDGE_SYSTEM_PROMPT)
         self._env = env
 

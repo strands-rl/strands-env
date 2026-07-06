@@ -66,7 +66,6 @@ class MathVerifyReward(RewardFunction):
         verify_timeout: int = 5,
         answer_tail_chars: int = 500,
     ) -> None:
-        """Initialize a `MathVerifyReward` instance."""
         self.float_rounding = float_rounding
         self.parse_timeout = parse_timeout
         self.verify_timeout = verify_timeout

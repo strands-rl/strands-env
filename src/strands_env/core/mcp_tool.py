@@ -45,7 +45,6 @@ class MCPToolAdapter(AgentTool):
         *,
         timeout: timedelta | None = None,
     ):
-        """Initialize an `MCPToolAdapter` instance."""
         super().__init__()
         self._mcp_tool = mcp_tool
         self._timeout = timeout

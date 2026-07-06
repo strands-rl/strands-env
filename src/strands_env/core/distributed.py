@@ -47,7 +47,6 @@ class EnvironmentActor:
     """
 
     def __init__(self, env_hook_path: str, env_hook_config: dict[str, Any]) -> None:
-        """Initialize an `EnvironmentActor` instance."""
         env_hook = load_function(env_hook_path)
         self.env_factory = env_hook(**env_hook_config)
 
@@ -105,7 +104,6 @@ class EnvironmentActorPool:
         env_hook_config: dict[str, Any],
         n_actors_per_node: int,
     ) -> None:
-        """Initialize an `EnvironmentActorPool` instance."""
         nodes = [n for n in ray.nodes() if n.get("Alive")]
         if not nodes:
             raise RuntimeError("No alive Ray nodes for EnvironmentActor placement.")

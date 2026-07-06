@@ -43,7 +43,6 @@ class AgentWorldModelTool(MCPToolAdapter):
         server_proc: subprocess.Popen | None = None,
         timeout: timedelta | None = None,
     ):
-        """Initialize an `AgentWorldModelTool` instance."""
         super().__init__(mcp_tool, timeout=timeout)
         self._session = session
         self._server_proc = server_proc

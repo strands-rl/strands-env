@@ -53,7 +53,6 @@ class CodeInterpreterQuotas:
         invoke_tps: float = DEFAULT_INVOKE_TPS,
         stop_tps: float = DEFAULT_STOP_TPS,
     ):
-        """Initialize a `CodeInterpreterQuotas` instance."""
         self.session_semaphore = asyncio.Semaphore(session_concurrency)
         self.start_limiter = AsyncLimiter(start_tps, time_period=1)
         self.invoke_limiter = AsyncLimiter(invoke_tps, time_period=1)
