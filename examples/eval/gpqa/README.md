@@ -8,7 +8,6 @@
 |---|---|
 | `gpqa-diamond` | [GPQA Diamond](https://huggingface.co/datasets/Idavidrein/gpqa) — 198 expert-validated questions |
 | `gpqa-main` | [GPQA Main](https://huggingface.co/datasets/Idavidrein/gpqa) — 448 questions |
-| `gpqa-experts` | [GPQA Experts](https://huggingface.co/datasets/Idavidrein/gpqa) — expert-only validated questions |
 | `gpqa-extended` | [GPQA Extended](https://huggingface.co/datasets/Idavidrein/gpqa) — 546 questions |
 
 ## Setup

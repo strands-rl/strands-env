@@ -8,6 +8,7 @@
 |---|---|
 | `terminal-bench-1` | [Terminal-Bench 1.0](https://github.com/laude-institute/terminal-bench) |
 | `terminal-bench-2` | [Terminal-Bench 2.0](https://github.com/laude-institute/terminal-bench-2) |
+| `terminal-bench-2.1` | [Terminal-Bench 2.1](https://github.com/laude-institute/terminal-bench-2.1) — 89 tasks |
 
 ## Setup
 

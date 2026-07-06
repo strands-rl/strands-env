@@ -2,17 +2,24 @@
 
 [SealQA](https://huggingface.co/datasets/vtllms/sealqa) (SEarch-Augmented Language models QA) benchmark with LLM-as-judge grading. Evaluates reasoning over conflicting, noisy, or unhelpful search results.
 
-## Environments
+## Variants
 
-| File | Description |
+| Name | Description |
 |---|---|
-| `chat_env.py` | Chat-only (no tools) — tests pure parametric knowledge |
+| `sealqa-seal-0` | [SealQA Seal-0](https://huggingface.co/datasets/vtllms/sealqa) — 111 questions |
+| `sealqa-seal-hard` | [SealQA Seal-Hard](https://huggingface.co/datasets/vtllms/sealqa) — 254 questions |
 
 ## Setup
 
 Requires AWS credentials with Bedrock access for the judge model.
 
 Set `JUDGE_MODEL_ID` to override the default judge (defaults to `us.anthropic.claude-sonnet-4-20250514-v1:0`).
+
+## Files
+
+| File | Description |
+|---|---|
+| `chat_env.py` | Chat-only (no tools) — tests pure parametric knowledge |
 
 ## Usage
 
@@ -26,7 +33,5 @@ python -m strands_env.eval \
     --n-samples-per-prompt 1 \
     --max-concurrency 10
 ```
-
-Available benchmarks: `sealqa-seal-0` (111 questions), `sealqa-seal-hard` (254 questions).
 
 See `python -m strands_env.eval --help` for all CLI options.

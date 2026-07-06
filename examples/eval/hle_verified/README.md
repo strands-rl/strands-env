@@ -2,7 +2,7 @@
 
 [HLE-Verified](https://huggingface.co/datasets/skylenage-ai/HLE-Verified) — a re-validated subset of Humanity's Last Exam. This example targets the **Gold subset** (668 fully validated items) with LLM-as-judge grading using the official HLE grader prompt.
 
-## Benchmarks
+## Variants
 
 | Name | Samples | Includes images |
 |---|---|---|
@@ -11,17 +11,17 @@
 
 The multimodal variant attaches decoded image bytes as a Strands `ContentBlock`, so the backend model must support image inputs.
 
-## Environments
-
-| File | Description |
-|---|---|
-| `chat_env.py` | Chat-only (no tools) — tests pure parametric knowledge |
-
 ## Setup
 
 Requires AWS credentials with Bedrock access for the judge model.
 
 Override the judge via `--env-config '{"judge_model_id": "..."}'` (defaults to `us.anthropic.claude-sonnet-4-20250514-v1:0`).
+
+## Files
+
+| File | Description |
+|---|---|
+| `chat_env.py` | Chat-only (no tools) — tests pure parametric knowledge |
 
 ## Usage
 
