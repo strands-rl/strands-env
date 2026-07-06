@@ -33,8 +33,8 @@ class CodeInterpreterToolkit:
     Notes:
         - Provides `execute_code` and `execute_command` tools for running Python code
           and shell commands in a sandboxed environment.
-        - Uses a single shared agentcore session through session ID. Call
-          `cleanup` when done to close the session.
+        - One AgentCore session per toolkit, started lazily on the first call;
+          `cleanup` stops it.
     """
 
     CODE_INTERPRETER_ID: ClassVar[str] = "aws.codeinterpreter.v1"
@@ -87,7 +87,7 @@ class CodeInterpreterToolkit:
                 self.session_id = response["sessionId"]
 
     async def invoke(self, name: str, arguments: dict[str, Any]) -> str:
-        """Invoke the code interpreter and return parsed response."""
+        """Invoke the code interpreter and return the response text (AWS exceptions map to error strings)."""
         await self.start_session()
         await self.quotas.invoke_limiter.acquire()
         response = await self.quotas.to_thread(
@@ -145,7 +145,7 @@ class CodeInterpreterToolkit:
         return await self.invoke("executeCommand", {"command": command})
 
     async def cleanup(self) -> None:
-        """Clean up code interpreter session."""
+        """Stop the session and release its quota slot (errors ignored)."""
         if self.session_id:
             await self.quotas.stop_limiter.acquire()
             try:

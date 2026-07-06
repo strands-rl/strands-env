@@ -43,7 +43,7 @@ logger = logging.getLogger(__name__)
 
 
 class AgentWorldModelConfig(EnvironmentConfig):
-    """Serializable configuration for `AgentWorldModelEnv` (per-task fields ride `AgentWorldModelTask`)."""
+    """Serializable configuration for `AgentWorldModelEnv`."""
 
     envs_path: str  # path to gen_envs.jsonl — the dataset of generated worlds
     mcp_timeout: NotRequired[int]  # seconds per MCP tool call (default 60)

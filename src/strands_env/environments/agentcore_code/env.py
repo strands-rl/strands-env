@@ -80,7 +80,7 @@ class AgentCoreCodeEnv(Environment):
 
     @override
     def get_tools(self) -> list:
-        """Return tools based on configured mode."""
+        """Return the tools for `mode`."""
         match self.mode:
             case "code":
                 return [self._toolkit.execute_code]
@@ -93,5 +93,5 @@ class AgentCoreCodeEnv(Environment):
 
     @override
     async def cleanup(self) -> None:
-        """Clean up code interpreter session."""
+        """Stop the code-interpreter session (safe when none was started)."""
         await self._toolkit.cleanup()

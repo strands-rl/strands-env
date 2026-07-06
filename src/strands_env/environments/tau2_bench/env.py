@@ -81,6 +81,15 @@ class Tau2BenchEnv(Environment[Tau2BenchTask]):
         judge_model_factory: ModelFactory | None = None,
         **config: Unpack[Tau2BenchConfig],
     ):
+        """Initialize a `Tau2BenchEnv` instance.
+
+        Args:
+            agent_model_factory: The model under test.
+            user_model_factory: Drives the user-simulator.
+            judge_model_factory: NL-assertion judge; None disables it (tasks requiring
+                NL_ASSERTION then raise instead of silently passing).
+            **config: See `Tau2BenchConfig`.
+        """
         super().__init__(model_factory=agent_model_factory, reward_fn=None, **config)  # type: ignore[misc]
 
         self.max_steps: int = self.config.get("max_steps", 100)

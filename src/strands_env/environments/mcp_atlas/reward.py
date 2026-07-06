@@ -12,11 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Reward function for MCP-Atlas benchmark.
+"""Per-claim LLM-as-judge reward for MCP-Atlas (mirrors upstream `mcp_evals_scores.py`).
 
-Per-claim LLM-as-judge evaluation following MCP-Atlas's scoring methodology
-(`mcp_evals_scores.py`).  Each GTFA claim is evaluated individually against
-the agent's response using structured output, then scores are averaged.
+Each GTFA claim is judged individually against the agent's response via
+structured output; scores are averaged into a coverage score.
 
 Scoring (from MCP-Atlas):
     - `fulfilled` = 1.0
@@ -119,7 +118,7 @@ class MCPAtlasReward(LLMJudgeReward[ClaimJudgment, MCPAtlasTask]):
 
     @override
     async def compute(self, task: MCPAtlasTask, result: RolloutResult) -> RewardResult:
-        """Evaluate each GTFA claim individually and return binary pass/fail reward."""
+        """Judge every claim, then binarize the mean coverage at the 0.75 threshold."""
         claims: list[str] = task.gtfa_claims
 
         if not claims:

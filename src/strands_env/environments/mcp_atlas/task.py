@@ -24,5 +24,5 @@ from strands_env.core import Task
 class MCPAtlasTask(Task):
     """Rollout input for `MCPAtlasEnv`."""
 
-    enabled_tools: list[str] = Field(description="List of MCP tools available to the agent.")
-    gtfa_claims: list[str] = Field(description="List of ground truth final answer claims to evaluate.")
+    enabled_tools: list[str] = Field(description="Tool names to enable — strict filter; empty enables none.")
+    gtfa_claims: list[str] = Field(description="Ground-truth final-answer claims, judged one by one.")

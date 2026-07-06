@@ -95,11 +95,6 @@ class MCPAtlasEnv(Environment[MCPAtlasTask]):
 
         The caller owns the returned client's lifecycle and should close it
         when done (e.g. via `async with` or explicit `aclose()`).
-
-        Args:
-            base_url: Base URL of the MCP-Atlas Docker container.
-            max_connections: Maximum number of concurrent connections.
-            max_keepalive_connections: Maximum number of idle keep-alive connections.
         """
         limits = httpx.Limits(
             max_connections=max_connections,
@@ -129,5 +124,5 @@ class MCPAtlasEnv(Environment[MCPAtlasTask]):
 
     @override
     async def cleanup(self) -> None:
-        """Clear tool list. The shared HTTP client is not closed here."""
+        """Clear the tool list; the shared HTTP client stays open (caller-owned)."""
         self._tools = []
