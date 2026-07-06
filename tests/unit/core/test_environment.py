@@ -368,6 +368,28 @@ class TestTaskCls:
 
         assert BareEnv.task_cls is Task
 
+    def test_multi_param_generic_layer(self):
+        """A multi-parameter generic env layer must neither crash nor mis-derive."""
+        from typing import Generic, TypeVar
+
+        from strands_env.core.types import TaskT
+
+        class MyTask(Task):
+            pass
+
+        fmt = TypeVar("fmt")
+
+        # fmt precedes TaskT: a defaulted TypeVar cannot be followed by a non-defaulted
+        # one (PEP 696) — same ordering reason as LLMJudgeReward[JudgmentFormat, TaskT]
+        class Middle(Environment[TaskT], Generic[fmt, TaskT]):
+            pass
+
+        class Leaf(Middle[str, MyTask]):
+            pass
+
+        assert Middle.task_cls is Task  # TypeVars filtered
+        assert Leaf.task_cls is MyTask  # picked out of the two args
+
     def test_wire_round_trip_restores_typed_task(self):
         """The actor-side pattern: env.task_cls revives the typed sample from JSON."""
 

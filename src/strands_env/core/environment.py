@@ -70,15 +70,13 @@ class Environment(Generic[TaskT]):
     def __init_subclass__(cls, **kwargs: Any) -> None:
         """Derive `task_cls` from `class XxxEnv(Environment[XxxTask])` — one declaration, no drift."""
         super().__init_subclass__(**kwargs)
-        # `__orig_bases__` keeps the unerased `Environment[XxxTask]` (absent for plain
-        # subclasses, which then inherit the parent's task_cls)
+        # `__orig_bases__` keeps the unerased `Environment[XxxTask]`
         for base in getattr(cls, "__orig_bases__", ()):
             origin = get_origin(base)
             if isinstance(origin, type) and issubclass(origin, Environment):
-                (arg,) = get_args(base)
-                # skip TypeVars: a generic intermediate layer must not overwrite task_cls
-                if isinstance(arg, type) and issubclass(arg, Task):
-                    cls.task_cls = arg
+                for arg in get_args(base):
+                    if isinstance(arg, type) and issubclass(arg, Task):
+                        cls.task_cls = arg
 
     def __init__(
         self,
@@ -157,6 +155,7 @@ class Environment(Generic[TaskT]):
             trace_attributes=self.trace_attributes or None,
             name=self.agent_name,
         )
+
         # 2. Run the agent loop.
         error = None
         try:
