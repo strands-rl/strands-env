@@ -14,7 +14,7 @@ AIME math competition benchmark using `AgentCoreCodeEnv` (AWS Bedrock AgentCore 
 
 Requires AWS credentials with Bedrock AgentCore access.
 
-## Files
+## Environments
 
 - `chat_env.py` - Chat-only (no tools) — tests pure parametric knowledge
 - `agentcore_code_env.py` - Environment hook using `AgentCoreCodeEnv` with Python execution

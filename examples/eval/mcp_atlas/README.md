@@ -18,7 +18,7 @@
 
 2. **Judge model** — Set `judge_model_id` via `--env-config` to override the default judge (defaults to Bedrock `us.anthropic.claude-sonnet-4-20250514-v1:0`). To use a different backend (e.g. Gemini via LiteLLM), override judge model construction in `env.py`.
 
-## Files
+## Environments
 
 | File | Description |
 |---|---|

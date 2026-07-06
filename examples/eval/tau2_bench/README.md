@@ -18,7 +18,7 @@ Install tau2 (data files are cloned automatically on first run):
 pip install -r src/strands_env/environments/tau2_bench/requirements.txt
 ```
 
-## Files
+## Environments
 
 - `tau2_bench_env.py` — environment hook (`create_env_factory`) that builds `Tau2BenchEnv`, supplying the user-simulator and optional judge model factories and caching the base DB per domain.
 

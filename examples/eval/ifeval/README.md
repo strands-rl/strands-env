@@ -25,7 +25,7 @@ pip install -e ".[ifeval]"
 
 The first run will auto-download NLTK's `punkt_tab` tokenizer data (~10 MB) into `~/nltk_data`. No API keys or cloud access required.
 
-## Files
+## Environments
 
 | File | Description |
 |---|---|

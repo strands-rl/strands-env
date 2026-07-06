@@ -17,7 +17,7 @@ Requires AWS credentials with Bedrock access for the judge model.
 
 Override the judge via `--env-config '{"judge_model_id": "..."}'` (defaults to `us.anthropic.claude-sonnet-4-20250514-v1:0`).
 
-## Files
+## Environments
 
 | File | Description |
 |---|---|

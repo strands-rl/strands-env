@@ -18,7 +18,7 @@
    pip install -r src/strands_env/environments/harbor/requirements.txt
    ```
 
-## Files
+## Environments
 
 - `terminal_bench_env.py` - Environment hook that creates `HarborEnv` instances
 

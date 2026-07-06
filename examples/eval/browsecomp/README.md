@@ -11,7 +11,7 @@ All environments require AWS credentials with Bedrock access for the judge model
 - `SERPER_API_KEY` — [Serper](https://serper.dev) search API.
 - `JINA_API_KEY` — [Jina Reader](https://jina.ai/reader/) API (enforced by the scrape tool's `@requires_env` guard; a valid key is required for non-rate-limited access).
 
-## Files
+## Environments
 
 | File | Description |
 |---|---|

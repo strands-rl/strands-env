@@ -6,7 +6,7 @@ Simple math benchmark using `CalculatorEnv` with a basic calculator tool. Useful
 
 No additional setup required beyond `strands-env`.
 
-## Files
+## Environments
 
 - `calculator_env.py` - Environment hook using `CalculatorEnv`
 - `simple_math_evaluator.py` - Custom evaluator hook with example problems
