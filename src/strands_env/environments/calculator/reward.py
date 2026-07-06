@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-r"""Reward function for math problems using HuggingFace's `math-verify` for symbolic equivalence."""
+r"""Symbolic-equivalence math reward backed by HuggingFace `math-verify`."""
 
 from __future__ import annotations
 
@@ -38,14 +38,6 @@ _EXTRACTION_CONFIG = (LatexExtractionConfig(), ExprExtractionConfig())
 class MathVerifyReward(RewardFunction):
     r"""Reward 1.0 if the model's `\boxed{}` answer is mathematically equivalent to ground truth.
 
-    Args:
-        float_rounding: Decimal places for float comparison (default 6).
-        parse_timeout: Max seconds for parsing expressions from text (default 5).
-        verify_timeout: Max seconds for SymPy simplification per comparison (default 5).
-        answer_tail_chars: Only parse the last N chars of model response (default 500).
-            Set to 0 to parse full response. The final `\\boxed{}` answer is typically
-            at the end, so this avoids parsing long chain-of-thought reasoning.
-
     Notes:
         - Uses `math_verify.parse` to extract and convert answers to SymPy,
           then `math_verify.verify` for equivalence checking. This handles
@@ -66,13 +58,22 @@ class MathVerifyReward(RewardFunction):
         verify_timeout: int = 5,
         answer_tail_chars: int = 500,
     ) -> None:
+        r"""Initialize a `MathVerifyReward` instance.
+
+        Args:
+            float_rounding: Decimal places for float comparison.
+            parse_timeout: Max seconds to parse expressions from text.
+            verify_timeout: Max seconds for SymPy simplification per comparison.
+            answer_tail_chars: Parse only the last N chars of the response (0 = full text) —
+                the final `\boxed{}` answer sits at the end, so this skips long chain-of-thought.
+        """
         self.float_rounding = float_rounding
         self.parse_timeout = parse_timeout
         self.verify_timeout = verify_timeout
         self.answer_tail_chars = answer_tail_chars
 
     def parse_expression(self, text: str) -> list:
-        """Parse text into math expressions with timeout."""
+        """Parse `text` into candidate expressions, bounded by `parse_timeout`."""
 
         @with_timeout(self.parse_timeout)
         def _parse() -> list[Any]:
@@ -88,7 +89,7 @@ class MathVerifyReward(RewardFunction):
         return _parse()
 
     def verify_equivalence(self, gold: list, answer: list) -> Any:
-        """Verify mathematical equivalence between gold and answer expressions with timeout."""
+        """Check gold/answer equivalence, bounded by `verify_timeout`."""
 
         @with_timeout(self.verify_timeout)
         def _verify() -> Any:

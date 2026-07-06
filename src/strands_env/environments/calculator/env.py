@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Simple math environment using a calculator tool."""
+"""Math environment: a calculator tool with symbolic-equivalence reward."""
 
 from pathlib import Path
 from typing import Unpack, override
@@ -24,7 +24,7 @@ from strands_env.environments.calculator.reward import MathVerifyReward
 
 
 class CalculatorEnv(Environment):
-    """Math environment: a `calculator` tool, with `MathVerifyReward` as the default reward."""
+    """Math environment with a `calculator` tool and `MathVerifyReward` by default."""
 
     default_system_prompt_path = Path(__file__).parent / "system_prompt.md"
 

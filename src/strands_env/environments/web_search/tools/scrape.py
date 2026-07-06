@@ -97,9 +97,9 @@ class WebScraperToolkit:
 
         Args:
             timeout: HTTP request timeout in seconds.
-            concurrency: Semaphore or max concurrent requests for rate limiting.
+            concurrency: A shared `Semaphore` (one budget across toolkits) or an int (per-toolkit cap).
             token_budget: Max tokens of page content to keep after extraction.
-            summarizer_model_factory: Optional factory for creating model instances for LLM summarization.
+            summarizer_model_factory: Model factory for summarization; without it `scrape` returns raw page content.
         """
         self.timeout = timeout
         self.semaphore = concurrency if isinstance(concurrency, asyncio.Semaphore) else asyncio.Semaphore(concurrency)
@@ -120,7 +120,7 @@ class WebScraperToolkit:
             self._session = None
 
     def truncate_text(self, text: str) -> str:
-        """Truncate text to fit within a token budget."""
+        """Truncate `text` to `token_budget` tokens."""
         tokens = TOKEN_ENCODING.encode(text, allowed_special="all")
         if len(tokens) > self.token_budget:
             return TOKEN_ENCODING.decode(tokens[: self.token_budget]) + "..."
@@ -162,7 +162,7 @@ class WebScraperToolkit:
         raise last_exc
 
     async def summarize(self, content: str, goal: str) -> WebPageSummary | None:
-        """Extract structured evidence + summary for a goal using a LLM."""
+        """Extract structured evidence and a summary for `goal` via the summarizer model."""
         if self.summarizer_model_factory is None:
             raise RuntimeError("`summarizer_model_factory` is required for summarization.")
 

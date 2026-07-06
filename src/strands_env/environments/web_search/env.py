@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Web search environment with web search and web scraping tools."""
+"""Web-search environment: search and optional scrape tools behind pluggable providers."""
 
 import asyncio
 from pathlib import Path
@@ -40,7 +40,7 @@ class WebSearchConfig(EnvironmentConfig, total=False):
 
 
 class WebSearchEnv(Environment):
-    """Web search environment with pluggable search providers."""
+    """Web-search environment with a `search` tool and an optional `scrape` tool."""
 
     default_system_prompt_path = Path(__file__).parent / "system_prompt.md"
 
@@ -90,13 +90,13 @@ class WebSearchEnv(Environment):
 
     @override
     def get_tools(self) -> list:
-        """Return search and optionally scrape tools."""
+        """Return the search tool, plus scrape when enabled."""
         if self.scrape_tool is not None:
             return [self.search_tool, self.scrape_tool]
         return [self.search_tool]
 
     async def cleanup(self) -> None:
-        """Close shared HTTP sessions for all toolkits."""
+        """Close the toolkits' shared HTTP sessions — once, after all rollouts."""
         await self.search_toolkit.cleanup()
         if self.scraper_toolkit is not None:
             await self.scraper_toolkit.cleanup()

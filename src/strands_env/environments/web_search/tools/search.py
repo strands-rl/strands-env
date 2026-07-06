@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Web search toolkit with different search providers."""
+"""Web-search toolkit over Serper and Google Custom Search."""
 
 from __future__ import annotations
 
@@ -39,7 +39,7 @@ type WebSearchAPIProvider = Literal["serper", "google"]
 
 
 class WebSearchToolkit:
-    """Web search tools supporting different search providers.
+    """Search tools behind a provider switch (`serper` / `google`).
 
     Notes:
         - Each provider is exposed as a separate `@tool` method so the environment
@@ -59,9 +59,9 @@ class WebSearchToolkit:
 
         Args:
             timeout: HTTP request timeout in seconds.
-            concurrency: Semaphore or max concurrent requests for API rate limiting.
+            concurrency: A shared `Semaphore` (one budget across toolkits) or an int (per-toolkit cap).
             blocked_domains: Domains to exclude from results (e.g. `["huggingface.co"]`).
-            api_provider: The API provider to use. Defaults to `"serper"`.
+            api_provider: Which backend the `search` tool dispatches to.
         """
         self.timeout = timeout
         self.semaphore = concurrency if isinstance(concurrency, asyncio.Semaphore) else asyncio.Semaphore(concurrency)
@@ -83,7 +83,7 @@ class WebSearchToolkit:
 
     @staticmethod
     def apply_blocked_domains(query: str, blocked_domains: list[str]) -> str:
-        """Append `-site:` exclusions to *query* for blocked domains."""
+        """Append `-site:` exclusions to `query` for blocked domains."""
         if blocked_domains:
             return query + " " + " ".join(f"-site:{d}" for d in blocked_domains)
         return query
