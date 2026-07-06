@@ -22,6 +22,7 @@ import logging
 import random
 import shutil
 import subprocess
+import tempfile
 from datetime import timedelta
 from pathlib import Path
 from typing import NotRequired, Unpack, override
@@ -32,34 +33,30 @@ from mcp.client.streamable_http import streamable_http_client
 
 from strands_env.core.environment import Environment, EnvironmentConfig
 from strands_env.core.models import ModelFactory
-from strands_env.core.types import RewardFunction, Task
 
 from .reward import AgentWorldModelReward
 from .server import kill_server, start_server
+from .task import AgentWorldModelTask
 from .tool import AgentWorldModelTool
 
 logger = logging.getLogger(__name__)
 
 
 class AgentWorldModelConfig(EnvironmentConfig):
-    """Serializable configuration for `AgentWorldModelEnv`."""
+    """Serializable configuration for `AgentWorldModelEnv` (per-task fields ride `AgentWorldModelTask`)."""
 
-    scenario: str
-    envs_path: str
-    work_db_path: str
-    initial_db_path: str
-    temp_dir: str
-    tool_call_timeout: NotRequired[int]
+    envs_path: str  # path to gen_envs.jsonl — the dataset of generated worlds
+    mcp_timeout: NotRequired[int]  # seconds per MCP tool call (default 60)
 
 
-class AgentWorldModelEnv(Environment):
+class AgentWorldModelEnv(Environment[AgentWorldModelTask]):
     """MCP environment backed by an AgentWorldModel FastAPI server subprocess.
 
     Notes:
-        - `reset()` starts a per-task FastAPI server, opens an MCP session,
-          and discovers tools.
-        - `cleanup()` closes the session, kills the server, and removes the
-          temp directory.
+        - `reset(task)` clones the task's DB snapshot into fresh scratch, starts a
+          per-episode FastAPI server on the clone, opens an MCP session, and
+          discovers tools.
+        - `cleanup()` closes the session, kills the server, and removes the scratch dir.
     """
 
     default_system_prompt_path = Path(__file__).parent / "system_prompt.md"
@@ -68,35 +65,47 @@ class AgentWorldModelEnv(Environment):
         self,
         *,
         model_factory: ModelFactory,
-        reward_fn: RewardFunction | None = None,
         http_client: httpx.AsyncClient | None = None,
         **config: Unpack[AgentWorldModelConfig],
     ):
-        """Initialize an `AgentWorldModelEnv` instance."""
-        super().__init__(
-            model_factory=model_factory,
-            reward_fn=reward_fn or AgentWorldModelReward(),
-            **config,  # type: ignore[misc]
-        )
+        """Initialize an `AgentWorldModelEnv` instance.
+
+        Args:
+            model_factory: Factory for the agent's model.
+            http_client: Optional shared HTTP client for the MCP transport.
+            **config: See `AgentWorldModelConfig`.
+        """
+        super().__init__(model_factory=model_factory, **config)  # type: ignore[misc]
+        self.envs_path = Path(str(self.config["envs_path"]))
+        self.mcp_timeout = timedelta(seconds=int(self.config.get("mcp_timeout", 60)))
+        self.temp_dir: Path | None = None
         self._http_client = http_client
-        self._tool_call_timeout = timedelta(seconds=int(self.config.get("tool_call_timeout", 60)))
-        self._scenario: str = str(self.config["scenario"])
-        self._envs_path = Path(str(self.config["envs_path"]))
-        self._work_db_path = Path(str(self.config["work_db_path"]))
-        self._temp_dir = Path(str(self.config["temp_dir"]))
         self._server_proc: subprocess.Popen | None = None
         self._exit_stack: contextlib.AsyncExitStack | None = None
         self._tools: list[AgentWorldModelTool] = []
+        # The reward is tied to the env's working DB, so we don't take it as a parameter.
+        self.reward_fn = AgentWorldModelReward(self)
+
+    @property
+    def work_db_path(self) -> Path | None:
+        """The episode's working DB (a private clone of the task's snapshot); None outside an episode."""
+        return self.temp_dir / "work.db" if self.temp_dir is not None else None
 
     @override
-    async def reset(self, task: Task) -> None:
-        """Start AgentWorldModel server, open MCP session, discover tools."""
+    async def reset(self, task: AgentWorldModelTask) -> None:
+        """Clone the task's DB into fresh scratch, start the server, open an MCP session."""
+        # Per-episode scratch: the working DB is a private copy of the task's pristine
+        # snapshot, so concurrent episodes (e.g. pass@k) never share mutable state.
+        self.temp_dir = Path(await asyncio.to_thread(tempfile.mkdtemp, prefix="awm-"))
+        work_db_path = self.temp_dir / "work.db"
+        await asyncio.to_thread(shutil.copyfile, task.initial_db_path, work_db_path)
+
         await asyncio.sleep(random.uniform(0, 5))  # stagger concurrent server spawns
         self._server_proc, port = await start_server(
-            self._scenario,
-            self._envs_path,
-            self._work_db_path,
-            self._temp_dir,
+            task.scenario,
+            self.envs_path,
+            work_db_path,
+            self.temp_dir,
         )
 
         # Open MCP session and discover tools
@@ -117,7 +126,7 @@ class AgentWorldModelEnv(Environment):
                     tool,
                     session,
                     server_proc=self._server_proc,
-                    timeout=self._tool_call_timeout,
+                    timeout=self.mcp_timeout,
                 )
                 for tool in result.tools
             ]
@@ -143,5 +152,6 @@ class AgentWorldModelEnv(Environment):
             self._exit_stack = None
         await kill_server(self._server_proc)
         self._server_proc = None
-        if self._temp_dir:
-            await asyncio.to_thread(shutil.rmtree, self._temp_dir, True)
+        if self.temp_dir is not None:
+            await asyncio.to_thread(shutil.rmtree, self.temp_dir, True)
+            self.temp_dir = None

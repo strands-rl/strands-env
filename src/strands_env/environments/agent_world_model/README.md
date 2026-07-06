@@ -13,63 +13,57 @@ This installs [AgentWorldModel](https://pypi.org/project/agent-world-model/) (`a
 ## Usage
 
 ```python
-from strands_env.environments.agent_world_model import AgentWorldModelEnv
+from strands_env.environments.agent_world_model import AgentWorldModelEnv, AgentWorldModelTask
 
 env = AgentWorldModelEnv(
     model_factory=model_factory,
-    scenario="your_scenario",
     envs_path="/path/to/gen_envs.jsonl",
-    work_db_path="/path/to/work.db",
-    initial_db_path="/path/to/initial.db",
-    temp_dir="/path/to/temp_dir",
     max_tool_iters=10,
 )
-await env.reset()       # starts server + opens MCP session
-result = await env.rollout(task)
-await env.cleanup()     # closes session + kills server + removes temp dir
+
+task = AgentWorldModelTask(
+    message="Add two apples to the cart and report the total.",
+    scenario="your_scenario",
+    task_idx=0,
+    verify_code=verify_code,          # from gen_verifier.pure_code.jsonl
+    initial_db_path="/path/to/initial.db",
+)
+result = await env.rollout(task)  # reset (clone DB + start server) -> episode -> reward -> cleanup
 ```
 
-`AgentWorldModelReward` is used by default — no need to pass `reward_fn` unless you want a custom one.
+`AgentWorldModelReward` is built in — it is tied to the env's working DB, so there is no `reward_fn` parameter.
 
-## AgentWorldModelConfig
+## Configuration
 
-`AgentWorldModelConfig` extends `EnvironmentConfig` with AWM-specific fields. All config
-fields are serializable (strings, ints) and passed as `**kwargs` to the constructor.
-
-| Field | Type | Description |
+| Field | Default | Meaning |
 |---|---|---|
-| `scenario` | `str` | Scenario name |
-| `envs_path` | `str` | Path to gen_envs.jsonl (contains `scenario`, `db_path`, `full_code`) |
-| `work_db_path` | `str` | Working DB copy the server writes to |
-| `initial_db_path` | `str` | Read-only DB snapshot (for reward verification) |
-| `temp_dir` | `str` | Temp directory for server artifacts (removed on cleanup) |
-| `tool_call_timeout` | `int` | MCP tool call timeout in seconds (default: 60) |
+| `envs_path` | required | Path to `gen_envs.jsonl` (contains `scenario`, `db_path`, `full_code`) |
+| `tool_call_timeout` | `60` | MCP tool call timeout in seconds |
 
-## TaskContext Fields
+Base knobs (`system_prompt`, `max_tool_iters`, ...) come from `EnvironmentConfig`.
 
-The evaluator/trainer must prepare these fields on `TaskContext` before creating the environment:
+## Task Fields
 
-| Field | Type | Set by | Used by |
-|---|---|---|---|
-| `scenario` | `str` | evaluator | env, reward |
-| `envs_path` | `str` | evaluator | env |
-| `work_db_path` | `str` | evaluator | env, reward |
-| `initial_db_path` | `str` | evaluator | reward |
-| `temp_dir` | `str` | evaluator | env |
-| `verify_code` | `str` | evaluator | reward |
-| `task_idx` | `int` | evaluator | reward (logging) |
+`AgentWorldModelTask` carries the per-sample payload:
+
+| Field | Meaning |
+|---|---|
+| `scenario` | Scenario name in `gen_envs.jsonl` (which synthetic world to boot) |
+| `task_idx` | Task index within the scenario (used in logs) |
+| `verify_code` | Python source defining `verify_task_completion(...)` |
+| `initial_db_path` | Pristine SQLite snapshot; the episode's working DB is cloned from it |
 
 ## Reward
 
-`AgentWorldModelReward` runs the per-task `verify_task_completion(initial_db_path, final_db_path, final_answer)` function via `exec()`. Each scenario has a unique verification function (from `gen_verifier.pure_code.jsonl`) that checks:
+`AgentWorldModelReward` runs the task's `verify_task_completion(initial_db_path, final_db_path, final_answer)` via `exec()`. Each scenario has a unique verification function (from `gen_verifier.pure_code.jsonl`) that checks:
 
-- **DB state changes** — compares initial vs final SQLite database (e.g. "was the item added to cart?")
-- **Agent's final answer** — extracts the last assistant message via `RolloutResult.final_response` and validates it (e.g. "is the reported total correct?")
+- **DB state changes** — compares the initial snapshot against the episode's working DB (e.g. "was the item added to cart?")
+- **Agent's final answer** — validates `RolloutResult.final_response` (e.g. "is the reported total correct?")
 
-Returns 1.0 if `result["result"] == "complete"`, 0.0 otherwise.
+Returns 1.0 if `result["result"] == "complete"`, 0.0 otherwise. `info["status"]` is `"success"` whenever the verifier ran (reward 0.0 = the agent failed the task) and `"error"` only for verification-machinery failures — the same contract as the other environments.
 
 ## Lifecycle
 
-- **`reset()`** — Picks a free port, generates and starts a FastAPI server subprocess, waits for TCP readiness, opens an MCP session via `streamable_http_client`, discovers tools as `AgentWorldModelTool` instances.
-- **`rollout(task)`** — Runs the Strands agent with MCP tools. The agent interacts with the FastAPI server to complete the task.
-- **`cleanup()`** — Clears tools, closes MCP session/transport (`AsyncExitStack`), kills the server process group (SIGTERM, then SIGKILL after 5s timeout), removes the temp dir.
+- **`reset(task)`** — Creates a fresh scratch dir (`mkdtemp`), clones `task.initial_db_path` into it as the working DB (per-episode isolation by construction — concurrent episodes never share mutable state), generates and starts a FastAPI server subprocess on the clone, waits for TCP readiness, opens an MCP session, discovers tools.
+- **`rollout(task)`** — Runs the full episode: `reset`, the agent loop against the MCP tools, reward, `cleanup`.
+- **`cleanup()`** — Clears tools, closes the MCP session/transport, kills the server process group (SIGTERM, then SIGKILL), removes the scratch dir it created.
