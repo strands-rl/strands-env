@@ -14,7 +14,7 @@
 
 """Single chokepoint for importing and accessing the optional `tau2` dependency.
 
-`tau2` reads `TAU2_DATA_DIR` into a frozen module global at *import* time
+`tau2` reads `TAU2_DATA_DIR` into a frozen module global at import time
 (`tau2/utils/utils.py`), and `tau2/__init__.py` eagerly pulls that chain in — so
 tau2 must not be imported until the eval layer has configured the data dir.
 Routing every tau2 access through this module keeps the rest of the package

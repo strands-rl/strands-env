@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Simple math environment with a calculator tool."""
+"""Math environment with a calculator tool."""
 
 from .env import CalculatorEnv
 from .reward import MathVerifyReward
