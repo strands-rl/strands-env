@@ -49,6 +49,9 @@ class Task(BaseModel):
     message: str | Message = Field(..., description="The task message/prompt to send to the agent.")
     ground_truth: Any = Field(default=None, description="The ground truth answer to the task.")
     conversation_history: Messages = Field(default_factory=list, description="The conversation prior to the task.")
+    trace_attributes: dict[str, str] | None = Field(
+        default=None, description="Per-sample OTel trace attributes for the rollout span."
+    )
 
 
 #: The task type an environment (or reward function) consumes. Defaults to `Task` (PEP 696),

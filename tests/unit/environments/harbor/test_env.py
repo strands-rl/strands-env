@@ -15,7 +15,7 @@
 """Unit tests for `HarborConfig` type resolution.
 
 Regression guard: `HarborConfig` (with its nested `PrebakedE2BConfig` and the
-inherited `trace_attributes`) is embedded as a Pydantic field by the
+inherited base knobs) is embedded as a Pydantic field by the
 terminal-bench / swebench task contexts. Pydantic resolves those hints at
 runtime, so a TYPE_CHECKING-only type in any `HarborConfig` field breaks dataset
 loading with a `NameError`.
@@ -39,7 +39,7 @@ def test_harbor_config_type_hints_resolve():
     hints = typing.get_type_hints(HarborConfig)
     assert "prebaked_e2b_config" in hints
     assert "backend" in hints
-    assert "trace_attributes" in hints  # inherited from EnvironmentConfig
+    assert "system_prompt" in hints  # inherited from EnvironmentConfig
 
 
 def test_harbor_config_embeds_in_pydantic_model():

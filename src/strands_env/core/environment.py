@@ -22,7 +22,6 @@ from collections.abc import Awaitable, Callable, Sequence
 from pathlib import Path
 from typing import Any, ClassVar, Generic, Unpack, get_args, get_origin
 
-from opentelemetry.util.types import AttributeValue
 from strands import Agent
 from strands.agent.conversation_manager import ConversationManager, NullConversationManager
 from strands.handlers.callback_handler import PrintingCallbackHandler
@@ -54,9 +53,6 @@ class EnvironmentConfig(TypedDict, total=False):
     max_tool_calls: int | None
     max_parallel_tool_calls: int | None
     max_messages: int | None
-    # otel tracing
-    trace_attributes: dict[str, AttributeValue] | None
-    agent_name: str | None
     # verbose (streaming printouts)
     verbose: bool
 
@@ -100,8 +96,6 @@ class Environment(Generic[TaskT]):
             if self.default_system_prompt_path and self.default_system_prompt_path.exists()
             else None
         )
-        self.trace_attributes: dict[str, AttributeValue] | None = self.config.get("trace_attributes")
-        self.agent_name: str | None = self.config.get("agent_name")
 
     async def reset(self, _task: TaskT) -> None:
         """Build the episode for `task`. Override for environment-specific init.
@@ -151,8 +145,7 @@ class Environment(Generic[TaskT]):
             hooks=[limiter] + list(self.get_hooks()),
             conversation_manager=self.get_conversation_manager(),
             callback_handler=PrintingCallbackHandler() if self.verbose else None,
-            trace_attributes=self.trace_attributes or None,
-            name=self.agent_name,
+            trace_attributes=task.trace_attributes or None,
         )
 
         # 2. Run the agent loop.

@@ -80,6 +80,16 @@ class TestRollout:
         assert result.reward_result is None
 
     @patch("strands_env.core.environment.Agent")
+    async def test_task_trace_attributes_reach_the_agent(self, mock_agent_cls, env):
+        """The per-sample trace attributes flow from the task into the Agent's spans."""
+        mock_agent_cls.return_value = mock_agent(
+            messages=[{"role": "assistant", "content": [{"text": "ok"}]}],
+        )
+        task = Task(message="q", trace_attributes={"rufus_gym.step": "7"})
+        await env.rollout(task)
+        assert mock_agent_cls.call_args.kwargs["trace_attributes"] == {"rufus_gym.step": "7"}
+
+    @patch("strands_env.core.environment.Agent")
     async def test_rollout_with_agent_error(self, mock_agent_cls, env):
         """An unrecognized exception maps to UNCLASSIFIED_ERROR."""
         agent = mock_agent()
@@ -335,7 +345,7 @@ class TestEnvironmentConfigTypeHints:
         from strands_env.core.environment import EnvironmentConfig
 
         hints = typing.get_type_hints(EnvironmentConfig)
-        assert "trace_attributes" in hints
+        assert "system_prompt" in hints
 
 
 class TestTaskCls:
