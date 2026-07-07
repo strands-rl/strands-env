@@ -84,9 +84,10 @@ ignore_missing_imports = true
 
 [tool.uv]
 conflicts = [
+    # agent-world-model==0.1.0 pins fastapi==0.115.12; harbor>=0.14.0 needs fastapi>=0.128.0
     [
-        { extra = "litellm" },
         { extra = "harbor" },
+        { extra = "agent-world-model" },
     ],
 ]
 
