@@ -1,0 +1,254 @@
+{
+  "repo_notes": [
+    {
+      "content": "The unit of interaction is Environment.rollout(task) — one full agent loop (prompt → tool calls → response) per call. There is NO gym-style step()/observe() API; do not describe a 'step-observe-reward loop'. Layout: there are NO top-level tools/ or rewards/ packages — that horizontal layout was dissolved. The package is core/ (environment base, types, model factories, shared reward/tool primitives, Ray distribution) + environments/ (self-contained env packages, each owning its tools and rewards: singular tool.py/reward.py for one of each, a plural tools/ subpackage for several, e.g. web_search/tools/) + eval/ (evaluator, registry, CLI, benchmarks) + utils/ (small helpers). Key renames vs. older versions: TaskContext was retired and its fields flattened into Task (typed per-env subclasses: HarborTask, Tau2BenchTask, MCPAtlasTask, AgentWorldModelTask); ToolLimiter is now LoopLimiter (imported from strands-sglang); CodeSandboxEnv is now AgentCoreCodeEnv; TerminalBenchEnv and SWEBenchEnv were merged into a single HarborEnv — terminal-bench-* and swebench-verified are eval benchmarks over that one env, differing only in dataset and system prompt; the MCP-Atlas and AgentWorldModel env classes are MCPAtlasEnv and AgentWorldModelEnv. TerminationReason has UNCLASSIFIED_ERROR (not OTHER_ERROR) plus MAX_MESSAGES_REACHED, TIMEOUT, CONNECTION_ERROR. The eval CLI is a single click command (python -m strands_env.eval with --list / --benchmark / --evaluator flags), not 'eval list'/'eval run' subcommands. build_model_factory dispatches over sglang | bedrock | kimi; openai_model_factory exists but is not wired into it, and the LiteLLM-based factory is kimi (Moonshot AI), not openai. WebScraperToolkit fetches pages via the Jina Reader API (r.jina.ai), not trafilatura/html2text."
+    }
+  ],
+  "pages": [
+    {
+      "title": "Overview",
+      "purpose": "Introduce strands-env: a framework for building agent environments with Strands Agents, where an environment turns an Agent into an RL environment whose unit of interaction is a full agent loop via Environment.rollout(task) — not a single model call — with token-level observation tracking (TITO), reward computation, termination handling, and a benchmarking framework with pass@k metrics. Supported model backends: SGLang, Bedrock, OpenAI, Kimi. Package layout mirrors the wiki structure: core/ (environment base, types, model factories, shared reward/tool primitives, Ray distribution), environments/ (self-contained env packages, each owning its tools and rewards), eval/ (evaluator, registry, CLI, benchmarks)",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Getting Started",
+      "purpose": "Guide users through installation and running their first evaluation",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Installation",
+      "purpose": "Detail installation steps (pip install -e '.[dev]'), optional extras for specific environments, dependencies, and environment setup",
+      "parent": "Getting Started",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Quick Start Example",
+      "purpose": "Provide a simple working example showing how to create an environment, run a rollout or an evaluation via the CLI (python -m strands_env.eval --benchmark ...), and compute metrics",
+      "parent": "Getting Started",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Core",
+      "purpose": "Document the core/ package — the environment base and rollout lifecycle, core data types, model factories and backends, shared reward and MCP-tool primitives, and Ray distribution — linking to child pages for each module",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Environment Base and Rollout Lifecycle",
+      "purpose": "Document core/environment.py: the Environment base class (Generic[TaskT]) and its API (__init__ with model_factory, reward_fn, **config: Unpack[EnvironmentConfig]; rollout; reset; cleanup; get_tools; get_hooks; get_conversation_manager; compute_metrics), the EnvironmentConfig TypedDict of run-level knobs, rollout(task) as a template method (reset(task) episode init → _rollout(task) agent loop with list()-copied tools/hooks/messages → _compute_reward → cleanup() in a finally block that must tolerate partial init), the LoopLimiter hook (from strands-sglang, always prepended) enforcing max_tool_iters/max_tool_calls/max_parallel_tool_calls/max_messages, the task_cls ClassVar auto-derived in __init_subclass__ from the generic parametrization, and AsyncEnvFactory, the zero-arg async env-factory type",
+      "parent": "Core",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Core Types",
+      "purpose": "Document core/types.py: Task (flat per-sample input: id, message, ground_truth, conversation_history; extra='allow'; typed subclasses per env), the TaskT TypeVar, RolloutResult (messages, optional token-level rollout, metrics, reward_result, termination_reason, final_response), RewardFunction[TaskT] (async compute(task, result) -> RewardResult) and RewardResult (reward + info), and the TerminationReason enum whose from_error() walks exception cause chains. Also the config design rule: run-level values go in the EnvironmentConfig TypedDict, per-sample values are declared fields on the env's Task subclass, episode scratch is derived in reset(), non-serializable dependencies are named __init__ params",
+      "parent": "Core",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Model Factories and Backends",
+      "purpose": "Document core/models.py: the ModelFactory pattern (zero-arg callables returning a fresh Model per rollout for concurrent isolation and clean token-tracking state), the four factories — sglang_model_factory (client/tokenizer wiring; the only backend with TITO: SGLang models accumulate a Rollout of token IDs, loss mask, logprobs, segment info during generation, read via agent.model.rollout, while non-SGLang models yield an empty falsy Rollout), bedrock_model_factory (AWS auth, shared boto3 client reuse), openai_model_factory (exists but not wired into build_model_factory), kimi_model_factory (Moonshot AI via LiteLLM, requires MOONSHOT_API_KEY, preserves reasoning_content for multi-turn) — the max_new_tokens → max_tokens remapping, and ModelConfig + build_model_factory (match/case over sglang | bedrock | kimi) used by the eval CLI. Mention the RL training path: TITO rollouts feed slime training via utils/slime_logger.py's RolloutLogger",
+      "parent": "Core",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "LLMJudgeReward",
+      "purpose": "Document core/llm_judge_reward.py: the generic LLM-as-judge base LLMJudgeReward[JudgmentFormat, TaskT] — the judgment_format Pydantic class attribute for structured output (None for raw text), get_judge_prompt()/get_reward() subclass hooks, default_reward error fallback — and its concrete subclasses across the repo (SimpleQAReward, FramesReward, BrowseCompReward, HLEReward in eval benchmarks; the MCP-Atlas per-claim coverage reward; Tau2BenchNLAssertionReward)",
+      "parent": "Core",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "MCPToolAdapter",
+      "purpose": "Document core/mcp_tool.py: MCPToolAdapter, an AgentTool subclass adapting an MCP tool definition to the Strands agent interface — the base handles tool-spec building, subclasses implement call_tool() per transport (mcp_atlas → HTTP to a container, agent_world_model → an MCP ClientSession to a subprocess); used instead of the Strands MCPClient",
+      "parent": "Core",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Distributed Rollouts with Ray",
+      "purpose": "Document core/distributed.py: EnvironmentActor taking (env_hook_path, env_hook_config) to load an AsyncEnvFactory by dotted path, per-rollout revival of typed tasks with env.task_cls.model_validate_json (generics are erased at runtime; base-Task deserialization would drop typed-task fields), and EnvironmentActorPool distributing actors across Ray nodes with NodeAffinitySchedulingStrategy; the actor interface is generic — the CLI eval and SLiME training provide the hook path and config",
+      "parent": "Core",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Environments",
+      "purpose": "Document the concrete environment packages under environments/. Each is self-contained: env.py holds the Environment subclass, with its own tools and rewards alongside (singular tool.py/reward.py for one of each, a plural tools/ subpackage for several), plus domain-named helpers (server.py, quotas.py, e2b.py) as needed",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "CalculatorEnv",
+      "purpose": "Document the simple calculator environment for math problems and its default MathVerifyReward (reward.py): symbolic equivalence via the math_verify library, \\boxed{} parsing from the response tail, SymPy-based comparison (fractions, sets, simplification)",
+      "parent": "Environments",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "WebSearchEnv",
+      "purpose": "Document the web search environment: WebSearchConfig (search_provider, search_timeout, blocked_domains, scrape_enabled, scrape_timeout, scrape_token_budget), non-serializable named args (search_concurrency, scrape_concurrency, summarizer_model_factory), and its two tools in the tools/ subpackage — WebSearchToolkit (tools/search.py: Serper and Google Custom Search @tool methods over a shared aiohttp session, apply_blocked_domains filtering, lazy credential validation via @requires_env) and WebScraperToolkit (tools/scrape.py: Jina Reader API fetching gated by @requires_env('JINA_API_KEY'), optional structured WebPageSummary extraction via Agent.structured_output_async, token_budget truncation via tiktoken)",
+      "parent": "Environments",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "AgentCoreCodeEnv",
+      "purpose": "Document the code execution environment using AWS Bedrock AgentCore Code Interpreter: AgentCoreCodeConfig with mode Literal['code', 'terminal', 'code_and_terminal'], the CodeInterpreterToolkit tool (tool.py) providing execute_code (Python) and execute_command (shell) with lazy session creation and cleanup(), and AgentCore service-quota helpers in quotas.py",
+      "parent": "Environments",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "HarborEnv (Terminal-Bench and SWE-bench)",
+      "purpose": "Document HarborEnv, which runs any Harbor-format task (task.toml, environment/Dockerfile, tests/test.sh) in a local Docker container or self-hosted e2b sandbox: HarborConfig (backend 'docker' | 'e2b', exec_timeout, prebaked_e2b_config), the HarborTask per-sample payload with from_task_dir(), the single execute_command tool, HarborReward (reward.py) delegating to harbor's own Verifier (reward.json first, then reward.txt; raw passthrough), PrebakedE2BEnvironment in e2b.py, and how both the terminal-bench-* and swebench-verified benchmarks run on this single env differing only in dataset and system prompt",
+      "parent": "Environments",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "MCPAtlasEnv",
+      "purpose": "Document the MCP-Atlas benchmark environment backed by a Docker container exposing an MCP-tool REST API: MCPAtlasConfig (tool_timeout), MCPAtlasTask (enabled_tools strict filter, gtfa_claims), the shared httpx.AsyncClient whose lifecycle the caller owns, MCPAtlasTool (tool.py, an MCPToolAdapter POSTing to /call-tool), /list-tools caching across episodes, and reward.py's per-claim LLM-as-judge coverage reward (LLMJudgeReward subclass; fulfilled/partial/not → 1.0/0.5/0.0 averaged, pass threshold 0.75)",
+      "parent": "Environments",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "AgentWorldModelEnv",
+      "purpose": "Document the AgentWorldModel environment backed by a per-task FastAPI + SQLite server subprocess (server.py): AgentWorldModelConfig (envs_path, tool_call_timeout), AgentWorldModelTask (scenario, task_idx, verify_code, initial_db_path), AgentWorldModelTool (tool.py, an MCPToolAdapter over a ClientSession that polls the server process), reset() cloning the DB snapshot into fresh mkdtemp scratch for pass@k isolation, and AgentWorldModelReward (reward.py) running verify_task_completion via exec() for a binary reward",
+      "parent": "Environments",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Tau2BenchEnv",
+      "purpose": "Document the tau2-bench multi-turn customer service environment (domains airline/retail/telecom): Tau2BenchUserSimulator (simulator.py, an after-invocation hook owning the user-side agent, producing the next user message via event.resume), the single max_steps budget enforced by re-arming a LoopLimiter on the user-sim agent, user-only dialogue termination (###STOP###/###TRANSFER###/###OUT-OF-SCOPE###), separate agent/user/judge model factories, Tau2BenchTask (domain + serialized tau2 task with lazy tau2_task/tau2_env cached properties), Tau2BenchTool (tool.py) adapting tau2 domain tools, Tau2BenchReward (reward.py) computing the product of sub-rewards selected by reward_basis with the Tau2BenchNLAssertionReward LLM judge and a clean-stop gate (only user_stop is scored), and the private _tau2.py import shim that keeps the package import-pure",
+      "parent": "Environments",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Creating Custom Environments",
+      "purpose": "Guide users on subclassing Environment[MyTask] (task_cls is auto-derived), overriding reset/cleanup/get_tools/get_hooks, defining a Task subclass for per-sample fields and a config TypedDict for run-level knobs, and the layout convention: one tool/reward → singular tool.py/reward.py in the env package; several → a plural tools/ or rewards/ subpackage with domain-named members",
+      "parent": "Environments",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Evaluation",
+      "purpose": "Document the eval/ package: how benchmarks are defined, registered, discovered, and run, linking to child pages for the Evaluator, registry and CLI, metrics, and the registered benchmarks",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Evaluator and EvalSample",
+      "purpose": "Document eval/evaluator.py: Evaluator[TaskT] (benchmark identity ClassVars: benchmark_name, hf_dataset_path, hf_dataset_config, git_url, git_ref), concurrent rollouts with JSONL checkpointing and resume, EvalSample (task + RolloutResult + aborted flag), load_dataset() and validate_sample() subclass hooks, and running locally via AsyncEnvFactory or distributed via EnvironmentActorPool (see the Ray page under Core)",
+      "parent": "Evaluation",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Benchmark Registry and CLI",
+      "purpose": "Document eval/registry.py and eval/cli.py: the @register_eval decorator with auto-discovery of benchmarks/ modules (missing dependencies mark a module unavailable), and the single-command click CLI (python -m strands_env.eval): --list, --benchmark / --evaluator, dotted-path env hooks via --env, --env-config as inline JSON or a JSON file, --backend sglang | bedrock | kimi with sampling flags, and --n-actors-per-node for Ray-distributed eval",
+      "parent": "Evaluation",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Metrics",
+      "purpose": "Document eval/metrics.py: compute_pass_at_k (the unbiased pass@k estimator), the pass^k consistency metric used by tau2-bench, and the MetricFunction type alias for pluggable metrics",
+      "parent": "Evaluation",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Registered Benchmarks",
+      "purpose": "List the registered benchmark families in eval/benchmarks/, the env each runs on, and the benchmark-local rewards defined in those modules: math (aime-2024/2025/2026, hmmt-feb-2025/nov-2025/feb-2026 on CalculatorEnv with MathVerifyReward), QA/research (gpqa-* with GPQAReward's multi-choice extraction and fallbacks, hle-verified-gold[-text] with HLEReward, simpleqa-verified with SimpleQAReward, frames with FramesReward, sealqa-seal-0/hard, browsecomp with BrowseCompReward — the QA judges are LLMJudgeReward subclasses), instruction following (ifeval with IFEvalReward), MCP (mcp-atlas), tau2-bench-retail/airline/telecom, and agentic coding/terminal (swebench-verified, terminal-bench-1/2/2.1 on HarborEnv)",
+      "parent": "Evaluation",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    }
+  ]
+}
