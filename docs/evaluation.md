@@ -31,14 +31,15 @@ python -m strands_env.eval --evaluator <dotted.module.path> --env <dotted.module
 - `--env-config` - JSON config as inline string or path to JSON file (passed as `**kwargs` to `create_env_factory`)
 
 **Model options:**
-- `--backend`, `-b` - Model backend: `sglang` (default), `bedrock`, or `kimi`
+- `--backend`, `-b` - Model backend: `sglang` (default), `bedrock`, `bedrock-mantle`, or `kimi`
 - `--base-url` - SGLang server URL (default: `http://localhost:30000`)
 - `--model-id` - Model ID (auto-detected for SGLang)
 - `--tokenizer-path` - Tokenizer path (defaults to model_id)
 - `--tool-parser` - Tool parser name (e.g., `hermes`, `qwen_xml`)
-- `--region-name` - AWS region for Bedrock
+- `--region-name` - AWS region for Bedrock / Bedrock Mantle
 - `--profile-name` - AWS profile name for Bedrock
 - `--role-arn` - AWS role ARN to assume for Bedrock
+- `--reasoning-effort` - Reasoning effort (`low`/`medium`/`high`) for Bedrock Mantle GPT models
 
 **Sampling options:**
 - `--temperature` - Sampling temperature

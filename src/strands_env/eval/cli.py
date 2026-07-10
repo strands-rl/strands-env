@@ -125,14 +125,24 @@ def _list_benchmarks(ctx: click.Context, param: click.Parameter, value: bool) ->
 )
 # Model config
 @click.option(
-    "--backend", "-b", type=click.Choice(["sglang", "bedrock", "kimi"]), default="sglang", help="Model backend."
+    "--backend",
+    "-b",
+    type=click.Choice(["sglang", "bedrock", "bedrock-mantle", "kimi"]),
+    default="sglang",
+    help="Model backend.",
 )
 @click.option("--base-url", type=str, default="http://localhost:30000", help="Base URL for SGLang server.")
 @click.option("--model-id", type=str, default=None, help="Model ID. Auto-detected for SGLang if not provided.")
 @click.option("--tokenizer-path", type=str, default=None, help="Tokenizer path for SGLang.")
-@click.option("--region-name", type=str, default=None, help="AWS region name for Bedrock.")
+@click.option("--region-name", type=str, default=None, help="AWS region name for Bedrock / Bedrock Mantle.")
 @click.option("--profile-name", type=str, default=None, help="AWS profile name for Bedrock.")
 @click.option("--role-arn", type=str, default=None, help="AWS role ARN for Bedrock.")
+@click.option(
+    "--reasoning-effort",
+    type=click.Choice(["low", "medium", "high"]),
+    default=None,
+    help="Reasoning effort for Bedrock Mantle GPT models (maps to reasoning={'effort': ...}).",
+)
 @click.option("--tool-parser", type=str, default=None, help="Tool parser name (e.g., 'hermes', 'qwen_xml').")
 # Sampling params
 @click.option("--temperature", type=float, default=None, help="Sampling temperature.")
@@ -156,13 +166,14 @@ def eval_cmd(
     env_hook: str,
     env_config: dict | None,
     # Model
-    backend: Literal["sglang", "bedrock", "kimi"],
+    backend: Literal["sglang", "bedrock", "bedrock-mantle", "kimi"],
     base_url: str,
     model_id: str | None,
     tokenizer_path: str | None,
     region_name: str | None,
     profile_name: str | None,
     role_arn: str | None,
+    reasoning_effort: Literal["low", "medium", "high"] | None,
     tool_parser: str | None,
     # Sampling
     temperature: float | None,
@@ -232,6 +243,7 @@ def eval_cmd(
         region_name=region_name,
         profile_name=profile_name,
         role_arn=role_arn,
+        reasoning={"effort": reasoning_effort} if reasoning_effort else None,
         sampling_params=sampling_params,
     )
 
