@@ -50,6 +50,7 @@ import httpx
 from strands.models import Model
 from strands.models.bedrock import BedrockModel
 from strands.models.openai import OpenAIModel
+from strands.models.openai_responses import OpenAIResponsesModel
 from strands.types.content import Messages
 from strands_sglang import SGLangClient, SGLangModel, get_client, get_tokenizer
 from strands_sglang.tool_parsers import HermesToolParser, ToolParser, get_tool_parser
@@ -213,24 +214,15 @@ def bedrock_mantle_model_factory(
         reasoning: Reasoning configuration (e.g. `{"effort": "high"}`).
 
     Notes:
-        - Uses `aws_bedrock_token_generator.provide_token()` for SigV4 auth.
-        - A fresh token is minted on each factory call to avoid expiry issues.
+        - Routing is delegated to the SDK's `bedrock_mantle_config`: it derives the regional
+          base URL (`openai.gpt-5.*` → `/openai/v1`, other models → `/v1`) and mints a fresh
+          SigV4 token per request via `aws_bedrock_token_generator`, so long rollouts never
+          outlive the bearer token.
         - Leaves server-side conversation state at the SDK default (`stateful=False`), matching
           the other stateless backends: the full transcript is sent each turn and `agent.messages`
           stays intact for `Environment` observation capture. (With `stateful=True` the SDK clears
           `agent.messages` for server-managed conversations, which would discard the trajectory.)
-        - Requires the `bedrock-mantle` extra: `pip install strands-env[bedrock-mantle]`.
     """
-    try:
-        from strands.models.openai_responses import OpenAIResponsesModel
-    except ImportError as e:
-        raise ImportError(
-            "bedrock-mantle backend requires the OpenAI Responses model. "
-            "Install with `pip install strands-env[bedrock-mantle]`."
-        ) from e
-
-    base_url = f"https://bedrock-mantle.{region}.api.aws/openai/v1"
-
     sampling_params = dict(sampling_params)
     if "max_new_tokens" in sampling_params:
         sampling_params["max_output_tokens"] = sampling_params.pop("max_new_tokens")
@@ -240,22 +232,10 @@ def bedrock_mantle_model_factory(
         params["reasoning"] = reasoning
 
     def factory() -> OpenAIResponsesModel:
-        try:
-            from aws_bedrock_token_generator import provide_token
-        except ImportError as e:
-            raise ImportError(
-                "bedrock-mantle backend requires `aws-bedrock-token-generator` for SigV4 auth. "
-                "Install with `pip install strands-env[bedrock-mantle]`."
-            ) from e
-
-        token = provide_token(region=region)
         return OpenAIResponsesModel(
             model_id=model_id,
             params=params,
-            client_args={
-                "base_url": base_url,
-                "api_key": token,
-            },
+            bedrock_mantle_config={"region": region},
         )
 
     return factory

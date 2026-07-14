@@ -98,18 +98,14 @@ class TestBedrockModelFactory:
 
 
 class TestBedrockMantleModelFactory:
-    def _patches(self):
-        """Patch the lazily-imported OpenAIResponsesModel and token generator."""
+    def _patch_model(self):
+        """Patch the OpenAIResponsesModel constructor imported into models.py."""
         responses_cls = MagicMock(name="OpenAIResponsesModel")
-        return (
-            responses_cls,
-            patch("strands.models.openai_responses.OpenAIResponsesModel", responses_cls),
-            patch("aws_bedrock_token_generator.provide_token", return_value="tok-123"),
-        )
+        return responses_cls, patch("strands_env.core.models.OpenAIResponsesModel", responses_cls)
 
-    def test_builds_responses_model_with_token_auth(self):
-        responses_cls, patch_model, patch_token = self._patches()
-        with patch_model, patch_token as provide_token:
+    def test_builds_responses_model_with_mantle_config(self):
+        responses_cls, patch_model = self._patch_model()
+        with patch_model:
             factory = bedrock_mantle_model_factory(
                 model_id="openai.gpt-5.4-2026-03-05",
                 region="us-east-2",
@@ -118,14 +114,14 @@ class TestBedrockMantleModelFactory:
             )
             factory()
 
-        provide_token.assert_called_once_with(region="us-east-2")
         call_kwargs = responses_cls.call_args[1]
         assert call_kwargs["model_id"] == "openai.gpt-5.4-2026-03-05"
+        # Base URL + SigV4 token are derived by the SDK from bedrock_mantle_config; we only pass region.
+        assert call_kwargs["bedrock_mantle_config"] == {"region": "us-east-2"}
+        assert "client_args" not in call_kwargs
         # 'stateful' is not passed: SDK default (False) applies, matching the other backends,
-        # so the SDK never clears agent.messages (no monkeypatch needed).
+        # so the SDK never clears agent.messages.
         assert "stateful" not in call_kwargs
-        assert call_kwargs["client_args"]["base_url"] == "https://bedrock-mantle.us-east-2.api.aws/openai/v1"
-        assert call_kwargs["client_args"]["api_key"] == "tok-123"
         # max_new_tokens -> max_output_tokens; reasoning forwarded.
         assert call_kwargs["params"]["max_output_tokens"] == 16384
         assert "max_new_tokens" not in call_kwargs["params"]
@@ -133,20 +129,10 @@ class TestBedrockMantleModelFactory:
 
     def test_does_not_mutate_default_params(self):
         original = dict(DEFAULT_SAMPLING_PARAMS)
-        _, patch_model, patch_token = self._patches()
-        with patch_model, patch_token:
+        _, patch_model = self._patch_model()
+        with patch_model:
             bedrock_mantle_model_factory(model_id="openai.gpt-5.4-2026-03-05")
         assert DEFAULT_SAMPLING_PARAMS == original
-
-    def test_does_not_patch_sdk_after_invocation_hook(self):
-        """Building the factory must not mutate the SDK's global message-clearing hook."""
-        from strands.models.model import _ModelPlugin
-
-        before = _ModelPlugin._on_after_invocation
-        _, patch_model, patch_token = self._patches()
-        with patch_model, patch_token:
-            bedrock_mantle_model_factory(model_id="openai.gpt-5.4-2026-03-05")
-        assert _ModelPlugin._on_after_invocation is before
 
     def test_build_model_factory_requires_model_id(self):
         with pytest.raises(ValueError, match="bedrock-mantle backend requires"):

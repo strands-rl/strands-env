@@ -22,6 +22,7 @@ classifiers = [
 ]
 dependencies = [
     "strands-sglang>=0.5.0",
+    "strands-agents[openai]>=1.46.0",
     "strands-agents-tools>=0.2.0",
     "openai",
     "datasets",
@@ -56,10 +57,6 @@ harbor = [
 ]
 ifeval = ["lm_eval[ifeval]>=0.4.11"]
 agent-world-model = ["agent-world-model==0.1.0"]
-bedrock-mantle = [
-    "strands-agents[openai]",
-    "aws-bedrock-token-generator>=1.0.0",
-]
 
 [tool.hatch.version]
 source = "vcs"
