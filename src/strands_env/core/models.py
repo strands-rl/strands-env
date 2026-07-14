@@ -222,6 +222,11 @@ def bedrock_mantle_model_factory(
           the other stateless backends: the full transcript is sent each turn and `agent.messages`
           stays intact for `Environment` observation capture. (With `stateful=True` the SDK clears
           `agent.messages` for server-managed conversations, which would discard the trajectory.)
+        - Reasoning tokens are NOT retained across turns: the SDK filters `reasoningContent` from
+          Responses API requests because the round-trip metadata (`encrypted_content`) has nowhere
+          to live on the message, so each turn reasons fresh. Fine for single-turn eval; multi-turn
+          reasoning continuity awaits upstream support.
+          See https://github.com/strands-agents/harness-sdk/issues/2014.
     """
     sampling_params = dict(sampling_params)
     if "max_new_tokens" in sampling_params:
