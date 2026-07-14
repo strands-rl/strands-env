@@ -26,8 +26,6 @@ from typing import TYPE_CHECKING, Literal, NotRequired, Unpack, override
 
 from harbor.environments.factory import EnvironmentFactory
 from harbor.models.environment_type import EnvironmentType
-from harbor.models.trial.config import ServiceVolumeConfig
-from harbor.models.trial.paths import EnvironmentPaths
 from strands import tool
 
 from strands_env.core import Environment, ModelFactory
@@ -96,13 +94,6 @@ class HarborEnv(Environment[HarborTask]):
                     session_id=session_id,
                     trial_paths=task.trial_paths,
                     task_env_config=task.task_env_config,
-                    mounts=[
-                        ServiceVolumeConfig(
-                            type="bind",
-                            source=task.trial_paths.verifier_dir.resolve().absolute().as_posix(),
-                            target=str(EnvironmentPaths.verifier_dir),
-                        )
-                    ],
                 )
             case "e2b":
                 # we use prebaked e2b for self-hosting on e.g., AWS

@@ -51,7 +51,7 @@ dev = [
 ]
 litellm = ["litellm"]
 harbor = [
-    "harbor>=0.14.0",
+    "harbor>=0.15.0",
     "e2b==2.25.1",
 ]
 ifeval = ["lm_eval[ifeval]>=0.4.11"]
@@ -84,7 +84,7 @@ ignore_missing_imports = true
 
 [tool.uv]
 conflicts = [
-    # agent-world-model==0.1.0 pins fastapi==0.115.12; harbor>=0.14.0 needs fastapi>=0.128.0
+    # agent-world-model==0.1.0 pins fastapi==0.115.12; harbor>=0.15.0 needs fastapi>=0.128.0
     [
         { extra = "harbor" },
         { extra = "agent-world-model" },
