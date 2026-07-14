@@ -91,19 +91,35 @@ class LLMJudgeReward(RewardFunction[TaskT], Generic[JudgmentFormat, TaskT]):
         """Get reward from judgment (structured or text)."""
         raise NotImplementedError("Subclasses must implement this method.")
 
+    async def get_system_prompt(self, task: TaskT, result: RolloutResult) -> str | None:
+        """Return the system prompt for the judge. Override for per-sample prompts."""
+        return self.system_prompt
+
     @override
     async def compute(self, task: TaskT, result: RolloutResult) -> RewardResult:
+        # Render system prompt
+        try:
+            system_prompt = await self.get_system_prompt(task, result)
+        except Exception as e:
+            logger.error("System prompt rendering failed: %s", e)
+            return RewardResult(
+                reward=self.default_reward,
+                info={"status": "error", "error_type": "system_prompt_error", "error": str(e)},
+            )
+
+        # Render judge prompt
         try:
             prompt = await self.get_judge_prompt(task, result)
         except Exception as e:
             logger.error("Judge prompt rendering failed: %s", e)
             return RewardResult(
                 reward=self.default_reward,
-                info={"status": "error", "error_type": "prompt_error", "error": str(e)},
+                info={"status": "error", "error_type": "judge_prompt_error", "error": str(e)},
             )
 
+        # Invoke judge model with retry
         for attempt in range(self.max_model_retries):
-            agent = Agent(model=next(self.judge_models), system_prompt=self.system_prompt, tools=[])
+            agent = Agent(model=next(self.judge_models), system_prompt=system_prompt, tools=[])
             try:
                 if self.judgment_format is not None:
                     judgment: JudgmentFormat | str = await agent.structured_output_async(
@@ -125,6 +141,7 @@ class LLMJudgeReward(RewardFunction[TaskT], Generic[JudgmentFormat, TaskT]):
                     info={"status": "error", "error_type": "judge_error", "error": str(e)},
                 )
 
+        # Get reward
         try:
             reward = await self.get_reward(judgment)
         except Exception as e:
@@ -134,5 +151,6 @@ class LLMJudgeReward(RewardFunction[TaskT], Generic[JudgmentFormat, TaskT]):
                 info={"status": "error", "error_type": "reward_error", "error": str(e)},
             )
 
+        # Return reward result
         judgment_data = judgment.model_dump() if isinstance(judgment, BaseModel) else judgment
         return RewardResult(reward=reward, info={"status": "success", "judgment": judgment_data})

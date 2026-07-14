@@ -175,32 +175,44 @@ class RolloutResult(BaseModel):
 
     @property
     def final_response(self) -> str | None:
+        """Return text from the last assistant message, with think blocks stripped."""
+        return self.get_final_response(raw=False)
+
+    def get_final_response(self, *, raw: bool = False) -> str | None:
         """Return text from the last assistant message, or None.
+
+        Args:
+            raw: If True, return the full text including <think>...</think> blocks.
+                 If False (default), strip think blocks before returning.
 
         None when the conversation ended on a non-assistant message (e.g. a tau2
         `user_stop` turn) — the agent did not have the last word.
         """
         if not self.messages or self.messages[-1].get("role") != "assistant":
             return None
-        return extract_message_text(self.messages[-1]) or None
+        return extract_message_text(self.messages[-1], raw=raw) or None
 
 
-def extract_message_text(message: Message) -> str:
-    """Extract the final text from a message: the last text block, with any think block stripped.
+def extract_message_text(message: Message, *, raw: bool = False) -> str:
+    """Extract the final text from a message: the last text block.
+
+    Args:
+        message: A strands Message dict.
+        raw: If True, return the full text including `<think>...</think>` blocks.
+            If False (default), strip think blocks before returning.
 
     Returns an empty string when the message contains no text block.
     An unclosed `<think>` block (truncated generation) is returned as-is.
     """
     content = message.get("content") or []
-    # Take the last text block — the final textual output.
     text = next(
         (block["text"] for block in reversed(content) if isinstance(block, dict) and "text" in block),
         None,
     )
     if text is None:
         return ""
-    # Strip think block if any: keep only what follows the last closing tag
-    think_end = text.rfind("</think>")
-    if think_end != -1:
-        text = text[think_end + len("</think>") :].lstrip()
+    if not raw:
+        think_end = text.rfind("</think>")
+        if think_end != -1:
+            text = text[think_end + len("</think>") :].lstrip()
     return text

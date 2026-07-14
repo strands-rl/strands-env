@@ -93,6 +93,14 @@ class TestExtractMessageText:
         message = {"role": "assistant", "content": [{"text": "<think>truncated mid-thought"}]}
         assert extract_message_text(message) == "<think>truncated mid-thought"
 
+    def test_raw_preserves_think_block(self):
+        message = {"role": "assistant", "content": [{"text": "<think>reasoning</think>Answer"}]}
+        assert extract_message_text(message, raw=True) == "<think>reasoning</think>Answer"
+
+    def test_raw_false_strips_think_block(self):
+        message = {"role": "assistant", "content": [{"text": "<think>reasoning</think>Answer"}]}
+        assert extract_message_text(message, raw=False) == "Answer"
+
 
 # ---------------------------------------------------------------------------
 # RolloutResult
@@ -127,6 +135,18 @@ class TestRolloutResult:
         ]
         result = RolloutResult(messages=messages)
         assert result.final_response == "final answer"
+
+    def test_get_final_response_raw_preserves_think(self):
+        messages = [
+            {"role": "assistant", "content": [{"text": "<think>reasoning</think>The answer is 4."}]},
+        ]
+        result = RolloutResult(messages=messages)
+        assert result.get_final_response(raw=True) == "<think>reasoning</think>The answer is 4."
+        assert result.get_final_response(raw=False) == "The answer is 4."
+
+    def test_get_final_response_no_assistant_returns_none(self):
+        result = RolloutResult(messages=[{"role": "user", "content": [{"text": "hi"}]}])
+        assert result.get_final_response(raw=True) is None
 
     def test_final_response_no_assistant(self):
         messages = [{"role": "user", "content": [{"text": "hi"}]}]

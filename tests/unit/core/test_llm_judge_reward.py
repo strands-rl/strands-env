@@ -71,7 +71,7 @@ def _task_and_result():
 
 class TestErrorRecovery:
     async def test_prompt_error_returns_default_reward(self):
-        """get_judge_prompt raising returns default_reward with prompt_error info."""
+        """get_judge_prompt raising returns default_reward with judge_prompt_error info."""
 
         class _FailingPrompt(LLMJudgeReward):
             judgment_format = None
@@ -87,7 +87,58 @@ class TestErrorRecovery:
         result = await judge.compute(task, result)
 
         assert result.reward == 0.0
-        assert result.info["error_type"] == "prompt_error"
+        assert result.info["error_type"] == "judge_prompt_error"
+
+    async def test_system_prompt_error_returns_default_reward(self):
+        """get_system_prompt raising returns default_reward with system_prompt_error info."""
+
+        class _FailingSystemPrompt(LLMJudgeReward):
+            judgment_format = None
+
+            async def get_judge_prompt(self, task, result):
+                return "prompt"
+
+            async def get_system_prompt(self, task, result):
+                raise RuntimeError("cannot render system prompt")
+
+            async def get_reward(self, judgment):
+                return 1.0
+
+        judge = _FailingSystemPrompt(judge_model=MagicMock(), default_reward=0.0)
+        task, result = _task_and_result()
+        result = await judge.compute(task, result)
+
+        assert result.reward == 0.0
+        assert result.info["error_type"] == "system_prompt_error"
+
+    @patch("strands_env.core.llm_judge_reward.Agent")
+    async def test_get_system_prompt_override_used(self, mock_agent_cls):
+        """Overridden get_system_prompt is forwarded to the Agent constructor."""
+        mock_agent_instance = MagicMock()
+        mock_result = MagicMock()
+        mock_result.message = {"content": [{"text": "correct"}]}
+        mock_agent_instance.invoke_async = AsyncMock(return_value=mock_result)
+        mock_agent_cls.return_value = mock_agent_instance
+
+        class _DynamicPromptJudge(LLMJudgeReward):
+            judgment_format = None
+
+            async def get_judge_prompt(self, task, result):
+                return "grade this"
+
+            async def get_system_prompt(self, task, result):
+                return f"You are judging task {task.id}"
+
+            async def get_reward(self, judgment):
+                return 1.0
+
+        judge = _DynamicPromptJudge(judge_model=MagicMock())
+        task, result = _task_and_result()
+        await judge.compute(task, result)
+
+        # Verify the dynamic system prompt was passed to Agent
+        call_kwargs = mock_agent_cls.call_args[1]
+        assert call_kwargs["system_prompt"].startswith("You are judging task")
 
     @patch("strands_env.core.llm_judge_reward.Agent")
     async def test_judge_error_returns_default_reward(self, mock_agent_cls):
