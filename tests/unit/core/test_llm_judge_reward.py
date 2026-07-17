@@ -16,6 +16,7 @@
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from pydantic import BaseModel
 from strands.types.exceptions import ModelThrottledException
 
@@ -248,3 +249,8 @@ class TestHappyPath:
 
         assert result.reward == 0.0
         assert result.info["error_type"] == "judge_error"
+
+    def test_non_positive_max_model_retries_rejected(self):
+        """max_model_retries < 1 would skip the judge loop entirely, leaving judgment unbound."""
+        with pytest.raises(ValueError, match="max_model_retries"):
+            _TextJudge(judge_model=MagicMock(), max_model_retries=0)

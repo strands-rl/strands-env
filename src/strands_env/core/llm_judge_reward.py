@@ -76,6 +76,8 @@ class LLMJudgeReward(RewardFunction[TaskT], Generic[JudgmentFormat, TaskT]):
         default_reward: float = 0.0,
         max_model_retries: int = 1,
     ) -> None:
+        if max_model_retries < 1:
+            raise ValueError(f"max_model_retries must be >= 1, got {max_model_retries}")
         self.judge_models = itertools.cycle(judge_model if isinstance(judge_model, list) else [judge_model])
         self.system_prompt = system_prompt
         self.default_reward = default_reward
