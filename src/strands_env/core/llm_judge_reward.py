@@ -97,6 +97,10 @@ class LLMJudgeReward(RewardFunction[TaskT], Generic[JudgmentFormat, TaskT]):
 
     @override
     async def compute(self, task: TaskT, result: RolloutResult) -> RewardResult:
+
+        def _render_error(e: Exception) -> str:
+            return f"{type(e).__name__}: {e}"
+
         # Render system prompt
         try:
             system_prompt = await self.get_system_prompt(task, result)
@@ -104,7 +108,7 @@ class LLMJudgeReward(RewardFunction[TaskT], Generic[JudgmentFormat, TaskT]):
             logger.error("System prompt rendering failed: %s", e)
             return RewardResult(
                 reward=self.default_reward,
-                info={"status": "error", "error_type": "system_prompt_error", "error": str(e)},
+                info={"status": "error", "error_type": "system_prompt_error", "error": _render_error(e)},
             )
 
         # Render judge prompt
@@ -114,12 +118,12 @@ class LLMJudgeReward(RewardFunction[TaskT], Generic[JudgmentFormat, TaskT]):
             logger.error("Judge prompt rendering failed: %s", e)
             return RewardResult(
                 reward=self.default_reward,
-                info={"status": "error", "error_type": "judge_prompt_error", "error": str(e)},
+                info={"status": "error", "error_type": "judge_prompt_error", "error": _render_error(e)},
             )
 
         # Invoke judge model with retry
         for attempt in range(self.max_model_retries):
-            agent = Agent(model=next(self.judge_models), system_prompt=system_prompt, tools=[])
+            agent = Agent(model=next(self.judge_models), system_prompt=system_prompt, tools=[], name="LLMJudge")
             try:
                 if self.judgment_format is not None:
                     judgment: JudgmentFormat | str = await agent.structured_output_async(
@@ -138,19 +142,23 @@ class LLMJudgeReward(RewardFunction[TaskT], Generic[JudgmentFormat, TaskT]):
                 logger.error("Judge model invocation failed: %s", e)
                 return RewardResult(
                     reward=self.default_reward,
-                    info={"status": "error", "error_type": "judge_error", "error": str(e)},
+                    info={"status": "error", "error_type": "judge_error", "error": _render_error(e)},
                 )
 
         # Get reward
+        judgment_data = judgment.model_dump(mode="json") if isinstance(judgment, BaseModel) else judgment
         try:
             reward = await self.get_reward(judgment)
         except Exception as e:
             logger.error("Reward computation for judgment failed: %s", e)
             return RewardResult(
                 reward=self.default_reward,
-                info={"status": "error", "error_type": "reward_error", "error": str(e)},
+                info={
+                    "status": "error",
+                    "error_type": "reward_error",
+                    "error": _render_error(e),
+                    "judgment": judgment_data,
+                },
             )
 
-        # Return reward result
-        judgment_data = judgment.model_dump() if isinstance(judgment, BaseModel) else judgment
         return RewardResult(reward=reward, info={"status": "success", "judgment": judgment_data})
