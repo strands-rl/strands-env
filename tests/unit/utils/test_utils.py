@@ -95,9 +95,9 @@ class TestGetSession:
 
 
 class TestGetSessionWithRoleAssumption:
-    @patch("strands_env.utils.aws.boto3.client")
+    @patch("strands_env.utils.aws.boto3.Session")
     @patch("botocore.session.get_session")
-    def test_assumes_role(self, mock_get_session, mock_boto3_client):
+    def test_assumes_role(self, mock_get_session, mock_session_cls):
         from datetime import datetime
 
         mock_sts = MagicMock()
@@ -109,7 +109,7 @@ class TestGetSessionWithRoleAssumption:
                 "Expiration": datetime.now(UTC),
             }
         }
-        mock_boto3_client.return_value = mock_sts
+        mock_session_cls.return_value.client.return_value = mock_sts
 
         mock_botocore_session = MagicMock()
         mock_get_session.return_value = mock_botocore_session
@@ -117,14 +117,43 @@ class TestGetSessionWithRoleAssumption:
         role_arn = "arn:aws:iam::123456789:role/TestRole"
         session = get_session(region_name="us-east-1", role_arn=role_arn)
 
-        mock_boto3_client.assert_called_with("sts", region_name="us-east-1")
+        # The STS client is built from a Session carrying the (absent) profile.
+        mock_session_cls.assert_any_call(region_name="us-east-1", profile_name=None)
+        mock_session_cls.return_value.client.assert_called_with("sts", region_name="us-east-1")
         mock_sts.assume_role.assert_called_with(RoleArn=role_arn, RoleSessionName="strands-env")
         assert session is not None
 
-    @patch("strands_env.utils.aws.boto3.client")
-    def test_has_refreshable_credentials(self, mock_boto3_client):
+    @patch("strands_env.utils.aws.boto3.Session")
+    @patch("botocore.session.get_session")
+    def test_assumes_role_from_profile(self, mock_get_session, mock_session_cls):
+        from datetime import datetime
+
+        mock_sts = MagicMock()
+        mock_sts.assume_role.return_value = {
+            "Credentials": {
+                "AccessKeyId": "AKIA_TEST",
+                "SecretAccessKey": "secret_test",
+                "SessionToken": "token_test",
+                "Expiration": datetime.now(UTC),
+            }
+        }
+        mock_session_cls.return_value.client.return_value = mock_sts
+        mock_session_cls.return_value.region_name = "us-east-1"
+        mock_get_session.return_value = MagicMock()
+
+        role_arn = "arn:aws:iam::123456789:role/TestRole"
+        session = get_session(region_name="us-east-1", role_arn=role_arn, profile_name="test-profile")
+
+        # The AssumeRole call must run with the profile's credentials (two-hop chain).
+        mock_session_cls.assert_any_call(region_name="us-east-1", profile_name="test-profile")
+        mock_sts.assume_role.assert_called_with(RoleArn=role_arn, RoleSessionName="strands-env")
+        assert session is not None
+
+    @patch("strands_env.utils.aws.boto3.Session")
+    def test_has_refreshable_credentials(self, mock_session_cls):
         from datetime import datetime, timedelta
 
+        from boto3.session import Session as RealSession
         from botocore.credentials import RefreshableCredentials
 
         mock_sts = MagicMock()
@@ -136,7 +165,18 @@ class TestGetSessionWithRoleAssumption:
                 "Expiration": datetime.now(UTC) + timedelta(hours=1),
             }
         }
-        mock_boto3_client.return_value = mock_sts
+        mock_sts_session = MagicMock()
+        mock_sts_session.client.return_value = mock_sts
+        mock_sts_session.region_name = None
+
+        def session_side_effect(*args, **kwargs):
+            # The final wrapper Session must be real so its credential plumbing works;
+            # every other Session (region resolution, STS) stays mocked.
+            if "botocore_session" in kwargs:
+                return RealSession(*args, **kwargs)
+            return mock_sts_session
+
+        mock_session_cls.side_effect = session_side_effect
 
         role_arn = "arn:aws:iam::123456789:role/TestRole"
         session = get_session(role_arn=role_arn)

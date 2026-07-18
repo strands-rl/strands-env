@@ -70,26 +70,38 @@ def get_session(
           so they must not be shared across concurrent calls. Use `get_client` instead
           when you need a cached, thread-safe client.
         - If `role_arn` is provided, assumes the role using STS with auto-refreshing
-          credentials via botocore's `RefreshableCredentials`.
+          credentials via botocore's `RefreshableCredentials`. When `profile_name` is
+          also provided, the role is assumed **from that profile's credentials** (a
+          two-hop chain) rather than from the ambient ones — needed when the role's
+          trust policy only admits identities from the profile's account.
     """
     region_name = resolve_region_name(region_name=region_name, profile_name=profile_name)
     if role_arn:
         return create_assumed_role_session(
-            role_arn=role_arn, role_session_name=role_session_name, region_name=region_name
+            role_arn=role_arn,
+            role_session_name=role_session_name,
+            region_name=region_name,
+            profile_name=profile_name,
         )
     session = boto3.Session(region_name=region_name, profile_name=profile_name)
     logger.info("Created boto3 session: region_name=%s, profile_name=%s", session.region_name, session.profile_name)
     return session
 
 
-def create_assumed_role_session(role_arn: str, role_session_name: str, region_name: str) -> boto3.Session:
-    """Create a boto3 session with assumed role credentials."""
+def create_assumed_role_session(
+    role_arn: str, role_session_name: str, region_name: str, profile_name: str | None = None
+) -> boto3.Session:
+    """Create a boto3 session with assumed role credentials.
+
+    `profile_name` selects the credentials the STS `AssumeRole` call is made with;
+    `None` uses the ambient credential chain.
+    """
     from botocore.credentials import RefreshableCredentials
     from botocore.session import get_session as get_botocore_session
 
     def refresh() -> dict:
-        logger.info("Refreshing STS credentials for assumed role: %s", role_arn)
-        sts = boto3.client("sts", region_name=region_name)
+        logger.info("Refreshing STS credentials for assumed role: %s (profile=%s)", role_arn, profile_name)
+        sts = boto3.Session(region_name=region_name, profile_name=profile_name).client("sts", region_name=region_name)
         creds = sts.assume_role(RoleArn=role_arn, RoleSessionName=role_session_name)["Credentials"]
         return {
             "access_key": creds["AccessKeyId"],
@@ -142,7 +154,10 @@ def get_client(
     region_name = resolve_region_name(region_name=region_name, profile_name=profile_name)
     if role_arn:
         session = create_assumed_role_session(
-            role_arn=role_arn, role_session_name=role_session_name, region_name=region_name
+            role_arn=role_arn,
+            role_session_name=role_session_name,
+            region_name=region_name,
+            profile_name=profile_name,
         )
     else:
         session = boto3.Session(region_name=region_name, profile_name=profile_name)
