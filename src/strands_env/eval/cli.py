@@ -127,7 +127,7 @@ def _list_benchmarks(ctx: click.Context, param: click.Parameter, value: bool) ->
 @click.option(
     "--backend",
     "-b",
-    type=click.Choice(["sglang", "bedrock", "bedrock-mantle", "kimi"]),
+    type=click.Choice(["sglang", "bedrock", "bedrock-mantle"]),
     default="sglang",
     help="Model backend.",
 )
@@ -166,7 +166,7 @@ def eval_cmd(
     env_hook: str,
     env_config: dict | None,
     # Model
-    backend: Literal["sglang", "bedrock", "bedrock-mantle", "kimi"],
+    backend: Literal["sglang", "bedrock", "bedrock-mantle"],
     base_url: str,
     model_id: str | None,
     tokenizer_path: str | None,

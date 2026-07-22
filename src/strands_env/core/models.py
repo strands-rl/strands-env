@@ -51,13 +51,11 @@ from strands.models import Model
 from strands.models.bedrock import BedrockModel
 from strands.models.openai import OpenAIModel
 from strands.models.openai_responses import OpenAIResponsesModel
-from strands.types.content import Messages
 from strands_sglang import SGLangClient, SGLangModel, get_client, get_tokenizer
 from strands_sglang.tool_parsers import HermesToolParser, ToolParser, get_tool_parser
 from transformers import PreTrainedTokenizerBase
 
 from strands_env.utils.aws import get_session
-from strands_env.utils.decorators import requires_env
 
 #: Factory that produces a fresh `Model` per rollout (for concurrent rollout isolation).
 ModelFactory = Callable[[], Model]
@@ -287,84 +285,6 @@ def openai_model_factory(
 
 
 # ---------------------------------------------------------------------------
-# Kimi Model (Moonshot AI — via LiteLLM)
-# ---------------------------------------------------------------------------
-
-
-def _get_kimi_model_class() -> type:
-    """Return a LiteLLMModel subclass that preserves reasoning_content for Moonshot.
-
-    Notes:
-        - Both `OpenAIModel` and `LiteLLMModel` strip `reasoningContent` in `_format_regular_messages`,
-        but Moonshot requires it back as a top-level `reasoning_content` field in multi-turn messages.
-    """
-    from strands.models.litellm import LiteLLMModel
-
-    class KimiModel(LiteLLMModel):
-        @classmethod
-        def _format_regular_messages(cls, messages: Messages, **kwargs: Any) -> list[dict[str, Any]]:
-            # Extract reasoning text before super() strips reasoningContent blocks
-            reasoning_map: dict[int, str] = {}
-            for i, message in enumerate(messages):
-                parts = [
-                    content["reasoningContent"].get("reasoningText", {}).get("text", "")
-                    for content in message["content"]
-                    if "reasoningContent" in content
-                ]
-                if any(parts):
-                    reasoning_map[i] = "".join(parts)
-
-            # Delegate to parent (strips reasoningContent, formats toolUse/toolResult)
-            formatted_messages = super()._format_regular_messages(messages, **kwargs)
-
-            # Re-inject reasoning_content into the corresponding formatted messages.
-            # super() emits one primary message per original message (same role),
-            # plus extra "tool" role messages for toolResult blocks — skip those.
-            orig_idx = 0
-            for fmt_msg in formatted_messages:
-                if fmt_msg.get("role") == "tool":
-                    continue
-                if orig_idx in reasoning_map:
-                    fmt_msg["reasoning_content"] = reasoning_map[orig_idx]
-                orig_idx += 1
-
-            return formatted_messages
-
-    return KimiModel
-
-
-@requires_env("MOONSHOT_API_KEY")
-def kimi_model_factory(
-    *,
-    model_id: str = "moonshot/kimi-k2.5",
-    sampling_params: dict[str, Any] = DEFAULT_SAMPLING_PARAMS,
-    client_args: dict[str, Any] | None = None,
-) -> ModelFactory:
-    """Return a factory that creates `KimiModel` instances for Moonshot AI.
-
-    Args:
-        model_id: LiteLLM model ID with `moonshot/` prefix (default `"moonshot/kimi-k2.5"`).
-        sampling_params: Sampling parameters for the model (e.g. `{"max_new_tokens": 4096}`).
-        client_args: Arguments for the LiteLLM client.
-
-    Notes:
-        - Requires `MOONSHOT_API_KEY` environment variable.
-        - `max_new_tokens` in `sampling_params` is remapped to `max_tokens` for the LiteLLM API.
-    """
-    kimi_model_cls = _get_kimi_model_class()
-
-    sampling_params = dict(sampling_params)
-    if "max_new_tokens" in sampling_params:
-        sampling_params["max_tokens"] = sampling_params.pop("max_new_tokens")
-
-    return lambda: kimi_model_cls(
-        model_id=model_id,
-        params=sampling_params,
-        client_args=client_args,
-    )
-
-
-# ---------------------------------------------------------------------------
 # Model Configuration and Factory (mainly for CLI)
 # ---------------------------------------------------------------------------
 
@@ -373,7 +293,7 @@ def kimi_model_factory(
 class ModelConfig:
     """Serializable model configuration."""
 
-    backend: Literal["sglang", "bedrock", "bedrock-mantle", "kimi"] = "sglang"
+    backend: Literal["sglang", "bedrock", "bedrock-mantle"] = "sglang"
 
     # SGLang
     base_url: str = "http://localhost:30000"
@@ -442,11 +362,6 @@ def build_model_factory(config: ModelConfig | dict[str, Any]) -> ModelFactory:
                 region=config.region_name or "us-east-2",
                 sampling_params=config.sampling_params,
                 reasoning=config.reasoning,
-            )
-        case "kimi":
-            return kimi_model_factory(
-                model_id=config.model_id or "moonshot/kimi-k2.5",
-                sampling_params=config.sampling_params,
             )
         case _:
             raise ValueError(f"Unsupported backend for ModelConfig: {config.backend!r}")

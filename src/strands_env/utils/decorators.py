@@ -43,9 +43,6 @@ def requires_env(*env_vars: str) -> Callable[..., Any]:
                 api_key = os.environ["SERPER_API_KEY"]
                 ...
 
-        @requires_env("MOONSHOT_API_KEY")
-        def kimi_model_factory(*, model_id: str = "moonshot/kimi-k2.5") -> ModelFactory:
-            ...
     """
 
     def _check() -> str | None:
