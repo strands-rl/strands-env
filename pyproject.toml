@@ -50,7 +50,6 @@ dev = [
     # Type checking
     "mypy>=1.15.0,<2.0.0",
 ]
-litellm = ["litellm"]
 harbor = [
     "harbor>=0.15.0",
     "e2b==2.25.1",

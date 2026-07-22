@@ -31,7 +31,7 @@ python -m strands_env.eval --evaluator <dotted.module.path> --env <dotted.module
 - `--env-config` - JSON config as inline string or path to JSON file (passed as `**kwargs` to `create_env_factory`)
 
 **Model options:**
-- `--backend`, `-b` - Model backend: `sglang` (default), `bedrock`, `bedrock-mantle`, or `kimi`
+- `--backend`, `-b` - Model backend: `sglang` (default), `bedrock`, or `bedrock-mantle`
 - `--base-url` - SGLang server URL (default: `http://localhost:30000`)
 - `--model-id` - Model ID (auto-detected for SGLang)
 - `--tokenizer-path` - Tokenizer path (defaults to model_id)
