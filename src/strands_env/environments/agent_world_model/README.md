@@ -25,7 +25,7 @@ task = AgentWorldModelTask(
     message="Add two apples to the cart and report the total.",
     scenario="your_scenario",
     task_idx=0,
-    verify_code=verify_code,          # from gen_verifier.pure_code.jsonl
+    verify_code=verify_code,  # from gen_verifier.pure_code.jsonl
     initial_db_path="/path/to/initial.db",
 )
 result = await env.rollout(task)  # reset (clone DB + start server) -> episode -> reward -> cleanup
