@@ -34,6 +34,7 @@ from strands_env.core import AsyncEnvFactory, RolloutResult
 from strands_env.core.types import TaskT
 
 from .metrics import MetricFunction, compute_pass_at_k
+from .reporter import EvalReporter, LocalReporter
 
 if TYPE_CHECKING:
     from strands_env.core.distributed import EnvironmentActorPool
@@ -69,6 +70,7 @@ class Evaluator(Generic[TaskT]):
         save_interval: int = 10,
         keep_rollout: bool = False,
         env_actor_pool: EnvironmentActorPool | None = None,
+        reporter: EvalReporter | None = None,
     ):
         """Initialize an `Evaluator` instance.
 
@@ -81,6 +83,7 @@ class Evaluator(Generic[TaskT]):
             save_interval: Flush results to disk every N completed samples.
             keep_rollout: Keep the token-level rollout in results (only valid for `SGLangModel` backends).
             env_actor_pool: Optional Ray actor pool for distributed evaluation.
+            reporter: Optional reporter for result output. Defaults to LocalReporter writing to output_path.
         """
         if env_factory is None and env_actor_pool is None:
             raise ValueError("Must provide either env_factory or env_actor_pool")
@@ -93,6 +96,9 @@ class Evaluator(Generic[TaskT]):
         self.output_path = Path(output_path)
         self.save_interval = save_interval
         self.keep_rollout = keep_rollout
+
+        # Reporter setup: explicit reporter wins; otherwise default to LocalReporter
+        self.reporter: EvalReporter = reporter if reporter is not None else LocalReporter(self.output_path)
 
         # Runtime state
         self.results: dict[str, list[EvalSample[TaskT]]] = defaultdict(list)
@@ -152,14 +158,8 @@ class Evaluator(Generic[TaskT]):
         logger.info("Resumed %s completed samples%s from %s", total, aborted_msg, self.output_path)
 
     def save_results(self) -> None:
-        """Save all samples to checkpoint file."""
-        self.output_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.output_path, "w", encoding="utf-8") as f:
-            for prompt_id, samples in self.results.items():
-                for sample in samples:
-                    data = sample.model_dump()
-                    data["prompt_id"] = prompt_id
-                    f.write(json.dumps(data, ensure_ascii=False) + "\n")
+        """Checkpoint accumulated samples via the reporter."""
+        self.reporter.flush()
 
     async def evaluate_sample(self, task: TaskT) -> EvalSample[TaskT]:
         """Evaluate a single sample."""
@@ -198,7 +198,12 @@ class Evaluator(Generic[TaskT]):
 
     async def run(self, tasks: Iterable[TaskT]) -> dict[str, list[EvalSample[TaskT]]]:
         """Run evaluation on tasks with `n_samples_per_prompt` each."""
+        resumed = self.output_path.exists()
         self.load_results()
+        if resumed:
+            # Reconcile the checkpoint to the kept samples before streaming new ones, so a retried
+            # (previously aborted) sample doesn't leave a stale duplicate task entry on disk.
+            self.reporter.rewrite(self.results)
 
         # Expand tasks to (prompt_id, sample_id, task) tuples
         to_process: list[tuple[str, str, TaskT]] = []
@@ -221,6 +226,7 @@ class Evaluator(Generic[TaskT]):
                 sample = await self.evaluate_sample(task)
                 self.results[prompt_id].append(sample)
                 self.completed_ids.add(sample_id)
+                self.reporter.log_sample(prompt_id, sample)
                 pbar.update(1)
                 save_counter += 1
                 if save_counter >= self.save_interval:
