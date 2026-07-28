@@ -26,9 +26,9 @@ from pathlib import Path
 from typing import override
 
 from strands_env.environments.harbor import SWE_SYSTEM_PROMPT_PATH, HarborTask
-from strands_env.eval.benchmarks.terminal_bench import TerminalBenchEvaluator
 
 from ..registry import register_eval
+from .terminal_bench import TerminalBenchEvaluator
 
 
 @register_eval("swebench-verified")
