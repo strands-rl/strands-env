@@ -26,9 +26,9 @@ The DB, policy, and task data live in the tau2 repo (not the pip wheel); the eva
 from strands_env.environments.tau2_bench import Tau2BenchEnv, Tau2BenchTask
 
 env = Tau2BenchEnv(
-    agent_model_factory=agent_model_factory,    # the model under test
-    user_model_factory=user_model_factory,      # drives the user-simulator
-    judge_model_factory=judge_model_factory,    # optional; only used for NL-assertion reward
+    agent_model_factory=agent_model_factory,  # the model under test
+    user_model_factory=user_model_factory,  # drives the user-simulator
+    judge_model_factory=judge_model_factory,  # optional; only used for NL-assertion reward
     max_steps=100,
 )
 

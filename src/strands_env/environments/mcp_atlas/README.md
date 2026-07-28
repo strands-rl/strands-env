@@ -32,7 +32,7 @@ task = MCPAtlasTask(
     gtfa_claims=claims,
 )
 result = await env.rollout(task)  # reset (fetch + filter tools) -> episode -> reward -> cleanup
-await http_client.aclose()        # once, after ALL rollouts
+await http_client.aclose()  # once, after ALL rollouts
 ```
 
 ## Configuration
