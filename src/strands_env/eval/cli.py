@@ -300,11 +300,25 @@ def eval_cmd(
         f"{len(tasks)} samples | n={n_samples_per_prompt} | concurrency={max_concurrency} | {mode} | {output_dir}"
     )
 
-    # Run and save metrics
-    results = asyncio.run(evaluator.run(tasks))
-    metrics = evaluator.compute_metrics(results)
-    with open(output_dir / "metrics.json", "w", encoding="utf-8") as f:
-        json.dump(metrics, f, indent=2)
+    # Run-level metadata for reporters (params/tags for MLflow-style sinks, mirrors config.json).
+    run_metadata = {
+        **config_data,
+        "backend": backend,
+        "model_id": model_id,
+        "n_samples_per_prompt": n_samples_per_prompt,
+        "n_samples": len(tasks),
+        "mode": mode,
+    }
+
+    # Run, compute metrics, and publish through the reporter
+    async def _run_eval() -> None:
+        evaluator.reporter.log_metadata(run_metadata)
+        results = await evaluator.run(tasks)
+        metrics = evaluator.compute_metrics(results)
+        evaluator.reporter.log_metrics(metrics)
+        await evaluator.reporter.publish()
+
+    asyncio.run(_run_eval())
 
     if env_actor_pool is not None:
         env_actor_pool.shutdown()
