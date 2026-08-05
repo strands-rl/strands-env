@@ -51,6 +51,7 @@ result = await env.rollout(task)  # reset (build + start container) -> episode -
 |---|---|---|
 | `backend` | `"docker"` | `"docker"` or `"e2b"` |
 | `exec_timeout` | `1200` | Seconds per `sandbox.exec` command; also the verifier fallback |
+| `start_jitter` | `0.0` | Sleep `uniform(0, start_jitter)` seconds before starting the sandbox, so a wide sweep doesn't open every sandbox in the same tick |
 | `prebaked_e2b_config` | `{}` | e2b connection + template map (see `PrebakedE2BConfig`) |
 
 Base knobs come from `EnvironmentConfig`.

@@ -20,6 +20,8 @@ solves it via a single `execute_command` tool and Harbor's `Verifier` grades the
 
 from __future__ import annotations
 
+import asyncio
+import random
 import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal, NotRequired, Unpack, override
@@ -54,6 +56,7 @@ class HarborConfig(EnvironmentConfig):
 
     exec_timeout: NotRequired[int]  # sandbox.exec timeout; also the verifier fallback
     backend: NotRequired[Literal["docker", "e2b"]]
+    start_jitter: NotRequired[float]  # max seconds to sleep before starting the sandbox (0 disables)
     prebaked_e2b_config: NotRequired[PrebakedE2BConfig]
 
 
@@ -71,6 +74,7 @@ class HarborEnv(Environment[HarborTask]):
         super().__init__(model_factory=model_factory, **config)  # type: ignore[misc]
         self.exec_timeout: int = int(self.config.get("exec_timeout", 1200))
         self.backend: Literal["docker", "e2b"] = self.config.get("backend", "docker")
+        self.start_jitter: float = float(self.config.get("start_jitter", 0.0))
         self.prebaked_e2b_config: PrebakedE2BConfig = self.config.get("prebaked_e2b_config", {})
         self.sandbox: HarborEnvironment | None = None
         # Harbor's reward is tied to the sandbox, so we don't need to pass it in.
@@ -109,6 +113,10 @@ class HarborEnv(Environment[HarborTask]):
                 )
                 # Prebaked templates are static; force_build is a no-op here.
                 force_build = False
+
+        # Add a random jitter to reduce sandbox startup contention.
+        if self.start_jitter > 0:
+            await asyncio.sleep(random.uniform(0, self.start_jitter))
 
         await self.sandbox.start(force_build=force_build)
 
