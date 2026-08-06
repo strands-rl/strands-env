@@ -89,36 +89,68 @@ class TerminationReason(StrEnum):
 
     NOT_TERMINATED = "not_terminated"
     TASK_COMPLETE = "task_complete"
+
+    # Loop budget exhaustion.
     MAX_TOKENS_REACHED = "max_tokens_reached"
     CONTEXT_WINDOW_OVERFLOW = "context_window_overflow"
     MAX_TOOL_ITERATIONS_REACHED = "max_tool_iterations_reached"
     MAX_TOOL_CALLS_REACHED = "max_tool_calls_reached"
     MAX_MESSAGES_REACHED = "max_messages_reached"
     RECURSION_DEPTH_EXCEEDED = "recursion_depth_exceeded"
+
+    # Keyword-based reasons. Declaration order is match priority — see `keywords`.
     TIMEOUT = "timeout"
     CONNECTION_ERROR = "connection_error"
+    AUTH_ERROR = "auth_error"
+    THROTTLED = "throttled"
+
+    # All other errors that haven't been classified yet.
     UNCLASSIFIED_ERROR = "unclassified_error"
 
-    @classmethod
-    def _is_timeout(cls, error: BaseException | None) -> bool:
-        """Check if any exception in the cause chain is a timeout (backend-agnostic)."""
-        exc = error
-        while exc is not None:
-            if "timeout" in type(exc).__name__.lower():
-                return True
-            exc = exc.__cause__
-        return False
+    @property
+    def keywords(self) -> tuple[str, ...]:
+        """Lowercase keywords that classify an exception as this reason, matched by `from_keywords`.
+
+        Empty for reasons recognized by exception type instead. Keeping the table here rather
+        than in a module constant keeps it beside the members it maps.
+        """
+        return {
+            TerminationReason.TIMEOUT: ("timeout",),
+            TerminationReason.CONNECTION_ERROR: ("connection", "disconnected"),
+            TerminationReason.AUTH_ERROR: (
+                "expiredtoken",
+                "credential",
+                "accessdenied",
+                "unauthoriz",
+                "authentication",
+                "unrecognizedclient",
+                "permissiondenied",
+            ),
+            # Reaching us means Strands' event loop already exhausted its retries.
+            # Not "limitexceeded": that also matches resource caps like `ItemCollectionSizeLimit`.
+            TerminationReason.THROTTLED: ("throttl", "ratelimit", "toomanyrequests"),
+        }.get(self, ())
 
     @classmethod
-    def _is_connection_error(cls, error: BaseException | None) -> bool:
-        """Check if any exception in the cause chain is a connection-level failure."""
-        exc = error
-        while exc is not None:
-            name = type(exc).__name__.lower()
-            if "connection" in name or "disconnected" in name:
-                return True
-            exc = exc.__cause__
-        return False
+    def from_keywords(cls, error: BaseException | None) -> TerminationReason | None:
+        """Classify an exception by `keywords`, or None if nothing matches.
+
+        Matches the exception class name, plus the AWS error code for boto errors — those share
+        one uninformative `ClientError` name. Reasons are tried in declaration order, each against
+        the whole `__cause__` chain, so `timeout` beats `connection` for a `ConnectTimeoutError`.
+        """
+        for reason in cls:
+            if not reason.keywords:
+                continue
+            exc = error
+            while exc is not None:
+                response = getattr(exc, "response", None)
+                code = response.get("Error", {}).get("Code", "") if isinstance(response, dict) else ""
+                identity = f"{type(exc).__name__} {code}".lower()
+                if any(keyword in identity for keyword in reason.keywords):
+                    return reason
+                exc = exc.__cause__
+        return None
 
     @classmethod
     def from_error(cls, error: Exception | None) -> TerminationReason:
@@ -148,12 +180,8 @@ class TerminationReason(StrEnum):
                 reason = cls.MAX_MESSAGES_REACHED
             case RecursionError():
                 reason = cls.RECURSION_DEPTH_EXCEEDED
-            case e if cls._is_timeout(e):
-                reason = cls.TIMEOUT
-            case e if cls._is_connection_error(e):
-                reason = cls.CONNECTION_ERROR
             case _:
-                reason = cls.UNCLASSIFIED_ERROR
+                reason = cls.from_keywords(cause) or cls.UNCLASSIFIED_ERROR
 
         logger.warning("Rollout terminated: %s - %s", reason.value, cause)
         return reason
