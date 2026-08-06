@@ -14,10 +14,13 @@
 
 """Unit tests for core types."""
 
+import pytest
+from botocore.exceptions import ClientError
 from strands.types.exceptions import (
     ContextWindowOverflowException,
     EventLoopException,
     MaxTokensReachedException,
+    ModelThrottledException,
 )
 from strands_sglang import MaxMessagesReachedError, MaxToolCallsReachedError, MaxToolIterationsReachedError
 
@@ -269,3 +272,100 @@ class TestTerminationReason:
     def test_non_event_loop_exception(self):
         error = RuntimeError("direct error")
         assert TerminationReason.from_error(error) == TerminationReason.UNCLASSIFIED_ERROR
+
+    def test_auth_error_by_error_code(self):
+        # bedrock-runtime doesn't model ExpiredTokenException, so an expired SigV4 token
+        # surfaces as a bare ClientError — the code is the only thing identifying it.
+        error = EventLoopException(Exception())
+        error.__cause__ = ClientError(
+            {"Error": {"Code": "ExpiredTokenException", "Message": "The security token ... is expired"}},
+            "Converse",
+        )
+        assert TerminationReason.from_error(error) == TerminationReason.AUTH_ERROR
+
+    def test_auth_error_by_class_name(self):
+        # sts *does* model it, so botocore synthesizes a named class instead.
+        class ExpiredTokenException(Exception):  # noqa: N818 - must match AWS's real class name
+            pass
+
+        error = EventLoopException(Exception())
+        error.__cause__ = ExpiredTokenException()
+        assert TerminationReason.from_error(error) == TerminationReason.AUTH_ERROR
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "NoCredentialsError",  # botocore: credentials never resolved
+            "AccessDeniedException",  # bedrock-runtime: model not enabled for the account
+            "UnauthorizedException",  # bedrock-agentcore
+            "AuthenticationError",  # openai
+            "PermissionDeniedError",  # openai
+            "UnrecognizedClientException",  # AWS: invalid token
+        ],
+    )
+    def test_auth_error_variants_across_providers(self, name):
+        error = EventLoopException(Exception())
+        error.__cause__ = type(name, (Exception,), {})()
+        assert TerminationReason.from_error(error) == TerminationReason.AUTH_ERROR
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "ExpiredTradeInTokenException",  # sts: unrelated to credentials
+            "InvalidAuthorizationMessageException",  # sts: a decode failure, not an auth failure
+            "InvalidWebhookSignatureError",  # openai: payload verification
+            "InvalidCodeSignatureException",  # lambda: code signing
+            "ValidationException",  # bedrock-runtime: malformed request
+        ],
+    )
+    def test_auth_keywords_exclude_lookalikes(self, name):
+        # Substring matching is narrow on purpose — these must not read as auth failures.
+        error = EventLoopException(Exception())
+        error.__cause__ = type(name, (Exception,), {})()
+        assert TerminationReason.from_error(error) == TerminationReason.UNCLASSIFIED_ERROR
+
+    def test_error_code_does_not_shadow_typed_reasons(self):
+        # A modeled AWS code containing 'timeout' is still a timeout, not unclassified.
+        class ModelTimeoutException(Exception):  # noqa: N818 - must match AWS's real class name
+            pass
+
+        assert TerminationReason.from_error(ModelTimeoutException()) == TerminationReason.TIMEOUT
+
+    def test_throttled_after_strands_exhausts_retries(self):
+        error = EventLoopException(Exception())
+        error.__cause__ = ModelThrottledException("too many requests")
+        assert TerminationReason.from_error(error) == TerminationReason.THROTTLED
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "ThrottlingException",  # bedrock-runtime
+            "throttlingException",  # AWS also returns this casing — hence the lowercased match
+            "RateLimitError",  # openai
+            "TooManyRequestsException",
+        ],
+    )
+    def test_throttled_variants_across_providers(self, name):
+        error = EventLoopException(Exception())
+        error.__cause__ = type(name, (Exception,), {})()
+        assert TerminationReason.from_error(error) == TerminationReason.THROTTLED
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "ItemCollectionSizeLimitExceededException",  # dynamodb: a resource cap, not throttling
+            "AliasLimitExceededException",  # lambda: a resource cap
+        ],
+    )
+    def test_throttle_keywords_exclude_resource_caps(self, name):
+        error = EventLoopException(Exception())
+        error.__cause__ = type(name, (Exception,), {})()
+        assert TerminationReason.from_error(error) == TerminationReason.UNCLASSIFIED_ERROR
+
+    def test_from_keywords_returns_none_when_unmatched(self):
+        assert TerminationReason.from_keywords(ValueError("boom")) is None
+        assert TerminationReason.from_keywords(None) is None
+
+    def test_keywords_empty_for_type_matched_reasons(self):
+        assert TerminationReason.MAX_TOKENS_REACHED.keywords == ()
+        assert TerminationReason.TIMEOUT.keywords == ("timeout",)
