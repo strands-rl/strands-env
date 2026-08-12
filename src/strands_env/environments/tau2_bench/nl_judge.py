@@ -79,8 +79,13 @@ class Tau2BenchNLAssertionReward(LLMJudgeReward[NLJudgment, Tau2BenchTask]):
     judgment_format = NLJudgment
 
     def __init__(self, env: Tau2BenchEnv, judge_model: Model | list[Model]) -> None:
-        super().__init__(judge_model=judge_model, system_prompt=NL_JUDGE_SYSTEM_PROMPT)
+        super().__init__(judge_model=judge_model)
         self._env = env
+
+    @override
+    async def get_system_prompt(self, task: Tau2BenchTask, result: RolloutResult) -> str:
+        """Return tau2's NL-assertion judge prompt."""
+        return NL_JUDGE_SYSTEM_PROMPT
 
     @override
     async def get_judge_prompt(self, task: Tau2BenchTask, result: RolloutResult) -> str:

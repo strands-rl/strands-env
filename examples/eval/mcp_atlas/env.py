@@ -34,15 +34,13 @@ def create_env_factory(model_config: dict, **env_config):
                 sampling_params={"max_new_tokens": 1024},
             )()
         )
-    max_judge_retries = env_config.get("max_judge_retries", 3)
-
     docker_url = env_config.get("docker_url", MCPAtlasEnv.DEFAULT_DOCKER_URL)
     http_client = MCPAtlasEnv.create_client(base_url=docker_url)
 
     async def env_factory():
         # Each env gets its own reward_fn to avoid concurrent tasks overwriting
         # _current_claim / _response on a shared instance.
-        reward_fn = MCPAtlasReward(judge_model=judge_models, max_model_retries=max_judge_retries)
+        reward_fn = MCPAtlasReward(judge_model=judge_models)
         return MCPAtlasEnv(
             model_factory=model_factory,
             http_client=http_client,
