@@ -16,7 +16,6 @@
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
 from pydantic import BaseModel
 from strands.types.exceptions import ModelThrottledException
 
@@ -191,9 +190,9 @@ class TestHappyPath:
     async def test_structured_output_success(self, mock_agent_cls):
         """Structured output mode: judgment_format set, structured output parsed."""
         mock_agent_instance = MagicMock()
-        mock_agent_instance.structured_output_async = AsyncMock(
-            return_value=_FakeJudgment(grade="correct"),
-        )
+        mock_result = MagicMock()
+        mock_result.structured_output = _FakeJudgment(grade="correct")
+        mock_agent_instance.invoke_async = AsyncMock(return_value=mock_result)
         mock_agent_cls.return_value = mock_agent_instance
 
         judge = _StructuredJudge(judge_model=MagicMock())
@@ -222,35 +221,46 @@ class TestHappyPath:
         assert result.info["judgment"] == "correct answer"
 
     @patch("strands_env.core.llm_judge_reward.Agent")
-    async def test_throttle_rotates_to_next_model(self, mock_agent_cls):
-        """On throttle, cycles to the next model and succeeds."""
+    async def test_model_list_rotates_per_sample(self, mock_agent_cls):
+        """A `judge_model` list round-robins across samples, spreading load over profiles."""
         mock_result = MagicMock()
         mock_result.message = {"content": [{"text": "correct"}]}
-        throttled = MagicMock(invoke_async=AsyncMock(side_effect=ModelThrottledException("throttled")))
-        ok = MagicMock(invoke_async=AsyncMock(return_value=mock_result))
-        mock_agent_cls.side_effect = [throttled, ok]
+        mock_agent_cls.return_value = MagicMock(invoke_async=AsyncMock(return_value=mock_result))
 
         model_a, model_b = MagicMock(), MagicMock()
-        judge = _TextJudge(judge_model=[model_a, model_b], max_model_retries=2)
-        result = await judge.compute(*_task_and_result())
+        judge = _TextJudge(judge_model=[model_a, model_b])
+        for _ in range(3):
+            await judge.compute(*_task_and_result())
 
-        assert result.reward == 1.0
-        assert mock_agent_cls.call_args_list[0][1]["model"] is model_a
-        assert mock_agent_cls.call_args_list[1][1]["model"] is model_b
+        used = [call[1]["model"] for call in mock_agent_cls.call_args_list]
+        assert used == [model_a, model_b, model_a]
 
     @patch("strands_env.core.llm_judge_reward.Agent")
-    async def test_all_retries_throttled_returns_default(self, mock_agent_cls):
-        """When all retries exhausted, returns default_reward."""
+    async def test_throttle_returns_default_reward(self, mock_agent_cls):
+        """A throttle surfacing from Strands' own retry is reported as judge_error."""
         throttled = MagicMock(invoke_async=AsyncMock(side_effect=ModelThrottledException("throttled")))
         mock_agent_cls.return_value = throttled
 
-        judge = _TextJudge(judge_model=MagicMock(), max_model_retries=2, default_reward=0.0)
+        judge = _TextJudge(judge_model=MagicMock(), default_reward=0.0)
         result = await judge.compute(*_task_and_result())
 
         assert result.reward == 0.0
         assert result.info["error_type"] == "judge_error"
 
-    def test_non_positive_max_model_retries_rejected(self):
-        """max_model_retries < 1 would skip the judge loop entirely, leaving judgment unbound."""
-        with pytest.raises(ValueError, match="max_model_retries"):
-            _TextJudge(judge_model=MagicMock(), max_model_retries=0)
+    @patch("strands_env.core.llm_judge_reward.Agent")
+    async def test_get_judge_agent_override_used(self, mock_agent_cls):
+        """An overridden get_judge_agent replaces the default agent construction."""
+        mock_result = MagicMock()
+        mock_result.message = {"content": [{"text": "correct"}]}
+        custom = MagicMock(invoke_async=AsyncMock(return_value=mock_result))
+
+        class _CustomAgentJudge(_TextJudge):
+            async def get_judge_agent(self, system_prompt):
+                return custom
+
+        judge = _CustomAgentJudge(judge_model=MagicMock())
+        result = await judge.compute(*_task_and_result())
+
+        assert result.reward == 1.0
+        mock_agent_cls.assert_not_called()
+        custom.invoke_async.assert_awaited_once()

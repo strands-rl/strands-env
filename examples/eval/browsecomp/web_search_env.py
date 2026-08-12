@@ -40,7 +40,7 @@ def create_env_factory(model_config: dict, **env_config):
                 sampling_params={"max_new_tokens": 1024},
             )()
         )
-    reward_fn = BrowseCompReward(judge_model=judge_models, max_model_retries=env_config.get("max_judge_retries", 3))
+    reward_fn = BrowseCompReward(judge_model=judge_models)
 
     async def env_factory():
         return WebSearchEnv(
