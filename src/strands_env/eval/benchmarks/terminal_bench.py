@@ -70,15 +70,6 @@ class TerminalBenchEvaluator(Evaluator[HarborTask]):
         return task
 
     @override
-    def validate_sample(self, sample: EvalSample[HarborTask]) -> bool:
-        """Abort samples where reward is missing or verification failed, so they are retried on resume."""
-        reward_result = sample.result.reward_result
-        if reward_result is None:
-            # no reward_fn configured — deterministic, retrying can't help (run() warns about it)
-            return True
-        return reward_result.info.get("status") != "error"
-
-    @override
     async def evaluate_sample(self, task: HarborTask) -> EvalSample[HarborTask]:
         """Override to create sample-specific output directories for pass@k."""
         sample_idx = int(task.id.rsplit("_", 1)[1]) if "_" in task.id else 0

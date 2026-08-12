@@ -24,7 +24,7 @@ from datasets import load_dataset
 
 from strands_env.core import Task
 
-from ..evaluator import EvalSample, Evaluator
+from ..evaluator import Evaluator
 from ..registry import register_eval
 from .simpleqa_verified import SimpleQAReward
 
@@ -42,14 +42,6 @@ class SealQAEvaluator(Evaluator):
     """Base evaluator for SealQA benchmarks."""
 
     hf_dataset_path = "vtllms/sealqa"
-
-    @override
-    def validate_sample(self, sample: EvalSample) -> bool:
-        """Abort samples where the judge failed (e.g. throttling), so they are retried on resume."""
-        reward_result = sample.result.reward_result
-        if reward_result is None:
-            return True
-        return reward_result.info.get("status") != "error"
 
     @override
     def load_dataset(self) -> Iterable[Task]:

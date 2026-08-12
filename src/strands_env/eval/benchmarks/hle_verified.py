@@ -31,7 +31,7 @@ from strands.types.content import Message
 from strands_env.core import RolloutResult, Task
 from strands_env.core.llm_judge_reward import LLMJudgeReward
 
-from ..evaluator import EvalSample, Evaluator
+from ..evaluator import Evaluator
 from ..registry import register_eval
 
 logger = logging.getLogger(__name__)
@@ -121,14 +121,6 @@ class HLEVerifiedEvaluator(Evaluator):
         r"^data:image/(?P<fmt>[^;]+);base64,(?P<payload>.*)$", re.IGNORECASE
     )
     _SUPPORTED_IMAGE_FORMATS: ClassVar[frozenset[str]] = frozenset({"png", "jpeg", "gif", "webp"})
-
-    @override
-    def validate_sample(self, sample: EvalSample) -> bool:
-        """Abort samples where the judge failed (e.g. throttling), so they are retried on resume."""
-        reward_result = sample.result.reward_result
-        if reward_result is None:
-            return True
-        return reward_result.info.get("status") != "error"
 
     @staticmethod
     def parse_image_data_url(data_url: str) -> tuple[Literal["png", "jpeg", "gif", "webp"], bytes]:

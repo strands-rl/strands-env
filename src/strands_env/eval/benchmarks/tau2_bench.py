@@ -82,16 +82,20 @@ class Tau2BenchEvaluator(Evaluator[Tau2BenchTask]):
 
     @override
     def validate_sample(self, sample: EvalSample[Tau2BenchTask]) -> bool:
-        """Abort samples with missing reward, NL judge error, or an aborted user-sim (all retryable)."""
-        reward_result = sample.result.reward_result
-        if reward_result is None:
+        """Also abort on an NL-judge error or an aborted user-sim (both retryable).
+
+        Neither is visible to the base check: the NL judge is a sub-reward, so its failure is
+        nested in `info` instead of setting the reward's own `status`, and the user simulator
+        is not part of the reward at all.
+        """
+        if not super().validate_sample(sample):
             return False
+        reward_result = sample.result.reward_result
+        assert reward_result is not None  # the base check rejects a missing reward
         nl_judge = reward_result.info.get("nl_judge")
         if nl_judge and nl_judge.get("status") == "error":
             return False
-        if ((sample.result.metrics or {}).get("user_simulator") or {}).get("termination") == "aborted":
-            return False
-        return True
+        return ((sample.result.metrics or {}).get("user_simulator") or {}).get("termination") != "aborted"
 
     @override
     def get_metric_fns(self) -> list[MetricFunction]:
