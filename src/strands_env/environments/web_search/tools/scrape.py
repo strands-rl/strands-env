@@ -19,7 +19,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import aiohttp
 import tiktoken
@@ -169,7 +169,9 @@ class WebScraperToolkit:
         prompt = SUMMARY_PROMPT_TEMPLATE.format(content=content, goal=goal)
         summarizer = Agent(model=self.summarizer_model_factory(), tools=[])
         try:
-            return await summarizer.structured_output_async(output_model=WebPageSummary, prompt=prompt)
+            result = await summarizer.invoke_async(prompt, structured_output_model=WebPageSummary)
+            # `structured_output` is unset if the model never emitted the tool call.
+            return cast(WebPageSummary | None, result.structured_output)
         except Exception as e:
             logger.error("[web_page_summary] error: content=%s..., goal=%s..., error=%s", content[:100], goal[:100], e)
             return None

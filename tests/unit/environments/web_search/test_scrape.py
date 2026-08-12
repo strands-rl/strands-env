@@ -331,3 +331,59 @@ class TestScraperDefaults:
 
         sig = inspect.signature(WebScraperToolkit.fetch_html)
         assert sig.parameters["max_retries"].default == 8
+
+
+class TestSummarize:
+    """`summarize` drives the summarizer agent and unwraps its structured output."""
+
+    @pytest.mark.asyncio
+    @patch("strands_env.environments.web_search.tools.scrape.Agent")
+    async def test_returns_structured_output(self, mock_agent_cls):
+        """The parsed `WebPageSummary` comes off `AgentResult.structured_output`."""
+        summary = WebPageSummary(rationale="R", evidence="E", summary="S")
+        mock_result = MagicMock(structured_output=summary)
+        mock_agent_cls.return_value = MagicMock(invoke_async=AsyncMock(return_value=mock_result))
+
+        toolkit = WebScraperToolkit(summarizer_model_factory=MagicMock())
+        assert await toolkit.summarize("content", "goal") is summary
+
+    @pytest.mark.asyncio
+    @patch("strands_env.environments.web_search.tools.scrape.Agent")
+    async def test_forces_structured_output_in_one_invocation(self, mock_agent_cls):
+        """The model is requested via `invoke_async`, so the event loop (and tools) run."""
+        mock_result = MagicMock(structured_output=WebPageSummary(rationale="R", evidence="E", summary="S"))
+        agent = MagicMock(invoke_async=AsyncMock(return_value=mock_result))
+        mock_agent_cls.return_value = agent
+
+        toolkit = WebScraperToolkit(summarizer_model_factory=MagicMock())
+        await toolkit.summarize("content", "goal")
+
+        agent.invoke_async.assert_awaited_once()
+        args, kwargs = agent.invoke_async.await_args
+        assert kwargs["structured_output_model"] is WebPageSummary
+        assert "content" in args[0] and "goal" in args[0]
+
+    @pytest.mark.asyncio
+    @patch("strands_env.environments.web_search.tools.scrape.Agent")
+    async def test_unset_structured_output_returns_none(self, mock_agent_cls):
+        """If the model never emits the structured-output tool, `structured_output` is None."""
+        mock_agent_cls.return_value = MagicMock(invoke_async=AsyncMock(return_value=MagicMock(structured_output=None)))
+
+        toolkit = WebScraperToolkit(summarizer_model_factory=MagicMock())
+        assert await toolkit.summarize("content", "goal") is None
+
+    @pytest.mark.asyncio
+    @patch("strands_env.environments.web_search.tools.scrape.Agent")
+    async def test_invocation_error_returns_none(self, mock_agent_cls):
+        """A failing summarizer degrades to None rather than propagating."""
+        mock_agent_cls.return_value = MagicMock(invoke_async=AsyncMock(side_effect=RuntimeError("model down")))
+
+        toolkit = WebScraperToolkit(summarizer_model_factory=MagicMock())
+        assert await toolkit.summarize("content", "goal") is None
+
+    @pytest.mark.asyncio
+    async def test_without_summarizer_factory_raises(self):
+        """`summarize` requires a summarizer model factory."""
+        toolkit = WebScraperToolkit()
+        with pytest.raises(RuntimeError, match="summarizer_model_factory"):
+            await toolkit.summarize("content", "goal")
