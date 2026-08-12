@@ -92,15 +92,6 @@ class MCPAtlasEvaluator(Evaluator[MCPAtlasTask]):
                 await http_client.aclose()
 
     @override
-    def validate_sample(self, sample: EvalSample[MCPAtlasTask]) -> bool:
-        """Abort samples where reward is missing or judge failed, so they are retried on resume."""
-        reward_result = sample.result.reward_result
-        if reward_result is None:
-            # no reward_fn configured — deterministic, retrying can't help (run() warns about it)
-            return True
-        return reward_result.info.get("status") != "error"
-
-    @override
     def load_dataset(self) -> Iterable[MCPAtlasTask]:
         """Load MCP-Atlas tasks from HuggingFace, filter by available servers."""
         from datasets import load_dataset

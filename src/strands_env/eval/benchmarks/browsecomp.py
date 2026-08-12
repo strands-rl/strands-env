@@ -28,7 +28,7 @@ from pydantic import BaseModel, Field
 from strands_env.core import RolloutResult, Task
 from strands_env.core.llm_judge_reward import LLMJudgeReward
 
-from ..evaluator import EvalSample, Evaluator
+from ..evaluator import Evaluator
 from ..registry import register_eval
 
 logger = logging.getLogger(__name__)
@@ -98,14 +98,6 @@ class BrowseCompReward(LLMJudgeReward[BrowseCompJudgment]):
 @register_eval("browsecomp")
 class BrowseCompEvaluator(Evaluator):
     """Evaluator for BrowseComp benchmark."""
-
-    @override
-    def validate_sample(self, sample: EvalSample) -> bool:
-        """Abort samples where the judge failed (e.g. throttling), so they are retried on resume."""
-        reward_result = sample.result.reward_result
-        if reward_result is None:
-            return True
-        return reward_result.info.get("status") != "error"
 
     @override
     def load_dataset(self) -> Iterable[Task]:

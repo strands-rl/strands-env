@@ -112,12 +112,18 @@ class Evaluator(Generic[TaskT]):
         """Load dataset. Override in subclasses."""
         raise NotImplementedError("Subclasses must implement load_dataset()")
 
-    def validate_sample(self, _sample: EvalSample[TaskT]) -> bool:
+    def validate_sample(self, sample: EvalSample[TaskT]) -> bool:
         """Check if a completed sample is valid. Override with benchmark-specific logic.
 
-        Return False to mark the sample as aborted (excluded from metrics, retried on resume).
+        Notes:
+            - Return `True` to mark the sample as valid, `False` to mark it as aborted (excluded from metrics, retried on resume).
+            - By default a sample is invalid unless it carries a reward that computed: a
+              missing reward, or one whose `info` says `status: "error"`, cannot be scored,
+              and metrics count an unscorable sample as *incorrect* rather than absent.
+              Keeping it would report a fabricated number.
         """
-        return True
+        reward_result = sample.result.reward_result
+        return reward_result is not None and reward_result.info.get("status") != "error"
 
     def get_metric_fns(self) -> list[MetricFunction]:
         """Return metric functions for evaluation. Override to customize.

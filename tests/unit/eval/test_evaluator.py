@@ -185,8 +185,12 @@ class TestCheckpoint:
         assert len(lines) == 1
 
     async def test_resumes_from_checkpoint(self, mock_env, tmp_path):
-        """Skips already-completed samples on resume."""
-        mock_env.rollout.return_value = RolloutResult()
+        """Skips already-completed samples on resume.
+
+        The rollout carries a reward, since an unscorable sample is aborted and so retried
+        rather than skipped.
+        """
+        mock_env.rollout.return_value = RolloutResult(reward_result=RewardResult(reward=1.0))
         output_path = tmp_path / "results.jsonl"
 
         async def factory():
@@ -218,6 +222,37 @@ class TestCheckpoint:
 
 
 class TestValidateSample:
+    def _evaluator(self, tmp_path):
+        async def factory():
+            return MagicMock()
+
+        return Evaluator(env_factory=factory, output_path=tmp_path / "results.jsonl")
+
+    def test_reward_error_is_invalid_by_default(self, tmp_path):
+        """A failed reward is the `default_reward` fallback, not a measurement — abort and retry it."""
+        sample = EvalSample(
+            task=Task(id="s", message="q"),
+            result=RolloutResult(
+                reward_result=RewardResult(reward=0.0, info={"status": "error", "error_type": "judge_error"})
+            ),
+        )
+        assert self._evaluator(tmp_path).validate_sample(sample) is False
+
+    def test_successful_reward_is_valid(self, tmp_path):
+        """A scored sample is kept, including a legitimate 0.0."""
+        evaluator = self._evaluator(tmp_path)
+        for reward in (0.0, 1.0):
+            sample = EvalSample(
+                task=Task(id="s", message="q"),
+                result=RolloutResult(reward_result=RewardResult(reward=reward, info={"status": "success"})),
+            )
+            assert evaluator.validate_sample(sample) is True
+
+    def test_missing_reward_is_invalid(self, tmp_path):
+        """An unscored sample cannot be scored, and metrics would count it as incorrect."""
+        sample = EvalSample(task=Task(id="s", message="q"), result=RolloutResult())
+        assert self._evaluator(tmp_path).validate_sample(sample) is False
+
     async def test_aborted_samples_excluded_from_metrics(self, tmp_path):
         """Entire prompt is excluded from metrics if any sample is aborted."""
         results = {
