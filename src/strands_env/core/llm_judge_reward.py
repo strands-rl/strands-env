@@ -95,6 +95,7 @@ class LLMJudgeReward(RewardFunction[TaskT], Generic[JudgmentFormat, TaskT]):
 
     async def get_judge_agent(self, system_prompt: str | None, name: str = "LLMJudge") -> Agent:
         """Build the agent that judges one sample. Override to configure it."""
+        # TODO: current model rotation is not within but across samples, amend this with a hook on AfterModelCallEvent if needed
         return Agent(model=next(self.judge_models), system_prompt=system_prompt, tools=[], name=name)
 
     @override
