@@ -93,25 +93,20 @@ class LLMJudgeReward(RewardFunction[TaskT], Generic[JudgmentFormat, TaskT]):
         """Get reward from judgment (structured or text)."""
         raise NotImplementedError("Subclasses must implement this method.")
 
-    async def get_judge_agent(self, system_prompt: str | None, name: str = "LLMJudge") -> Agent:
+    async def get_judge_agent(self, task: TaskT, result: RolloutResult) -> Agent:
         """Build the agent that judges one sample. Override to configure it."""
         # TODO: current model rotation is not within but across samples, amend this with a hook on AfterModelCallEvent if needed
-        return Agent(model=next(self.judge_models), system_prompt=system_prompt, tools=[], name=name)
+        return Agent(
+            model=next(self.judge_models),
+            system_prompt=await self.get_system_prompt(task, result),
+            tools=[],
+            name="LLMJudge",
+        )
 
     @override
     async def compute(self, task: TaskT, result: RolloutResult) -> RewardResult:
         def _render_error(e: Exception) -> str:
             return f"{type(e).__name__}: {e}"
-
-        # Render system prompt
-        try:
-            system_prompt = await self.get_system_prompt(task, result)
-        except Exception as e:
-            logger.error("System prompt rendering failed: %s", e)
-            return RewardResult(
-                reward=self.default_reward,
-                info={"status": "error", "error_type": "system_prompt_error", "error": _render_error(e)},
-            )
 
         # Render judge prompt
         try:
@@ -123,9 +118,18 @@ class LLMJudgeReward(RewardFunction[TaskT], Generic[JudgmentFormat, TaskT]):
                 info={"status": "error", "error_type": "judge_prompt_error", "error": _render_error(e)},
             )
 
+        # Build the judge (renders the system prompt, and for an agentic judge resolves its tools)
+        try:
+            agent = await self.get_judge_agent(task, result)
+        except Exception as e:
+            logger.error("Judge agent construction failed: %s", e)
+            return RewardResult(
+                reward=self.default_reward,
+                info={"status": "error", "error_type": "judge_agent_error", "error": _render_error(e)},
+            )
+
         # Invoke judge model (Strands' `ModelRetryStrategy` handles throttling internally)
         try:
-            agent = await self.get_judge_agent(system_prompt)
             judge_result = await agent.invoke_async(prompt, structured_output_model=self.judgment_format)
             judgment: JudgmentFormat | str = (
                 cast(JudgmentFormat, judge_result.structured_output)

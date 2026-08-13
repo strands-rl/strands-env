@@ -89,8 +89,11 @@ class TestErrorRecovery:
         assert result.reward == 0.0
         assert result.info["error_type"] == "judge_prompt_error"
 
-    async def test_system_prompt_error_returns_default_reward(self):
-        """get_system_prompt raising returns default_reward with system_prompt_error info."""
+    async def test_judge_agent_error_returns_default_reward(self):
+        """A judge that cannot be built scores default_reward with judge_agent_error info.
+
+        `get_system_prompt` is called by `get_judge_agent`, so its failures land here too.
+        """
 
         class _FailingSystemPrompt(LLMJudgeReward):
             judgment_format = None
@@ -109,7 +112,7 @@ class TestErrorRecovery:
         result = await judge.compute(task, result)
 
         assert result.reward == 0.0
-        assert result.info["error_type"] == "system_prompt_error"
+        assert result.info["error_type"] == "judge_agent_error"
 
     @patch("strands_env.core.llm_judge_reward.Agent")
     async def test_get_system_prompt_override_used(self, mock_agent_cls):
@@ -254,13 +257,21 @@ class TestHappyPath:
         mock_result.message = {"content": [{"text": "correct"}]}
         custom = MagicMock(invoke_async=AsyncMock(return_value=mock_result))
 
+        seen = {}
+
         class _CustomAgentJudge(_TextJudge):
-            async def get_judge_agent(self, system_prompt):
+            async def get_judge_agent(self, task, result):
+                seen["task"], seen["result"] = task, result
                 return custom
 
         judge = _CustomAgentJudge(judge_model=MagicMock())
-        result = await judge.compute(*_task_and_result())
+        task, rollout = _task_and_result()
+        result = await judge.compute(task, rollout)
 
         assert result.reward == 1.0
         mock_agent_cls.assert_not_called()
         custom.invoke_async.assert_awaited_once()
+        # The sample is handed to the override, so an agentic judge can bind per-sample state
+        # (e.g. request context) to its tools.
+        assert seen["task"] is task
+        assert seen["result"] is rollout
