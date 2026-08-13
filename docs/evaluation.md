@@ -290,11 +290,12 @@ Available parsers: `hermes` (default), `qwen_xml`, `glm`.
 
 ## Output Files
 
-Evaluation results are saved to the output directory:
+Evaluation results are written by the configured reporter. `LocalReporter` (the default) saves them
+to the output directory:
 
 ```
 {benchmark}_eval/
-├── config.json      # CLI configuration for reproducibility
+├── metadata.json    # Run configuration for reproducibility
 ├── results.jsonl    # Per-sample results (task, result, reward)
 └── metrics.json     # Aggregated metrics (pass@k, etc.)
 ```
