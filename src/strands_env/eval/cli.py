@@ -282,27 +282,18 @@ def eval_cmd(
     )
     tasks = list(evaluator.load_dataset())[:max_samples]
 
-    # Save config for reproducibility
-    config_data = {
+    mode = f"distributed ({n_actors_per_node} actors/node)" if env_actor_pool else "local"
+    click.echo(
+        f"Running {benchmark_name} | {backend} | {model_id or '(auto)'} | "
+        f"{len(tasks)} samples | n={n_samples_per_prompt} | concurrency={max_concurrency} | {mode} | {output_dir}"
+    )
+    metadata = {
         "benchmark": benchmark_name,
         "evaluator_path": evaluator_path,
         "env_hook": env_hook,
         "env_config": env_config or {},
         "model_config": model_config.to_dict(),
         "n_actors_per_node": n_actors_per_node,
-    }
-    with open(output_dir / "config.json", "w", encoding="utf-8") as f:
-        json.dump(config_data, f, indent=2)
-
-    mode = f"distributed ({n_actors_per_node} actors/node)" if env_actor_pool else "local"
-    click.echo(
-        f"Running {benchmark_name} | {backend} | {model_id or '(auto)'} | "
-        f"{len(tasks)} samples | n={n_samples_per_prompt} | concurrency={max_concurrency} | {mode} | {output_dir}"
-    )
-
-    # Run-level metadata for reporters (params/tags for MLflow-style sinks, mirrors config.json).
-    run_metadata = {
-        **config_data,
         "backend": backend,
         "model_id": model_id,
         "n_samples_per_prompt": n_samples_per_prompt,
@@ -312,7 +303,7 @@ def eval_cmd(
 
     # Run, compute metrics, and publish through the reporter
     async def _run_eval() -> None:
-        evaluator.reporter.log_metadata(run_metadata)
+        evaluator.reporter.log_metadata(metadata)
         results = await evaluator.run(tasks)
         metrics = evaluator.compute_metrics(results)
         evaluator.reporter.log_metrics(metrics)
