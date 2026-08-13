@@ -72,6 +72,21 @@ class TestLocalReporter:
         assert rows[0]["task"]["id"] == "p1_0"
         assert rows[0]["result"]["reward_result"]["reward"] == 1.0
 
+    def test_log_sample_survives_an_unpaired_surrogate(self, tmp_path: Path):
+        """A lone surrogate in model output must not fail the write."""
+        output_path = tmp_path / "results.jsonl"
+        reporter = LocalReporter(output_path)
+        sample = EvalSample(
+            task=Task(id="p1_0", message="half a math-italic code point: \ud835"),
+            result=RolloutResult(reward_result=RewardResult(reward=1.0)),
+        )
+
+        reporter.log_sample("p1", sample)
+        reporter.flush()
+
+        rows = _read_jsonl(output_path)
+        assert rows[0]["task"]["message"] == "half a math-italic code point: \ud835"
+
     def test_log_sample_creates_parent_dirs(self, tmp_path: Path):
         """The first log_sample creates parent directories if they don't exist."""
         output_path = tmp_path / "nested" / "dir" / "results.jsonl"

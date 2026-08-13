@@ -160,7 +160,9 @@ class LocalReporter(EvalReporter):
         fh = self._ensure_open()
         data = sample.model_dump()
         data["prompt_id"] = prompt_id
-        fh.write(json.dumps(data, ensure_ascii=False) + "\n")
+        # `ensure_ascii` stays at its default: it escapes unpaired surrogates, which the file's
+        # UTF-8 encoder would otherwise reject mid-run.
+        fh.write(json.dumps(data) + "\n")
 
     def flush(self) -> None:
         """Sync the open file handle to disk."""
@@ -182,7 +184,7 @@ class LocalReporter(EvalReporter):
                 for sample in samples:
                     data = sample.model_dump()
                     data["prompt_id"] = prompt_id
-                    f.write(json.dumps(data, ensure_ascii=False) + "\n")
+                    f.write(json.dumps(data) + "\n")
 
     def log_metrics(self, metrics: dict[str, float]) -> None:
         """Write `metrics.json` to the output directory."""
