@@ -26,7 +26,7 @@ from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar, Generic
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, SerializeAsAny
 from tqdm import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
 
@@ -45,7 +45,7 @@ logger = logging.getLogger(__name__)
 class EvalSample(BaseModel, Generic[TaskT]):
     """Evaluation sample result."""
 
-    task: TaskT = Field(..., description="The task that was evaluated.")
+    task: SerializeAsAny[TaskT] = Field(..., description="The task that was evaluated.")
     result: RolloutResult = Field(..., description="The rollout result.")
     aborted: bool = Field(default=False, description="Whether this sample was aborted.")
 

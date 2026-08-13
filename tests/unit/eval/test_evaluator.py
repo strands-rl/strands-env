@@ -14,6 +14,7 @@
 
 """Unit tests for evaluation module (evaluator + metrics)."""
 
+import json
 import logging
 from unittest.mock import AsyncMock, MagicMock
 
@@ -183,6 +184,30 @@ class TestCheckpoint:
         assert output_path.exists()
         lines = output_path.read_text().strip().split("\n")
         assert len(lines) == 1
+
+    async def test_checkpoint_keeps_typed_task_fields(self, mock_env, tmp_path):
+        """A `Task` subclass's own fields must reach `results.jsonl`.
+
+        The call sites construct a bare `EvalSample(...)`, so an `Evaluator[XxxTask]` binding
+        never reaches it and pydantic serializes `task` against `TaskT`'s default (`Task`) —
+        silently dropping subclass fields. The rollout still gets the real object, so this is
+        invisible at run time and only shows up in the results file and on resume.
+        """
+
+        class TypedTask(Task):
+            task_dir: str = ""
+
+        mock_env.rollout.return_value = RolloutResult(reward_result=RewardResult(reward=1.0))
+        output_path = tmp_path / "results.jsonl"
+
+        async def factory():
+            return mock_env
+
+        evaluator = Evaluator(env_factory=factory, output_path=output_path, save_interval=1)
+        await evaluator.run([TypedTask(id="s1", message="q1", task_dir="/tasks/t1")])
+
+        row = json.loads(output_path.read_text().strip())
+        assert row["task"]["task_dir"] == "/tasks/t1"
 
     async def test_resumes_from_checkpoint(self, mock_env, tmp_path):
         """Skips already-completed samples on resume.
