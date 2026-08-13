@@ -31,7 +31,7 @@ pytest tests/unit/core/test_environment.py::TestRollout::test_successful_rollout
 # Unit tests with coverage
 pytest tests/unit/ -v --cov=src/strands_env --cov-report=html
 
-# Integration tests (requires running SGLang server; model ID auto-detected via /get_model_info)
+# Integration tests (requires running SGLang server; model ID auto-detected via /model_info)
 # Tests skip automatically if server is unreachable (/health check)
 pytest tests/integration/ -v --sglang-base-url=http://localhost:30000
 # Or via env var: SGLANG_BASE_URL=http://localhost:30000 pytest tests/integration/

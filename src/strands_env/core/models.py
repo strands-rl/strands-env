@@ -123,13 +123,13 @@ def check_server_health(base_url: str, timeout: float = 5.0) -> None:
 
 
 def get_model_id(base_url: str, timeout: float = 5.0) -> str:
-    """Get the model's HF identifier from the SGLang server via `/get_model_info`."""
-    response = httpx.get(f"{base_url}/get_model_info", timeout=timeout)
+    """Get the model's HF identifier from the SGLang server via `/model_info`."""
+    response = httpx.get(f"{base_url}/model_info", timeout=timeout)
     response.raise_for_status()
     info = response.json()
     model_id = info.get("tokenizer_path") or info.get("model_path")
     if not model_id:
-        raise RuntimeError(f"No tokenizer_path/model_path at {base_url}/get_model_info")
+        raise RuntimeError(f"No tokenizer_path/model_path at {base_url}/model_info")
     return str(model_id)
 
 

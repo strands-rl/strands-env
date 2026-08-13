@@ -15,7 +15,7 @@
 """Shared fixtures for integration tests.
 
 All tests in this directory require a running SGLang server.
-The model ID is auto-detected from the server via /get_model_info.
+The model ID is auto-detected from the server via /model_info.
 Tests are skipped automatically if the server is not reachable.
 
 Configuration (priority: CLI > env var > default):
