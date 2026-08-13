@@ -156,12 +156,10 @@ class LocalReporter(EvalReporter):
         return self._fh
 
     def log_sample(self, prompt_id: str, sample: EvalSample[Any]) -> None:
-        """Append the sample to results.jsonl."""
+        """Append the sample to `results.jsonl`."""
         fh = self._ensure_open()
         data = sample.model_dump()
         data["prompt_id"] = prompt_id
-        # `ensure_ascii` stays at its default: it escapes unpaired surrogates, which the file's
-        # UTF-8 encoder would otherwise reject mid-run.
         fh.write(json.dumps(data) + "\n")
 
     def flush(self) -> None:
