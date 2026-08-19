@@ -207,18 +207,18 @@ class RolloutResult(BaseModel):
         return self.get_final_response(raw=False)
 
     def get_final_response(self, *, raw: bool = False) -> str | None:
-        """Return text from the last assistant message, or None.
+        """Return text from the agent's last reply, or None if it did not have the last word.
 
         Args:
-            raw: If True, return the full text including <think>...</think> blocks.
-                 If False (default), strip think blocks before returning.
-
-        None when the conversation ended on a non-assistant message (e.g. a tau2
-        `user_stop` turn) — the agent did not have the last word.
+            raw: If True, keep `<think>...</think>` blocks instead of stripping them.
         """
-        if not self.messages or self.messages[-1].get("role") != "assistant":
-            return None
-        return extract_message_text(self.messages[-1], raw=raw) or None
+        for message in reversed(self.messages):
+            # Blank trailing turns: a model can report `tool_use` with no tool-use block, and the
+            # agent loop then appends an empty message and recurses past a completed answer.
+            if not extract_message_text(message, raw=True).strip():
+                continue
+            return extract_message_text(message, raw=raw) or None if message.get("role") == "assistant" else None
+        return None
 
 
 def extract_message_text(message: Message, *, raw: bool = False) -> str:

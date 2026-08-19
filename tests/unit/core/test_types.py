@@ -173,6 +173,24 @@ class TestRolloutResult:
         result = RolloutResult(messages=messages)
         assert result.final_response == "result is 4"
 
+    def test_final_response_skips_blank_trailing_turns(self):
+        # A `tool_use` stop reason with no tool-use block leaves blank turns after a full answer.
+        messages = [
+            {"role": "assistant", "content": [{"text": "the answer is 4"}]},
+            {"role": "user", "content": []},
+            {"role": "assistant", "content": [{"text": "  "}]},
+        ]
+        result = RolloutResult(messages=messages)
+        assert result.final_response == "the answer is 4"
+
+    def test_final_response_blank_turns_after_user_stop(self):
+        messages = [
+            {"role": "user", "content": [{"text": "###STOP###"}]},
+            {"role": "assistant", "content": []},
+        ]
+        result = RolloutResult(messages=messages)
+        assert result.final_response is None
+
     def test_defaults(self):
         result = RolloutResult()
         assert result.reward_result is None
