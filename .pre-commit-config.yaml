@@ -52,15 +52,6 @@ repos:
       - id: check-github-workflows
       - id: check-dependabot
 
-  - repo: https://github.com/Lucas-C/pre-commit-hooks
-    rev: v1.5.6
-    hooks:
-      - id: insert-license
-        files: ^src/.*\.py$
-        args:
-          - --license-filepath=.license-header.txt
-          - --comment-style=#
-
   - repo: https://github.com/compilerla/conventional-pre-commit
     rev: 91ab4bf57e58b32adf1a122681f6ebe164d081c8 # frozen: v4.4.0
     hooks:
