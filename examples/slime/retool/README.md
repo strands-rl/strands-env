@@ -17,7 +17,7 @@ slime-based RL training for math problem solving using `AgentCoreCodeEnv` (based
 
 2. **Install strands-env**:
    ```bash
-   git clone https://github.com/horizon-rl/strands-env.git
+   git clone https://github.com/strands-rl/strands-env.git
    cd strands-env
    pip install -e .
    ```
