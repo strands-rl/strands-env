@@ -10,7 +10,8 @@ Strands-env is a framework for building **agent environments** with Strands Agen
 
 ### Setup
 ```bash
-pip install -e ".[dev]"
+uv sync                    # installs the dev group by default
+uv sync --extra harbor     # plus an optional extra
 ```
 
 ### Linting

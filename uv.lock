@@ -4263,6 +4263,15 @@ dependencies = [
 agent-world-model = [
     { name = "agent-world-model" },
 ]
+harbor = [
+    { name = "e2b" },
+    { name = "harbor" },
+]
+ifeval = [
+    { name = "lm-eval", extra = ["ifeval"] },
+]
+
+[package.dev-dependencies]
 dev = [
     { name = "build" },
     { name = "mypy" },
@@ -4275,43 +4284,40 @@ dev = [
     { name = "ruff" },
     { name = "twine" },
 ]
-harbor = [
-    { name = "e2b" },
-    { name = "harbor" },
-]
-ifeval = [
-    { name = "lm-eval", extra = ["ifeval"] },
-]
 
 [package.metadata]
 requires-dist = [
     { name = "agent-world-model", marker = "extra == 'agent-world-model'", specifier = "==0.1.0" },
     { name = "aiolimiter", specifier = ">=1.1.0" },
-    { name = "build", marker = "extra == 'dev'", specifier = ">=0.10.0" },
     { name = "click", specifier = ">=8.0.0" },
     { name = "datasets" },
     { name = "e2b", marker = "extra == 'harbor'", specifier = "==2.25.1" },
     { name = "harbor", marker = "extra == 'harbor'", specifier = ">=0.15.0" },
     { name = "lm-eval", extras = ["ifeval"], marker = "extra == 'ifeval'", specifier = ">=0.4.11" },
     { name = "math-verify", specifier = ">=0.8.0" },
-    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.15.0,<2.0.0" },
     { name = "openai" },
-    { name = "pre-commit", marker = "extra == 'dev'" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0.0" },
-    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.21.0" },
-    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.0.0" },
-    { name = "pytest-mock", marker = "extra == 'dev'", specifier = ">=3.0.0" },
-    { name = "pytest-timeout", marker = "extra == 'dev'", specifier = ">=2.0.0" },
     { name = "python-dotenv" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.16.0" },
     { name = "strands-agents", extras = ["openai"], specifier = ">=1.46.0" },
     { name = "strands-agents-tools", specifier = ">=0.2.0" },
     { name = "strands-sglang", specifier = ">=0.6.0" },
     { name = "tiktoken", specifier = ">=0.5.0" },
     { name = "tqdm", specifier = ">=4.0.0" },
-    { name = "twine", marker = "extra == 'dev'", specifier = ">=4.0.0" },
 ]
-provides-extras = ["agent-world-model", "dev", "harbor", "ifeval"]
+provides-extras = ["agent-world-model", "harbor", "ifeval"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "build", specifier = ">=0.10.0" },
+    { name = "mypy", specifier = ">=1.15.0,<2.0.0" },
+    { name = "pre-commit" },
+    { name = "pytest", specifier = ">=7.0.0" },
+    { name = "pytest-asyncio", specifier = ">=0.21.0" },
+    { name = "pytest-cov", specifier = ">=4.0.0" },
+    { name = "pytest-mock", specifier = ">=3.0.0" },
+    { name = "pytest-timeout", specifier = ">=2.0.0" },
+    { name = "ruff", specifier = ">=0.16.0" },
+    { name = "twine", specifier = ">=4.0.0" },
+]
 
 [[package]]
 name = "strands-sglang"
