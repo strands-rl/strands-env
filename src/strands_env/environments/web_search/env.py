@@ -1,5 +1,3 @@
-"""Web-search environment: search and optional scrape tools behind pluggable providers."""
-
 import asyncio
 from pathlib import Path
 from typing import Unpack, override

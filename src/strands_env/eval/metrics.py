@@ -1,5 +1,3 @@
-"""Evaluation metrics for benchmark results."""
-
 from __future__ import annotations
 
 import math

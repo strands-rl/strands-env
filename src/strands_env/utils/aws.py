@@ -1,5 +1,3 @@
-"""Utilities for AWS boto3 session."""
-
 from __future__ import annotations
 
 import logging

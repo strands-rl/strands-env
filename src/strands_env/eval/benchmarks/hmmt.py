@@ -1,5 +1,3 @@
-"""Evaluator for HMMT (Harvard-MIT Mathematics Tournament) benchmarks."""
-
 from __future__ import annotations
 
 import logging

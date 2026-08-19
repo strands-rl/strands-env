@@ -1,5 +1,3 @@
-"""Example environment hook for math reasoning evaluation with `MathEnv`."""
-
 from strands_env.core.models import build_model_factory
 from strands_env.environments.math import MathEnv
 from strands_env.environments.math.reward import MathVerifyReward

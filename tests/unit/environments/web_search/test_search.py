@@ -1,5 +1,3 @@
-"""Unit tests for WebSearchToolkit pure-logic methods."""
-
 from strands_env.environments.web_search.tools.search import WebSearchToolkit
 
 # ---------------------------------------------------------------------------

@@ -129,11 +129,19 @@ Each environment is a package: `env.py` holds the `Environment` subclass, plus d
 - Pydocstyle with Google convention, formatting and content only (`D2`/`D4`, enforced in `src/`)
 - Mypy with near-strict settings (see `pyproject.toml` for full config)
 - Use lazy `%` formatting for logging (not f-strings)
-- Use single backticks `` `xx` `` in docstrings (not Sphinx-style double backticks)
+- Single backticks around identifiers and endpoints — `` `input_ids` ``, not Sphinx-style double backticks. Applies to docstrings, comments, and Markdown.
 - Conventional commits (feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert)
 - Python 3.12+ required (CI tests 3.12 and 3.13)
 - asyncio_mode = "auto" for pytest-asyncio
 - Async-first: all Environment methods that interact with Agent are async
+
+### Files
+
+No licence or copyright headers — `LICENSE` at the repo root is the whole story.
+
+No module or package docstrings. A file starts at its first import or definition;
+`D100` and `D104` are unselected for that reason. The path already says what
+`harbor/task.py` holds.
 
 ### Docstring Style
 
@@ -145,15 +153,73 @@ to the ones that are there.
 That licence is for the plain cases only. Everything below is a place where the
 signature genuinely doesn't carry the fact, so it stays documented:
 
-- **Module**: one line, what the file contains ("The per-sample input type for `XxxEnv`."). A paragraph only for load-bearing context (e.g. an import-time trap).
 - **Class**: one-line summary; facts the signature can't show (lifecycle, resource ownership) go in `Notes:`.
 - **Config TypedDicts**: first line "Serializable configuration for `XxxEnv`."; each field gets an inline comment with its default (`# seconds per MCP tool call (default 60)`) — the default otherwise hides in a distant `.get()`.
 - **`__init__`**: NO docstring when parameters are self-evident — its presence is the signal that something needed saying. Write a full `Args:` section only when parameters carry semantics: ownership, sharing, fallback behavior.
 - **Methods**: one imperative line saying what the signature can't; overrides state what this implementation does differently.
-- **Task classes**: module line is the uniform locator ("The per-sample input type for `XxxEnv`."); the class line says what one sample IS ("One Harbor-format task bundle on disk, plus where this trial writes its outputs."). `Field(description=...)` per field, carrying semantics, not restating types. Tasks may own data-derived views of their fields (path wrappers, world materialization) but never scoring behavior — that lives on `RewardFunction`.
+- **Task classes**: the class line says what one sample IS ("One Harbor-format task bundle on disk, plus where this trial writes its outputs."). `Field(description=...)` per field, carrying semantics, not restating types. Tasks may own data-derived views of their fields (path wrappers, world materialization) but never scoring behavior — that lives on `RewardFunction`.
 - **Env classes**: domain-first summaries ("Web-search environment with ...", "Code sandbox environment using ..."), matching the family pattern.
 - **`@tool` methods**: their docstrings are agent-facing tool specs — exempt from human-prose edits.
 - **Mechanics**: single backticks, no Sphinx roles, no design-session jargon ("operator-authored" → plain reader terms); comments state constraints, not narration. When editing docstrings, fix the disease and keep the healthy tissue — don't rewrite working prose for taste.
+
+### Comments
+
+One sentence. Longer only when the reasoning genuinely doesn't compress.
+
+Comment the *why*, on the line it explains. Design rationale that needs paragraphs
+belongs in the commit message, attached to the change rather than to the code forever.
+
+### Private helpers
+
+Extract a helper because the logic has a *name*, not because it repeats. Repetition is
+usually better removed with a parameter or a loop; a helper earns its place by naming a
+concept. Eight to fifteen lines is the size at which naming something starts to pay.
+
+- **Under four lines: look for a reason to keep it.** The indirection usually costs more
+  than it saves. It survives when the body carries a rule a caller would otherwise repeat
+  — `_get_session` is three lines because "reopen if the session closed" belongs in one
+  place, not at five call sites.
+- **Called once: the name has to say something concrete.** Single-use helpers are normal,
+  so call count is not the test — nameability is. If the best name available is `_add` or
+  `_process`, there is no concept to extract.
+- **Private share is a smell, not a limit.** A high share is fine when each name is a
+  domain concept: `Tau2BenchReward` is 4/6 private because tau2 defines four sub-rewards
+  (`_db_reward`, `_action_reward`, ...) and the class exists to combine them. It is a
+  problem when the names are stages of one procedure that was sliced up.
+
+When a helper does survive, define it before its callers so reading top to bottom never
+requires jumping ahead.
+
+### Module-level private functions
+
+**Default is zero per file** — currently three in `src/`, and each has an argument for
+why it belongs to no class. Adding one means making that argument. A module-level
+`_helper` has no owner, which is why these accumulate: anyone can add one and nothing
+says what it pairs with.
+
+Where they usually belong instead:
+
+- Used by one class → make it a method on that class.
+- Used once inside one function → inline it, or nest it in that function.
+- A genuinely general pure function used from several places → it is probably public, or
+  it belongs in `utils/`.
+
+Module-level private *constants* (`_EXTRACTION_CONFIG = (...)`) are exempt — constants
+belong at module scope.
+
+## Tests
+
+Group into a class named for the unit under test (`TestRolloutResult`,
+`TestTerminationReason`), with the methods naming only the scenario — don't repeat the
+class's subject in both. Grouped method names read short, three or four words.
+
+Reach for a class when there are three or more scenarios; below that a module-level
+function carries the context on its own.
+
+Docstrings on tests are optional and most are better off without one — the name is the
+documentation. Write one when the *reason* the case exists isn't obvious from the name
+(a regression whose trigger needs naming, a fidelity claim against upstream behaviour).
+If a single assertion needs justification, a one-line comment above it beats a docstring.
 
 ## Class Attribute Conventions
 

@@ -1,5 +1,3 @@
-"""Ray actor pool for distributing `Environment.rollout()` across processes."""
-
 from __future__ import annotations
 
 import asyncio

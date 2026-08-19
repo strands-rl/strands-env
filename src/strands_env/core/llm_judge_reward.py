@@ -1,5 +1,3 @@
-"""LLM-as-judge reward function with optional structured output."""
-
 from __future__ import annotations
 
 import itertools

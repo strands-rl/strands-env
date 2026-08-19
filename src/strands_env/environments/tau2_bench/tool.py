@@ -1,5 +1,3 @@
-"""Adapt a tau2 `Tool` to a Strands `AgentTool`."""
-
 from __future__ import annotations
 
 import asyncio

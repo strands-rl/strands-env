@@ -1,14 +1,3 @@
-"""Import-hygiene test for the tau2-bench package.
-
-`tau2` reads `TAU2_DATA_DIR` into a frozen module global at import time and
-`tau2/__init__.py` eagerly pulls that chain in, so nothing in the package may
-import tau2 at module load — every tau2 access is funnelled through `_tau2.py`'s
-lazy accessors. This locks the invariant in: a future top-level `import tau2`
-(or a hoisted inline import) fails here instead of silently breaking the eval
-data-dir ordering. Runs in a subprocess so a clean `sys.modules` is guaranteed
-regardless of what the rest of the test session imported.
-"""
-
 from __future__ import annotations
 
 import subprocess

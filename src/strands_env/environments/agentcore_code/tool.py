@@ -1,5 +1,3 @@
-"""Code sandbox toolkit using AWS Bedrock AgentCore Code Interpreter."""
-
 from __future__ import annotations
 
 import asyncio

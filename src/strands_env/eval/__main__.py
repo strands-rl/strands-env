@@ -1,5 +1,3 @@
-"""Module entry point for the evaluation CLI: `python -m strands_env.eval`."""
-
 from __future__ import annotations
 
 import os

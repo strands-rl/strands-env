@@ -1,20 +1,3 @@
-"""Root pytest configuration for strands-env tests.
-
-Test Structure:
-    tests/unit/        - Unit tests (no external dependencies)
-    tests/integration/ - Integration tests (require SGLang server)
-
-Running Tests:
-    pytest tests/unit/                    # Unit tests only
-    pytest tests/integration/ -v          # Integration tests (require SGLang server)
-
-Configuration:
-    pytest tests/integration/ --sglang-base-url=http://localhost:30000
-
-    Or via environment variables:
-    SGLANG_BASE_URL=http://localhost:30000 pytest tests/integration/
-"""
-
 import os
 
 

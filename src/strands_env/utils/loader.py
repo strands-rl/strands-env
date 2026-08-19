@@ -1,5 +1,3 @@
-"""Generic module/function/hook loading utilities."""
-
 from __future__ import annotations
 
 import importlib

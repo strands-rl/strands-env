@@ -1,5 +1,3 @@
-"""Evaluator for running agentic benchmarks with Strands Agents Environments."""
-
 from __future__ import annotations
 
 import asyncio

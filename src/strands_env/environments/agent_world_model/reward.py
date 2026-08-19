@@ -1,8 +1,3 @@
-"""Reward function for AgentWorldModel tasks.
-
-Executes per-task `verify_task_completion` via `exec()` for binary reward.
-"""
-
 from __future__ import annotations
 
 import asyncio

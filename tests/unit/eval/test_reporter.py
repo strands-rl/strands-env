@@ -1,5 +1,3 @@
-"""Unit tests for eval reporters (EvalReporter, LocalReporter, CompositeReporter)."""
-
 from __future__ import annotations
 
 import json

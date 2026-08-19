@@ -1,5 +1,3 @@
-"""AgentWorldModel MCP tool — calls the per-task FastAPI server via MCP session."""
-
 from __future__ import annotations
 
 import subprocess

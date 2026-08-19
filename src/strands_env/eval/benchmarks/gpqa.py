@@ -1,5 +1,3 @@
-"""Evaluator for GPQA (Graduate-Level Google-Proof Q&A) benchmarks."""
-
 from __future__ import annotations
 
 import logging

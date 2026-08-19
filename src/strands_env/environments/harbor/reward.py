@@ -1,5 +1,3 @@
-"""Reward function for the Harbor task environment."""
-
 from __future__ import annotations
 
 import asyncio

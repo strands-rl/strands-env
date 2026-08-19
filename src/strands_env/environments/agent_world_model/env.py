@@ -1,5 +1,3 @@
-"""AgentWorldModel environment backed by a FastAPI + SQLite server subprocess."""
-
 from __future__ import annotations
 
 import asyncio

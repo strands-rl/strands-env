@@ -1,5 +1,3 @@
-"""Tests for MathVerifyReward."""
-
 from strands_env.core.types import RolloutResult, Task
 from strands_env.environments.math.reward import MathVerifyReward
 

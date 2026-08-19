@@ -1,5 +1,3 @@
-"""Reward for tau2-bench: product of sub-rewards selected by `tau2_task.reward_basis`."""
-
 from __future__ import annotations
 
 import logging

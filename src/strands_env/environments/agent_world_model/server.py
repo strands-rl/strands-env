@@ -1,5 +1,3 @@
-"""AgentWorldModel server script generation and lifecycle utilities."""
-
 from __future__ import annotations
 
 import asyncio
