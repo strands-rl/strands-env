@@ -13,20 +13,9 @@ from typing import Any
 def requires_env(*env_vars: str) -> Callable[..., Any]:
     """Decorator that validates environment variables at call time.
 
-    Works with both sync and async functions, methods and standalone functions.
-
-    Notes:
-        For async tool methods, returns an error string on missing vars.
-        For sync functions, raises `EnvironmentError`.
-
-    Example:
-        class MyToolkit:
-            @tool
-            @requires_env("SERPER_API_KEY")
-            async def serper_search(self, query: str) -> str:
-                api_key = os.environ["SERPER_API_KEY"]
-                ...
-
+    Works on sync and async functions alike, whether methods or standalone. An async function
+    returns the error string on a missing var — that is what an agent tool wants, since the message
+    reaches the model. A sync function raises `OSError` instead.
     """
 
     def _check() -> str | None:
@@ -58,15 +47,10 @@ def requires_env(*env_vars: str) -> Callable[..., Any]:
 def cache_by(*key_args: str) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """Decorator that caches function results using only the specified arguments as the cache key.
 
-    Arguments not listed in `key_args` are still passed to the function but excluded
-    from the cache key, allowing unhashable arguments (dicts, lists, etc.) without
-    breaking the cache.
+    Arguments not named in `key_args` are still passed through but excluded from the key, which is
+    what lets an unhashable argument (a dict, a list) coexist with caching.
 
-    Args:
-        *key_args: Names of the function parameters to include in the cache key.
-
-    Example::
-
+    Example:
         @cache_by("service_name", "region")
         def get_client(service_name, region="us-east-1", **config_kwargs):
             ...
@@ -106,22 +90,17 @@ class TimeoutInterrupt(BaseException):
 def with_timeout(timeout: float | None) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """Decorator that enforces a timeout on function execution.
 
-    Runs the wrapped function in a daemon thread. On timeout, injects
-    `_TimeoutInterrupt` into the thread (CPython best-effort) so the work
-    does not continue consuming resources.
+    Runs the wrapped function in a daemon thread and, on timeout, injects `TimeoutInterrupt` into
+    it (CPython best-effort) so the abandoned work stops consuming resources. `timeout=None` skips
+    the wrapper entirely.
 
-    This is useful when the function's own timeout mechanism relies on
-    `signal.alarm()` (which only works in the main thread). This decorator
-    works correctly in all threading contexts.
-
-    Args:
-        timeout: Timeout in seconds, or `None` to run without timeout.
+    Use this when the callee's own timeout relies on `signal.alarm()`, which only fires on the main
+    thread; this one works from any thread.
 
     Raises:
-        TimeoutError: If the function doesn't complete within `timeout` seconds.
+        TimeoutError: the function did not finish within `timeout` seconds.
 
-    Example::
-
+    Example:
         @with_timeout(5)
         def slow_computation():
             ...

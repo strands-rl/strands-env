@@ -63,11 +63,7 @@ def load_function(name: str) -> Callable[..., Any]:
 
 
 def load_env_factory_hook(hook_path: str) -> EnvFactoryCreator:
-    """Load environment factory hook and return `create_env_factory` function.
-
-    Args:
-        hook_path: Dotted path to a module exporting `create_env_factory`.
-    """
+    """Return the `create_env_factory` exported by the module at `hook_path`."""
     try:
         return cast(EnvFactoryCreator, load_function(hook_path + ".create_env_factory"))
     except ValueError as e:
@@ -75,11 +71,7 @@ def load_env_factory_hook(hook_path: str) -> EnvFactoryCreator:
 
 
 def load_evaluator_hook(hook_path: str) -> type[Evaluator]:
-    """Load evaluator hook and return the `Evaluator` class.
-
-    Args:
-        hook_path: Dotted path to a module exporting `EvaluatorClass`.
-    """
+    """Return the `EvaluatorClass` exported by the module at `hook_path`."""
     try:
         return cast(type["Evaluator"], load_class(hook_path + ".EvaluatorClass"))
     except ValueError as e:
