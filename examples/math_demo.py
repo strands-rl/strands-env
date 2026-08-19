@@ -1,16 +1,16 @@
-"""Calculator environment demo — shows how to use an Environment programmatically.
+"""Math environment demo — shows how to use an Environment programmatically.
 
 This example demonstrates:
 - Creating a model factory
-- Instantiating an environment with tools
+- Instantiating an environment
 - Running rollouts and inspecting results
 
 Usage:
     # SGLang backend (requires a running SGLang server)
-    python examples/calculator_demo.py --backend sglang
+    python examples/math_demo.py --backend sglang
 
     # Bedrock backend (requires AWS credentials)
-    python examples/calculator_demo.py --backend bedrock --model-id us.anthropic.claude-sonnet-4-20250514
+    python examples/math_demo.py --backend bedrock --model-id us.anthropic.claude-sonnet-4-20250514
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ import click
 
 from strands_env.core.models import ModelConfig, build_model_factory
 from strands_env.core.types import Task
-from strands_env.environments.calculator import CalculatorEnv, MathVerifyReward
+from strands_env.environments.math import MathEnv, MathVerifyReward
 
 MATH_PROBLEMS = [
     ("What is 123 * 456?", "56088"),
@@ -37,7 +37,7 @@ async def run_demo(
     model_id: str | None,
     base_url: str,
 ) -> None:
-    """Run math problems through the calculator environment."""
+    """Run math problems through the math environment."""
     # Build model factory using CLI utilities
     config = ModelConfig(
         backend=backend,
@@ -48,8 +48,8 @@ async def run_demo(
     )
     model_factory = build_model_factory(config)
 
-    # Create environment with calculator tool and math reward function
-    env = CalculatorEnv(
+    # Create environment with the math reward function
+    env = MathEnv(
         model_factory=model_factory,
         reward_fn=MathVerifyReward(),
         verbose=False,
@@ -90,7 +90,7 @@ async def run_demo(
     help="Base URL for SGLang server.",
 )
 def main(backend: str, model_id: str | None, base_url: str) -> None:
-    """Run math problems through a calculator environment."""
+    """Run math problems through a math environment."""
     logging.basicConfig(level=logging.WARNING)
 
     asyncio.run(run_demo(backend, model_id, base_url))

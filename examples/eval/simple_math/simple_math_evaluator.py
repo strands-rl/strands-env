@@ -2,7 +2,7 @@
 
 This demonstrates how to create a custom evaluator for use with:
     python -m strands_env.eval --evaluator examples.eval.simple_math.simple_math_evaluator \
-        --env examples.eval.simple_math.calculator_env --backend sglang
+        --env examples.eval.simple_math.math_env --backend sglang
 
 The hook file must export `EvaluatorClass` (an Evaluator subclass).
 """

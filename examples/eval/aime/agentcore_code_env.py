@@ -3,7 +3,7 @@
 from strands_env.core.models import build_model_factory
 from strands_env.environments.agentcore_code import AgentCoreCodeEnv
 from strands_env.environments.agentcore_code.quotas import CodeInterpreterQuotas
-from strands_env.environments.calculator.reward import MathVerifyReward
+from strands_env.environments.math.reward import MathVerifyReward
 from strands_env.utils.aws import get_client
 
 QUOTAS = CodeInterpreterQuotas()
