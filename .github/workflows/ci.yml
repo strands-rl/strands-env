@@ -39,7 +39,7 @@ jobs:
           enable-cache: true
 
       - run: uv python install 3.12
-      - run: uv sync --python 3.12 --extra dev --extra harbor
+      - run: uv sync --python 3.12 --extra harbor
 
       # Runs the hooks themselves rather than restating each tool here, so local
       # and CI can't drift. Covers ruff, typos, zizmor, schema checks, uv-lock.
@@ -76,7 +76,7 @@ jobs:
       # Explicit install: `UV_PYTHON_DOWNLOADS: manual` permits this but stops
       # `uv sync` from fetching an interpreter on its own.
       - run: uv python install ${{ matrix.python-version }}
-      - run: uv sync --python ${{ matrix.python-version }} --extra dev --extra harbor
+      - run: uv sync --python ${{ matrix.python-version }} --extra harbor
 
       - name: pytest
         run: >-

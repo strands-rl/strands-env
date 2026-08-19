@@ -1,0 +1,30 @@
+version: 2
+
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    # Let a release settle before we adopt it; a yanked or broken publish is
+    # usually caught upstream within a few days.
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: ci
+
+  - package-ecosystem: uv
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      # Dev tooling lands as one PR; runtime deps stay separate so a break is easy to bisect.
+      dev:
+        dependency-type: development
+        patterns: ["*"]
+    commit-message:
+      prefix: build
