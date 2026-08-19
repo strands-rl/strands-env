@@ -96,7 +96,6 @@ class Environment(Generic[TaskT]):
             - Paired with `cleanup`, which tears down what `reset` sets up and must
             tolerate partially-initialized state (`reset` may fail midway).
         """
-        pass
 
     async def rollout(self, task: TaskT) -> RolloutResult:
         """Run one episode: `reset(task)`, then the agent loop, then `cleanup()` (always).
@@ -162,7 +161,6 @@ class Environment(Generic[TaskT]):
 
     async def cleanup(self) -> None:
         """Release resources. Override in subclasses."""
-        pass
 
     def get_tools(self) -> list:
         """Tools available to the agent. Override in subclasses."""

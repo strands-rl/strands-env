@@ -246,6 +246,6 @@ class RolloutLogger:
         if not rows:
             return
 
-        mlflow.log_dict(rows, f"rollout_samples/step_{step:05d}.json")  # type: ignore[arg-type]
+        mlflow.log_dict(rows, f"rollout_samples/step_{step:05d}.json")
 
         logger.info("Logged %d samples to MLflow (rollout %d, step %d)", len(rows), rollout_id, step)

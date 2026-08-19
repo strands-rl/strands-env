@@ -36,7 +36,7 @@ def docker_available():
     if not shutil.which("docker"):
         pytest.skip("docker CLI not found")
     try:
-        result = subprocess.run(["docker", "info"], capture_output=True, timeout=10)  # noqa: S603, S607
+        result = subprocess.run(["docker", "info"], capture_output=True, timeout=10)
         if result.returncode != 0:
             pytest.skip("Docker daemon not running")
     except subprocess.TimeoutExpired:
