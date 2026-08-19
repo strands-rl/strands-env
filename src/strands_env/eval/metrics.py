@@ -16,15 +16,10 @@ def compute_pass_at_k(
     k_values: list[int],
     reward_threshold: float = 1.0,
 ) -> dict[str, float]:
-    """Compute pass@k metrics using unbiased estimator.
+    """Compute pass@k with the unbiased estimator, averaged across prompts.
 
-    Args:
-        results: Dict mapping prompt_id to list of samples.
-        k_values: List of k values for pass@k.
-        reward_threshold: Reward threshold for "pass" (default: 1.0).
-
-    Returns:
-        Dict mapping "pass@k" to average score.
+    A sample passes when its reward reaches `reward_threshold`. A prompt with fewer than k
+    samples is skipped rather than counted as a failure.
     """
     if not results:
         return {f"pass@{k}": 0.0 for k in k_values}
