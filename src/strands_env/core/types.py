@@ -38,7 +38,7 @@ class Task(BaseModel):
     )
 
 
-#: The task type an environment (or reward function) consumes. Defaults to `Task` (PEP 696),
+#: The task type an environment (or reward function) consumes. Defaults to `Task` (PEP 696).
 TaskT = TypeVar("TaskT", bound=Task, default=Task)
 
 
@@ -206,15 +206,10 @@ class RolloutResult(BaseModel):
 
 
 def extract_message_text(message: Message, *, raw: bool = False) -> str:
-    """Extract the final text from a message: the last text block.
+    """Extract the final text from a message: the last text block, `<think>` blocks stripped.
 
-    Args:
-        message: A strands Message dict.
-        raw: If True, return the full text including `<think>...</think>` blocks.
-            If False (default), strip think blocks before returning.
-
-    Returns an empty string when the message contains no text block.
-    An unclosed `<think>` block (truncated generation) is returned as-is.
+    Empty string when the message has no text block. An unclosed `<think>` block (truncated
+    generation) is returned as-is, since there is no closing tag to strip to.
     """
     content = message.get("content") or []
     text = next(

@@ -39,17 +39,7 @@ def sglang_model_factory(
     return_routed_experts: bool = False,
     enable_thinking: bool = True,
 ) -> ModelFactory:
-    """Return a factory that creates `SGLangModel` instances.
-
-    Args:
-        client: `SGLangClient` for HTTP communication with the SGLang server.
-        tokenizer: HuggingFace tokenizer for chat template and tokenization.
-        tool_parser: Tool parser for extracting tool calls from model output. Defaults to `HermesToolParser`.
-        sampling_params: Sampling parameters for the model (e.g. `{"max_new_tokens": 4096}`).
-        return_logprob: Whether to return logprobs for each token.
-        return_routed_experts: Whether to return MoE routed expert indices for routing replay.
-        enable_thinking: Enable thinking mode for models whose chat template supports it.
-    """
+    """Return a factory that creates `SGLangModel` instances."""
     if tool_parser is None:
         tool_parser = HermesToolParser()
 
@@ -116,18 +106,10 @@ def bedrock_model_factory(
 ) -> ModelFactory:
     """Return a factory that creates `BedrockModel` instances.
 
-    Args:
-        model_id: Bedrock model ID (e.g. `"us.anthropic.claude-sonnet-4-20250514-v1:0"`).
-        boto_session: Boto3 session for AWS credentials.
-        boto_client_config: Botocore client configuration.
-        sampling_params: Sampling parameters for the model (e.g. `{"max_new_tokens": 4096}`).
-
     Notes:
-        - A single boto3 client (thread-safe) is created once from the session and
-        shared across all model instances.  `BedrockModel` doesn't accept a pre-built client,
-        so we extract it from a pilot instance and override `model.client` on each subsequent one.
-        - The principle of operation is "one boto3 session, one boto3 client".
-        - `max_new_tokens` in `sampling_params` is remapped to `max_tokens` for the Bedrock API.
+        - One boto3 session, one boto3 client. The client is thread-safe, so it is built once and
+          shared; `BedrockModel` won't accept a pre-built one, hence the pilot instance below.
+        - `max_new_tokens` is remapped to `max_tokens` for the Bedrock API.
     """
     sampling_params = dict(sampling_params)
     if "max_new_tokens" in sampling_params:
@@ -165,12 +147,6 @@ def bedrock_mantle_model_factory(
     reasoning: dict[str, Any] | None = None,
 ) -> ModelFactory:
     """Return a factory that creates `OpenAIResponsesModel` for GPT models via Bedrock Mantle.
-
-    Args:
-        model_id: Bedrock Mantle model ID (e.g. `"openai.gpt-5.4-2026-03-05"`).
-        region: AWS region hosting Bedrock Mantle (default `"us-east-2"`).
-        sampling_params: Sampling parameters for the model (e.g. `{"max_new_tokens": 16384}`).
-        reasoning: Reasoning configuration (e.g. `{"effort": "high"}`).
 
     Notes:
         - Routing is delegated to the SDK's `bedrock_mantle_config`: it derives the regional
@@ -226,13 +202,8 @@ def openai_model_factory(
 ) -> ModelFactory:
     """Return a factory that creates `OpenAIModel` instances.
 
-    Args:
-        model_id: OpenAI model ID (e.g. `"gpt-4o"`).
-        sampling_params: Sampling parameters for the model (e.g. `{"max_new_tokens": 4096}`).
-        client_args: Arguments for the OpenAI client (e.g. `{"api_key": "...", "base_url": "..."}`).
-
     Notes:
-        `max_new_tokens` in `sampling_params` is remapped to `max_tokens` for the OpenAI API.
+        `max_new_tokens` is remapped to `max_tokens` for the OpenAI API.
     """
     sampling_params = dict(sampling_params)
     if "max_new_tokens" in sampling_params:
@@ -282,12 +253,8 @@ class ModelConfig:
 def build_model_factory(config: ModelConfig | dict[str, Any]) -> ModelFactory:
     """Build a `ModelFactory` from a `ModelConfig` or a serialized config dict.
 
-    This is the config-driven path for creating model factories, used by
-    eval hooks and Ray actors. For programmatic use with pre-built objects
-    (clients, tokenizers), use the individual factory functions directly.
-
-    Args:
-        config: Model configuration (dataclass or dict from `ModelConfig.to_dict()`).
+    For programmatic use with pre-built clients and tokenizers, call the individual factory
+    functions directly.
     """
     if isinstance(config, dict):
         config = ModelConfig(**config)

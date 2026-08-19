@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Guidance for coding agents working in this repository. `CLAUDE.md` points here.
+Guidance for coding agents working in this repository. `CLAUDE.md` is a symlink to this file.
 
 ## Project Overview
 
@@ -156,7 +156,11 @@ signature genuinely doesn't carry the fact, so it stays documented:
 
 - **Class**: one-line summary; facts the signature can't show (lifecycle, resource ownership) go in `Notes:`.
 - **Config TypedDicts**: first line "Serializable configuration for `XxxEnv`."; each field gets an inline comment with its default (`# seconds per MCP tool call (default 60)`) — the default otherwise hides in a distant `.get()`.
-- **`__init__`**: NO docstring when parameters are self-evident — its presence is the signal that something needed saying. Write a full `Args:` section only when parameters carry semantics: ownership, sharing, fallback behavior.
+- **`Args:` is all-or-nothing.** `D417` fails a partial section, so the question is never "does this parameter need a line" but "do this function's parameters need explaining at all". Default no — the name and the annotation carry it. Write the section when a parameter's meaning isn't in its type: resolution order, ownership, what `None` falls back to, units, what happens when two arguments disagree. One line per parameter that only restates the annotation is the signal the whole section should go.
+- **`Notes:` is a footnote, the body is the explanation.** The test: delete the sentence. If the function no longer makes sense, it was body text (why this method exists, which of two paths to take, what an empty return means). If all that's lost is a warning, it belongs under `Notes:` (thread-safety, a teardown contract, an upstream quirk, a deliberate divergence from a reference implementation). One `Notes:` holding three unrelated facts means none of them got classified — split them. Never put a function-level constraint in `Args:`; a parameter line explains that parameter.
+- **`Returns:`/`Yields:` earn their place against the annotation, not the reader's curiosity.** `-> tuple[list[ToolResultContent], Literal["success", "error"]]` needs no "a tuple of (content, status)". A `-> str` that is really a JSON envelope does: `EnvironmentActor.rollout` documents "JSON string, reconstruct via `RolloutResult.model_validate_json()`" because the annotation cannot say that. Rule of thumb: the poorer the type, the more the section is worth.
+- **`Raises:` only for exceptions a caller is expected to catch**, not every one that can escape. **`Example:`** only where usage isn't guessable from the signature — a base class whose contract spans several overridden methods is the case that qualifies. Nothing else: no `Attributes:`, no `Warning:`, no `Todo:`.
+- **`__init__`**: NO docstring when parameters are self-evident — its presence is the signal that something needed saying.
 - **Methods**: one imperative line saying what the signature can't; overrides state what this implementation does differently.
 - **Task classes**: the class line says what one sample IS ("One Harbor-format task bundle on disk, plus where this trial writes its outputs."). `Field(description=...)` per field, carrying semantics, not restating types. Tasks may own data-derived views of their fields (path wrappers, world materialization) but never scoring behavior — that lives on `RewardFunction`.
 - **Env classes**: domain-first summaries ("Web-search environment with ...", "Code sandbox environment using ..."), matching the family pattern.
