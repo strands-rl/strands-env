@@ -5,8 +5,14 @@ from collections.abc import Iterable
 from typing import Any, override
 
 from datasets import load_dataset
-from lm_eval.tasks.ifeval.utils import process_results
 from pydantic import Field
+
+try:
+    from lm_eval.tasks.ifeval.utils import process_results
+except ImportError as e:
+    # Not a strands-env extra on purpose: lm-eval pulls in 14 packages, one of them the
+    # abandoned sqlitedict (unpatched RCE advisory, last released 2022).
+    raise ImportError('IFEval needs the graders from lm-eval: pip install "lm_eval[ifeval]>=0.4.11"') from e
 
 from strands_env.core import Task
 from strands_env.core.types import RewardFunction, RewardResult, RolloutResult
