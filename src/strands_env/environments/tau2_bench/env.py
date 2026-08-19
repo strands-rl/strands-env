@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, NotRequired, Unpack, override
+from typing import NotRequired, Unpack, override
 
 from strands.types.content import Message
 from strands_sglang import LoopLimiter
@@ -14,9 +14,6 @@ from .reward import Tau2BenchReward
 from .simulator import Tau2BenchTerminationReason, Tau2BenchUserSimulator
 from .task import Tau2BenchTask
 from .tool import Tau2BenchTool
-
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 
@@ -113,8 +110,7 @@ class Tau2BenchEnv(Environment[Tau2BenchTask]):
         if self.user_simulator.termination is Tau2BenchTerminationReason.USER_STOP:
             result = RolloutResult(
                 messages=[{"role": "user", "content": [{"text": task.message}]}],
-                # A fresh limiter reports the truth: the agent loop processed nothing
-                # `agent=None`: the user stopped at the greeting, no assistant agent ever ran
+                # No assistant agent ran, so both a null agent and a fresh limiter report zeroes.
                 metrics=self.compute_metrics(None, LoopLimiter()),
                 termination_reason=TerminationReason.TASK_COMPLETE,
             )
@@ -132,7 +128,6 @@ class Tau2BenchEnv(Environment[Tau2BenchTask]):
 
     @override
     def get_tools(self) -> list:
-        """Return the agent-side tools."""
         return list(self.agent_tools)
 
     @override

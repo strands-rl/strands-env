@@ -25,7 +25,6 @@ class Tau2BenchTask(Task):
 
     @cached_property
     def tau2_task(self) -> Tau2Task:
-        """Parsed tau2 task."""
         return _tau2.Tau2Task.model_validate(self.config)
 
     @cached_property
