@@ -16,6 +16,7 @@ uv sync --extra harbor     # plus an optional extra
 
 ### Linting
 ```bash
+pre-commit run --all-files   # what CI's lint job runs; the individual tools below are a subset
 ruff check src/ tests/ examples/
 ruff format --check src/ tests/ examples/
 mypy src/strands_env
@@ -243,9 +244,9 @@ Enum members are the exception to everything above: bare UPPER assignments, neve
 
 ## Releases
 
-- Do NOT push tags (`git push --tags`) - the user will create GitHub Releases manually to trigger PyPI CI/CD
-- When preparing a release: update version in `pyproject.toml`, commit, push code only
-- User creates the release on GitHub web UI which triggers the publish workflow
+- Do NOT push tags (`git push --tags`) — the user creates the GitHub Release manually, which triggers `publish.yml`
+- There is no version to bump: `hatch-vcs` derives it from the git tag the release creates
+- Get the number right the first time. The `tags-are-immutable` ruleset blocks moving or deleting a tag, and PyPI refuses a second upload of the same filename
 
 ## Maintenance
 
