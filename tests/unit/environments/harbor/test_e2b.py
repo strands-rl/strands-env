@@ -20,10 +20,10 @@ import pytest
 # convention in tests/integration/test_harbor.py).
 pytest.importorskip("harbor", reason="harbor>=0.13.2 required for the e2b backend adapter")
 
-from e2b.exceptions import AuthenticationException  # noqa: E402
+from e2b.exceptions import AuthenticationException
 
-from strands_env.environments.harbor import e2b  # noqa: E402
-from strands_env.environments.harbor.e2b import PrebakedE2BEnvironment  # noqa: E402
+from strands_env.environments.harbor import e2b
+from strands_env.environments.harbor.e2b import PrebakedE2BEnvironment
 
 #: `validate_api_key` is a module-level function; bind it for readable tests.
 validate_api_key = e2b.validate_api_key

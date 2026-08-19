@@ -17,9 +17,9 @@ from pydantic import BaseModel
 
 pytest.importorskip("harbor", reason="harbor>=0.13.2 required for HarborConfig")
 
-from strands_env.environments.harbor import env as harbor_env  # noqa: E402
-from strands_env.environments.harbor.env import HarborConfig, HarborEnv  # noqa: E402
-from strands_env.environments.harbor.task import HarborTask  # noqa: E402
+from strands_env.environments.harbor import env as harbor_env
+from strands_env.environments.harbor.env import HarborConfig, HarborEnv
+from strands_env.environments.harbor.task import HarborTask
 
 
 def test_harbor_config_type_hints_resolve():

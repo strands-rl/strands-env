@@ -58,7 +58,7 @@ class WebSearchEnv(Environment):
         self.search_toolkit = WebSearchToolkit(
             timeout=int(self.config.get("search_timeout", 10)),
             concurrency=search_concurrency,
-            blocked_domains=self.config.get("blocked_domains"),  # type: ignore[arg-type]
+            blocked_domains=self.config.get("blocked_domains"),
             api_provider=self.config.get("search_provider", "serper"),
         )
         self.search_tool = self.search_toolkit.search
