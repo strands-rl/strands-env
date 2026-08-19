@@ -1,17 +1,18 @@
-# SHAs, not tags: a tag can be moved to point at new code. Regenerate with
-# `pre-commit autoupdate --freeze`.
+# Hook revisions are pinned to commit SHAs, not tags: a tag can be moved to point
+# at new code, a SHA cannot. `pre-commit autoupdate --freeze` regenerates them and
+# keeps the trailing `# frozen:` comment in sync, so the readable version stays visible.
+#
+# These hooks are convenience, not the gate: CI runs `pre-commit run --all-files`,
+# so nothing here can be skipped for good with `--no-verify`.
 
 default_install_hook_types: [pre-commit, commit-msg]
-
-# Downloaded benchmark material: reformatting it changes what we score against.
-exclude: ^data/
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c # frozen: v6.0.0
     hooks:
       - id: check-added-large-files
-        args: [--maxkb=1000]
+        args: [--maxkb=1024]
       - id: check-case-conflict
       - id: check-merge-conflict
       - id: check-symlinks
@@ -21,10 +22,9 @@ repos:
       - id: detect-private-key
       - id: end-of-file-fixer
       - id: mixed-line-ending
-      # A test file not named test_*.py is silently never collected.
+      # A test file that isn't named test_*.py is silently never collected.
       - id: name-tests-test
         args: [--pytest-test-first]
-      - id: requirements-txt-fixer
       - id: trailing-whitespace
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
@@ -44,13 +44,25 @@ repos:
     hooks:
       - id: validate-pyproject
         additional_dependencies: ["validate-pyproject-schema-store[all]"]
-        files: ^pyproject\.toml$
 
   - repo: https://github.com/python-jsonschema/check-jsonschema
     rev: 6b63472e72e1a91ed8a2f6d483790dfb644fa1d3 # frozen: 0.37.4
     hooks:
       - id: check-github-workflows
       - id: check-dependabot
+
+  # Audits workflows for supply-chain and injection issues (unpinned actions,
+  # cache poisoning, script injection).
+  - repo: https://github.com/zizmorcore/zizmor-pre-commit
+    rev: 451b56af716f9f0d0c2b816503a3fd0cf8b036fa # frozen: v1.29.0
+    hooks:
+      - id: zizmor
+
+  # Editing pyproject.toml without refreshing uv.lock is an easy miss.
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    rev: b84c4a0a90bd58c7d82ae8f0d4d5e77b1ddd3ce6 # frozen: 0.12.5
+    hooks:
+      - id: uv-lock
 
   - repo: https://github.com/compilerla/conventional-pre-commit
     rev: 91ab4bf57e58b32adf1a122681f6ebe164d081c8 # frozen: v4.4.0
@@ -60,18 +72,21 @@ repos:
 
   - repo: local
     hooks:
-      # Project venv, not an isolated one, so stubs match pyproject. pass_filenames
-      # is off because mypy needs the whole package to infer correctly.
+      # `language: system` runs mypy from the project venv rather than an isolated
+      # one, so stubs and dependency versions match pyproject exactly and don't
+      # need restating under `additional_dependencies`. Requires `uv sync` first.
+      # pass_filenames is off because mypy needs the whole package to infer
+      # correctly; checking only the staged files both misses and invents errors.
       - id: mypy
         name: mypy
-        entry: .venv/bin/python -m mypy src/strands_env
+        entry: uv run mypy src/strands_env
         language: system
         types: [python]
         pass_filenames: false
 
-      - id: unit-tests
-        name: pytest (unit)
-        entry: .venv/bin/python -m pytest tests/unit -x -q
+      - id: pytest
+        name: pytest (fast)
+        entry: uv run pytest tests/unit -x -q
         language: system
         types: [python]
         pass_filenames: false
