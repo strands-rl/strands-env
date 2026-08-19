@@ -1,5 +1,3 @@
-"""Evaluator for HLE-Verified benchmark (Gold subset)."""
-
 from __future__ import annotations
 
 import base64

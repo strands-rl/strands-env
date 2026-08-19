@@ -1,28 +1,3 @@
-"""Model factory functions for supported backends.
-
-Each function returns a `ModelFactory` (zero-arg callable that creates a fresh
-`Model` instance) for use with `Environment`::
-
-    from strands_sglang import SGLangClient
-    from strands_env.core.models import sglang_model_factory
-
-    client = SGLangClient("http://localhost:30000")
-    tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen3-8B")
-    env = Environment(
-        model_factory=sglang_model_factory(tokenizer=tokenizer, client=client),
-    )
-
-Users can easily create their own model factories by implementing the `ModelFactory` type.
-
-Example:
-    >>> from strands_env.core.models import ModelFactory
-    >>> def my_model_factory() -> ModelFactory:
-    >>>     return lambda: MyModel()
-    >>>
-    >>> env = Environment(model_factory=my_model_factory())
-    >>>
-"""
-
 from __future__ import annotations
 
 import dataclasses

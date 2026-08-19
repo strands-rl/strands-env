@@ -1,16 +1,12 @@
-"""Math environment: a calculator tool with symbolic-equivalence reward."""
-
 from pathlib import Path
 from typing import Unpack, override
 
-from strands_tools.calculator import calculator
-
 from strands_env.core import Environment, EnvironmentConfig, ModelFactory, RewardFunction
-from strands_env.environments.calculator.reward import MathVerifyReward
+from strands_env.environments.math.reward import MathVerifyReward
 
 
-class CalculatorEnv(Environment):
-    """Math environment with a `calculator` tool and `MathVerifyReward` by default."""
+class MathEnv(Environment):
+    """Chat-only math environment, scored by `MathVerifyReward` on the boxed answer."""
 
     default_system_prompt_path = Path(__file__).parent / "system_prompt.md"
 
@@ -25,5 +21,5 @@ class CalculatorEnv(Environment):
 
     @override
     def get_tools(self) -> list:
-        """Return the `calculator` tool from `strands_tools`."""
-        return [calculator]
+        """No tools: the model reasons in text and boxes its answer."""
+        return []

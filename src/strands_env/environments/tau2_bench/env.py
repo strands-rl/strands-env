@@ -1,10 +1,3 @@
-"""tau2-bench environment.
-
-Multi-turn agent vs LLM user-sim over a shared in-memory DB. One `env.rollout()`
-runs the full episode inside a single `agent.invoke_async()`, driven turn-by-turn
-by `Tau2BenchUserSimulator` via `AfterInvocationEvent.resume` (strands-agents >= 1.30.0).
-"""
-
 from __future__ import annotations
 
 import logging

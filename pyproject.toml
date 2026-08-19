@@ -23,7 +23,6 @@ classifiers = [
 dependencies = [
     "strands-sglang>=0.6.0",
     "strands-agents[openai]>=1.46.0",
-    "strands-agents-tools>=0.2.0",
     "openai",
     "datasets",
     "math-verify>=0.8.0",
@@ -33,6 +32,11 @@ dependencies = [
     "python-dotenv",
     "aiolimiter>=1.1.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/strands-rl/strands-env"
+Repository = "https://github.com/strands-rl/strands-env"
+Issues = "https://github.com/strands-rl/strands-env/issues"
 
 [project.optional-dependencies]
 harbor = [
@@ -47,7 +51,7 @@ agent-world-model = ["agent-world-model==0.1.0"]
 [dependency-groups]
 dev = [
     "build>=0.10.0",
-    "mypy>=1.15.0,<2.0.0",
+    "mypy>=1.15.0,<3.0.0",
     "pre-commit",
     "pytest>=7.0.0",
     "pytest-asyncio>=0.21.0",
@@ -67,10 +71,35 @@ allow-direct-references = true
 [tool.hatch.build.targets.wheel]
 packages = ["src/strands_env"]
 
+# An allowlist, not an exclude list: hatchling reads the filesystem rather than git,
+# so anything untracked but present (.local/, scratch eval runs) would otherwise ship.
+[tool.hatch.build.targets.sdist]
+include = ["src", "tests", "examples", "README.md", "LICENSE", "CITATION.cff"]
+
 [tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 timeout = 90
+filterwarnings = ["error"]
+markers = [
+    "integration: requires a running SGLang server or live cloud credentials",
+]
+
+[tool.coverage.run]
+source = ["src/strands_env"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+exclude_also = [
+    "if TYPE_CHECKING:",
+    "@(abc\\.)?abstractmethod",
+    "raise NotImplementedError",
+    "@(typing\\.)?overload",
+    "class .*\\bProtocol\\):",
+]
 
 [tool.mypy]
 python_version = "3.12"
@@ -79,8 +108,20 @@ disallow_untyped_defs = true
 disallow_incomplete_defs = true
 check_untyped_defs = true
 disallow_untyped_decorators = true
+no_implicit_optional = true
 warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
 warn_unreachable = true
+# A dependency without stubs is named in an override below rather than waved
+# through globally, so nothing silently degrades to Any.
+ignore_missing_imports = false
+follow_untyped_imports = true
+
+# Optional-extra and training-only dependencies that ship no stubs. mypy reports
+# unused sections, so a stale entry can't outlive its dependency.
+[[tool.mypy.overrides]]
+module = ["awm.*", "lm_eval.*", "mlflow.*", "ray.*", "tau2.*", "wandb.*", "weave.*"]
 ignore_missing_imports = true
 
 [tool.uv]
@@ -99,21 +140,41 @@ fix = true
 
 [tool.ruff.lint]
 select = [
-    "B",   # flake8-bugbear
-    "D",   # pydocstyle
-    "E",   # pycodestyle
-    "F",   # pyflakes
-    "G",   # flake8-logging-format
-    "I",   # isort
-    "LOG", # logging
-    "N",   # pep8-naming
-    "UP",  # pyupgrade
-    "W",   # pycodestyle warnings
+    "ASYNC",  # flake8-async
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "D2",     # pydocstyle formatting — D1 (must exist) is deliberately not selected
+    "D4",     # pydocstyle content
+    "E",      # pycodestyle
+    "F",      # pyflakes
+    "G",      # flake8-logging-format
+    "I",      # isort
+    "LOG",    # logging
+    "N",      # pep8-naming
+    "PIE",    # flake8-pie
+    "RUF006", # unowned asyncio task — a dropped task loses a rollout silently
+    "RUF012", # mutable class attr without ClassVar
+    "RUF100", # unused noqa
+    "SIM",    # flake8-simplify
+    "TRY201", # verbose raise
+    "UP",     # pyupgrade
+    "W",      # pycodestyle warnings
 ]
-ignore = ["D107", "E501", "UP046"]
+ignore = [
+    "E501",
+    "UP046",
+    "ASYNC109", # `timeout` forwards to a blocking `proc.wait()`
+    "ASYNC220", # `Popen(start_new_session=True)` builds the group `killpg` tears down
+    "PIE804",   # `extra="allow"` models need `**{...}`; keywords fail mypy
+    "SIM115",   # long-lived handle, closed in `close()`/`publish()`
+    "SIM117",   # `async with self.semaphore:` is a gate, not a second resource
+]
 
 [tool.ruff.lint.per-file-ignores]
 "!src/**/*.py" = ["D"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
+
+[tool.ruff.lint.isort]
+known-first-party = ["strands_env"]

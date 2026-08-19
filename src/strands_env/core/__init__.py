@@ -1,5 +1,3 @@
-"""Core module: environment, types, model factories, and shared reward/tool primitives."""
-
 from .environment import AsyncEnvFactory, Environment, EnvironmentConfig
 from .llm_judge_reward import JudgmentFormat, LLMJudgeReward
 from .mcp_tool import MCPToolAdapter

@@ -1,5 +1,3 @@
-r"""Symbolic-equivalence math reward backed by HuggingFace `math-verify`."""
-
 from __future__ import annotations
 
 import logging
@@ -67,7 +65,8 @@ class MathVerifyReward(RewardFunction):
                 parse(
                     text,
                     extraction_config=_EXTRACTION_CONFIG,
-                    parsing_timeout=None,  # Disable math-verify's timeout, use manual timeout
+                    # Annotated `int` upstream, but None is the documented way to opt out.
+                    parsing_timeout=None,  # type: ignore[arg-type]
                     raise_on_error=True,
                 )
             )

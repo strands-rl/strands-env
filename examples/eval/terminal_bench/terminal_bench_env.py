@@ -1,5 +1,3 @@
-"""Environment hook for terminal-bench evaluation with `HarborEnv`."""
-
 from __future__ import annotations
 
 from strands_env.core.models import build_model_factory

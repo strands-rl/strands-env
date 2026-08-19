@@ -1,20 +1,3 @@
-"""Web search environment demo — search the web and scrape pages for answers.
-
-This example demonstrates:
-- Creating a WebSearchEnv with search + scrape tools
-- Running rollouts and inspecting results
-- Cleaning up HTTP sessions
-
-Requires SERPER_API_KEY (or GOOGLE_API_KEY + GOOGLE_CSE_ID) env var.
-
-Usage:
-    # SGLang backend (requires a running SGLang server)
-    python examples/web_search_demo.py --backend sglang
-
-    # Bedrock backend (requires AWS credentials)
-    python examples/web_search_demo.py --backend bedrock --model-id us.anthropic.claude-sonnet-4-20250514
-"""
-
 from __future__ import annotations
 
 import asyncio

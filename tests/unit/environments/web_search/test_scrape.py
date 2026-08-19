@@ -1,10 +1,3 @@
-"""Unit tests for `WebScraperToolkit`.
-
-Some tests compare our behavior to OpenSeeker's upstream `visit.py` to flag
-unintended divergences. Upstream reference:
-https://github.com/rui-ye/OpenSeeker/blob/main/src/tools/visit.py
-"""
-
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch

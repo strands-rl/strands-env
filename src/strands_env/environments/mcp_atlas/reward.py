@@ -1,16 +1,3 @@
-"""Per-claim LLM-as-judge reward for MCP-Atlas (mirrors upstream `mcp_evals_scores.py`).
-
-Each GTFA claim is judged individually against the agent's response via
-structured output; scores are averaged into a coverage score.
-
-Scoring (from MCP-Atlas):
-    - `fulfilled` = 1.0
-    - `partially_fulfilled` = 0.5
-    - `not_fulfilled` = 0.0
-    - `coverage_score` = mean across claims
-    - pass threshold = 0.75
-"""
-
 from __future__ import annotations
 
 import logging

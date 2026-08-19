@@ -1,8 +1,3 @@
-"""Reward function for AgentWorldModel tasks.
-
-Executes per-task `verify_task_completion` via `exec()` for binary reward.
-"""
-
 from __future__ import annotations
 
 import asyncio
@@ -36,7 +31,7 @@ class AgentWorldModelReward(RewardFunction[AgentWorldModelTask]):
         # blocking exec + SQLite I/O, shipped to a thread below
         def _verify() -> dict:
             namespace: dict = {"sqlite3": sqlite3, "json": json}
-            exec(task.verify_code, namespace)  # noqa: S102
+            exec(task.verify_code, namespace)
             return namespace["verify_task_completion"](
                 initial_db_path=task.initial_db_path,
                 final_db_path=str(work_db_path),

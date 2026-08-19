@@ -1,5 +1,3 @@
-"""Unit tests for model factory functions."""
-
 from unittest.mock import MagicMock, patch
 
 import boto3
@@ -60,7 +58,7 @@ class TestBedrockModelFactory:
             model_id="test",
             boto_session=MagicMock(spec=boto3.Session),
         )
-        assert DEFAULT_SAMPLING_PARAMS == original
+        assert original == DEFAULT_SAMPLING_PARAMS
 
     @patch("strands_env.core.models.BedrockModel")
     def test_shared_client_across_instances(self, mock_bedrock_cls):
@@ -118,7 +116,7 @@ class TestBedrockMantleModelFactory:
         _, patch_model = self._patch_model()
         with patch_model:
             bedrock_mantle_model_factory(model_id="openai.gpt-5.4-2026-03-05")
-        assert DEFAULT_SAMPLING_PARAMS == original
+        assert original == DEFAULT_SAMPLING_PARAMS
 
     def test_build_model_factory_requires_model_id(self):
         with pytest.raises(ValueError, match="bedrock-mantle backend requires"):
@@ -147,4 +145,4 @@ class TestOpenAIModelFactory:
     def test_does_not_mutate_default_params(self, mock_openai_cls):
         original = dict(DEFAULT_SAMPLING_PARAMS)
         openai_model_factory(model_id="gpt-4o")
-        assert DEFAULT_SAMPLING_PARAMS == original
+        assert original == DEFAULT_SAMPLING_PARAMS

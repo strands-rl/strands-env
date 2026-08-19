@@ -1,5 +1,3 @@
-"""Unit tests for the Terminal-Bench (Harbor) evaluators."""
-
 from __future__ import annotations
 
 from pathlib import Path
@@ -8,8 +6,8 @@ import pytest
 
 pytest.importorskip("harbor", reason="harbor>=0.13.2 required to import the terminal_bench benchmark module")
 
-from strands_env.eval import get_benchmark, list_benchmarks  # noqa: E402
-from strands_env.eval.benchmarks.terminal_bench import TerminalBench21Evaluator  # noqa: E402
+from strands_env.eval import get_benchmark, list_benchmarks
+from strands_env.eval.benchmarks.terminal_bench import TerminalBench21Evaluator
 
 
 def test_terminal_bench_variants_registered():
@@ -44,3 +42,44 @@ def test_terminal_bench_21_scans_tasks_subdir(tmp_path: Path, monkeypatch: pytes
     monkeypatch.setattr(evaluator, "_load_single_task", lambda task_dir: task_dir.name)
 
     assert evaluator.load_dataset() == ["alpha", "beta"]
+
+
+def _write_task_bundle(task_dir: Path, *, memory_mb: int | None) -> None:
+    task_dir.mkdir(parents=True)
+    (task_dir / "instruction.md").write_text("do the thing\n")
+    (task_dir / "tests").mkdir()
+    (task_dir / "tests" / "test.sh").write_text("exit 0\n")
+    memory_line = f"memory_mb = {memory_mb}\n" if memory_mb is not None else ""
+    (task_dir / "task.toml").write_text(
+        'schema_version = "1.1"\n'
+        "artifacts = []\n"
+        "\n"
+        "[task]\n"
+        f'name = "fixture/{task_dir.name}"\n'
+        'description = "fixture"\n'
+        "\n"
+        "[verifier]\n"
+        "timeout_sec = 60.0\n"
+        "\n"
+        "[environment]\n"
+        'docker_image = "alpine:3"\n'
+        f"{memory_line}"
+    )
+
+
+@pytest.mark.parametrize(
+    ("declared", "expected"),
+    [(2048, 4096), (None, None)],
+    ids=["doubles_when_declared", "left_alone_when_absent"],
+)
+def test_memory_mb_doubling_tolerates_an_absent_value(
+    tmp_path: Path, declared: int | None, expected: int | None
+) -> None:
+    """`memory_mb` is Optional upstream, so doubling it has to survive a task that omits it."""
+    task_dir = tmp_path / "alpha"
+    _write_task_bundle(task_dir, memory_mb=declared)
+    evaluator = TerminalBench21Evaluator(env_factory=lambda: None, output_path=tmp_path / "out" / "results.jsonl")
+
+    task = evaluator._load_single_task(task_dir)
+
+    assert task.task_env_config.memory_mb == expected

@@ -1,12 +1,3 @@
-"""Unit tests for `HarborConfig` type resolution.
-
-Regression guard: `HarborConfig` (with its nested `PrebakedE2BConfig` and the
-inherited base knobs) is embedded as a Pydantic field by the
-terminal-bench / swebench task contexts. Pydantic resolves those hints at
-runtime, so a TYPE_CHECKING-only type in any `HarborConfig` field breaks dataset
-loading with a `NameError`.
-"""
-
 from __future__ import annotations
 
 import typing
@@ -17,9 +8,9 @@ from pydantic import BaseModel
 
 pytest.importorskip("harbor", reason="harbor>=0.13.2 required for HarborConfig")
 
-from strands_env.environments.harbor import env as harbor_env  # noqa: E402
-from strands_env.environments.harbor.env import HarborConfig, HarborEnv  # noqa: E402
-from strands_env.environments.harbor.task import HarborTask  # noqa: E402
+from strands_env.environments.harbor import env as harbor_env
+from strands_env.environments.harbor.env import HarborConfig, HarborEnv
+from strands_env.environments.harbor.task import HarborTask
 
 
 def test_harbor_config_type_hints_resolve():

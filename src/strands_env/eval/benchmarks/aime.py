@@ -1,5 +1,3 @@
-"""Evaluator for AIME (American Invitational Mathematics Examination) benchmarks."""
-
 from __future__ import annotations
 
 import logging

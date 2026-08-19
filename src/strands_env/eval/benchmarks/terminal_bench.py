@@ -1,5 +1,3 @@
-"""Evaluator for Terminal-Bench (Harbor) benchmarks."""
-
 from __future__ import annotations
 
 import json
@@ -52,7 +50,8 @@ class TerminalBenchEvaluator(Evaluator[HarborTask]):
             trial_dir=self.output_path.parent / task_dir.name,
             system_prompt=self.system_prompt_path.read_text().strip() if self.system_prompt_path else None,
         )
-        task.task_env_config.memory_mb *= 2
+        if task.task_env_config.memory_mb is not None:
+            task.task_env_config.memory_mb *= 2
         return task
 
     @override

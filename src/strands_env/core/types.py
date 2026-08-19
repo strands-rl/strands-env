@@ -1,5 +1,3 @@
-"""Core types for Strands Agents Environments: tasks, rewards, model config, and rollout results."""
-
 from __future__ import annotations
 
 import logging

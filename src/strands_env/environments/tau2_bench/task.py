@@ -1,5 +1,3 @@
-"""The per-sample input type for `Tau2BenchEnv`."""
-
 from __future__ import annotations
 
 from functools import cached_property

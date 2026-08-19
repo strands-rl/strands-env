@@ -1,11 +1,3 @@
-"""Integration tests for HarborEnv with a real SGLang model.
-
-Requires:
-- A running SGLang server (default: http://localhost:30000)
-- Docker daemon running
-- harbor>=0.1.43 (`pip install harbor`)
-"""
-
 import shutil
 import subprocess
 
@@ -36,7 +28,7 @@ def docker_available():
     if not shutil.which("docker"):
         pytest.skip("docker CLI not found")
     try:
-        result = subprocess.run(["docker", "info"], capture_output=True, timeout=10)  # noqa: S603, S607
+        result = subprocess.run(["docker", "info"], capture_output=True, timeout=10)
         if result.returncode != 0:
             pytest.skip("Docker daemon not running")
     except subprocess.TimeoutExpired:

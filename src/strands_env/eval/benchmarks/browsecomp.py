@@ -1,5 +1,3 @@
-"""Evaluator for BrowseComp benchmark."""
-
 from __future__ import annotations
 
 import base64
@@ -124,7 +122,7 @@ class BrowseCompEvaluator(Evaluator):
     @classmethod
     def derive_key(cls, password: str, length: int) -> bytes:
         """Derive a fixed-length key from the password using SHA256."""
-        digest = hashlib.sha256(password.encode()).digest()  # noqa: S324 — not for security; replicates OpenAI simple-evals XOR obfuscation
+        digest = hashlib.sha256(password.encode()).digest()
         return digest * (length // len(digest)) + digest[: length % len(digest)]
 
     @classmethod

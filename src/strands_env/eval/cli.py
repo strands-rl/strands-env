@@ -1,5 +1,3 @@
-"""Evaluation CLI commands."""
-
 from __future__ import annotations
 
 import asyncio
@@ -185,7 +183,7 @@ def eval_cmd(
     to see the registered benchmarks.
 
     Examples:
-        python -m strands_env.eval --benchmark aime-2024 -e examples.eval.simple_math.calculator_env
+        python -m strands_env.eval --benchmark aime-2024 -e examples.eval.simple_math.math_env
         python -m strands_env.eval --evaluator my_package.evaluator -e my_package.env_hook
     """
     if not benchmark and not evaluator_path:

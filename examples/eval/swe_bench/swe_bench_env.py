@@ -1,9 +1,3 @@
-"""Environment hook for SWE-bench Verified evaluation with `HarborEnv`.
-
-The `swebench-verified` benchmark stamps a SWE-bench-tuned prompt onto each
-`HarborTask.system_prompt`, so this hook just instantiates the generic `HarborEnv`.
-"""
-
 from __future__ import annotations
 
 from strands_env.core.models import build_model_factory

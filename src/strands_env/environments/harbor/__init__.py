@@ -1,5 +1,3 @@
-"""Harbor task environment for Docker/e2b-based task evaluation."""
-
 from pathlib import Path
 
 from .env import HarborConfig, HarborEnv

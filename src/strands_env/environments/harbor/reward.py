@@ -1,5 +1,3 @@
-"""Reward function for the Harbor task environment."""
-
 from __future__ import annotations
 
 import asyncio
@@ -39,7 +37,7 @@ class HarborReward(RewardFunction["HarborTask"]):
             )
             verifier_result = await asyncio.wait_for(verifier.verify(), timeout=timeout)
             # reward.json is unvalidated upstream; loud indexing raises on a missing key, never a silent 0
-            return RewardResult(reward=float(verifier_result.rewards["reward"]), info={"status": "success"})
+            return RewardResult(reward=float(verifier_result.rewards["reward"]), info={"status": "success"})  # type: ignore[index]
         except Exception as e:
             logger.exception("Verification failed due to %s: %s", type(e).__name__, str(e))
             return RewardResult(reward=0.0, info={"status": "error", "message": str(e)})

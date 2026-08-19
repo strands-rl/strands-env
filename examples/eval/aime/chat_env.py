@@ -1,8 +1,6 @@
-"""Example environment hook for math reasoning evaluation with `Environment`."""
-
 from strands_env.core import Environment
 from strands_env.core.models import build_model_factory
-from strands_env.environments.calculator.reward import MathVerifyReward
+from strands_env.environments.math.reward import MathVerifyReward
 
 
 def create_env_factory(model_config: dict, **env_config):

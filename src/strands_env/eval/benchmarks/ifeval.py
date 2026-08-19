@@ -1,5 +1,3 @@
-"""Evaluator for IFEval (Instruction-Following Eval) benchmark."""
-
 from __future__ import annotations
 
 import logging
@@ -8,6 +6,7 @@ from typing import Any, override
 
 from datasets import load_dataset
 from lm_eval.tasks.ifeval.utils import process_results
+from pydantic import Field
 
 from strands_env.core import Task
 from strands_env.core.types import RewardFunction, RewardResult, RolloutResult
@@ -30,8 +29,8 @@ class IFEvalTask(Task):
     """`Task` carrying the IFEval row fields the grader needs."""
 
     key: int = 0
-    instruction_id_list: list[Any] = []
-    ifeval_kwargs: list[Any] = []
+    instruction_id_list: list[Any] = Field(default_factory=list)
+    ifeval_kwargs: list[Any] = Field(default_factory=list)
 
 
 class IFEvalReward(RewardFunction):

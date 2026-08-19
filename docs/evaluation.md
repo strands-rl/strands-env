@@ -71,13 +71,13 @@ python -m strands_env.eval \
 # Using custom evaluator module
 python -m strands_env.eval \
     --evaluator examples.eval.simple_math.simple_math_evaluator \
-    --env examples.eval.simple_math.calculator_env \
+    --env examples.eval.simple_math.math_env \
     --base-url http://localhost:30000
 
 # Pass@8 evaluation with high concurrency
 python -m strands_env.eval \
     --benchmark aime-2024 \
-    --env examples.eval.simple_math.calculator_env \
+    --env examples.eval.simple_math.math_env \
     --base-url http://localhost:30000 \
     --n-samples-per-prompt 8 \
     --max-concurrency 30
@@ -85,13 +85,13 @@ python -m strands_env.eval \
 # With env config override
 python -m strands_env.eval \
     --benchmark aime-2024 \
-    --env examples.eval.simple_math.calculator_env \
+    --env examples.eval.simple_math.math_env \
     --env-config '{"max_tool_iters": 5}'
 
 # Distributed eval across Ray actors (e.g. 8 actors per node)
 python -m strands_env.eval \
     --benchmark aime-2024 \
-    --env examples.eval.simple_math.calculator_env \
+    --env examples.eval.simple_math.math_env \
     --base-url http://localhost:30000 \
     --n-actors-per-node 8 \
     --max-concurrency 30
@@ -116,20 +116,20 @@ def create_env_factory(model_config: dict, **env_config):
     return env_factory
 ```
 
-### Example: Calculator Environment
+### Example: Math Environment
 
 ```python
-# examples/eval/simple_math/calculator_env.py
+# examples/eval/simple_math/math_env.py
 from strands_env.core.models import build_model_factory
-from strands_env.environments.calculator import CalculatorEnv
-from strands_env.environments.calculator.reward import MathVerifyReward
+from strands_env.environments.math import MathEnv
+from strands_env.environments.math.reward import MathVerifyReward
 
 def create_env_factory(model_config: dict, **env_config):
     model_factory = build_model_factory(model_config)
     reward_fn = MathVerifyReward()
 
     async def env_factory():
-        return CalculatorEnv(model_factory=model_factory, reward_fn=reward_fn, **env_config)
+        return MathEnv(model_factory=model_factory, reward_fn=reward_fn, **env_config)
 
     return env_factory
 ```
@@ -140,7 +140,7 @@ def create_env_factory(model_config: dict, **env_config):
 # examples/eval/hmmt/agentcore_code_env.py
 from strands_env.core.models import build_model_factory
 from strands_env.environments.agentcore_code import AgentCoreCodeEnv
-from strands_env.environments.calculator.reward import MathVerifyReward
+from strands_env.environments.math.reward import MathVerifyReward
 
 def create_env_factory(model_config: dict, **env_config):
     model_factory = build_model_factory(model_config)
@@ -242,7 +242,7 @@ For distributed eval, build an `EnvironmentActorPool` with the dotted hook path 
 from strands_env.core.distributed import EnvironmentActorPool
 
 env_actor_pool = EnvironmentActorPool(
-    env_hook_path="examples.eval.simple_math.calculator_env.create_env_factory",
+    env_hook_path="examples.eval.simple_math.math_env.create_env_factory",
     env_hook_config={"model_config": model_config.to_dict(), "max_tool_iters": 5},
     n_actors_per_node=8,
 )
@@ -282,7 +282,7 @@ For models that use non-standard tool calling formats, specify a predefined pars
 ```bash
 python -m strands_env.eval \
     --benchmark aime-2024 \
-    --env examples.eval.simple_math.calculator_env \
+    --env examples.eval.simple_math.math_env \
     --tool-parser qwen_xml
 ```
 

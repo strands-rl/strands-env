@@ -1,16 +1,3 @@
-"""User-simulator side of tau2-bench: the LLM user and its dialogue protocol.
-
-`Tau2BenchUserSimulator` owns the user-side agent (persona prompt, user tools) and drives the
-whole multi-turn dialogue inside a single `agent.invoke_async()` by feeding each user
-reply back via `AfterInvocationEvent.resume`, until a stop marker
-(`###STOP###` / `###TRANSFER###` / `###OUT-OF-SCOPE###`) or the `max_steps` budget.
-
-`max_steps` mirrors tau2's step semantics: every message hop (agent message, tool round,
-user message) counts one step. It is enforced as a single budget over the total message
-count of both agents — a `LoopLimiter` on the user-sim agent is re-armed each turn with
-whatever the assistant conversation has not consumed.
-"""
-
 from __future__ import annotations
 
 import logging

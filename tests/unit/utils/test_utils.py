@@ -1,5 +1,3 @@
-"""Tests for utils/aws.py and utils/decorators.py."""
-
 import threading
 import time
 from datetime import UTC
