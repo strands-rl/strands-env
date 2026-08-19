@@ -115,8 +115,8 @@ class TestPromptTemplate:
         assert "Content Scanning for Rational:" not in SUMMARY_PROMPT_TEMPLATE
 
     def test_drops_json_format_footer(self):
-        """Structured output replaces the upstream 'Final Output Format ... feilds' line."""
-        assert "feilds" not in SUMMARY_PROMPT_TEMPLATE
+        """Structured output replaces the upstream 'Final Output Format ... fields' line."""
+        assert "fields" not in SUMMARY_PROMPT_TEMPLATE
         assert "JSON format" not in SUMMARY_PROMPT_TEMPLATE
 
     def test_formats_with_content_and_goal(self):

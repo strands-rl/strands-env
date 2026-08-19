@@ -124,7 +124,7 @@ class TestEdgeCases:
         assert result.reward == 0.0
         assert result.info["reason"] == "answer_parse_failed"
 
-    async def test_unparseable_gold(self):
+    async def test_unparsable_gold(self):
         """Ground truth that math-verify can't parse."""
         fn = MathVerifyReward()
         result = await fn.compute(

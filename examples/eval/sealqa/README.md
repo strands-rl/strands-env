@@ -1,6 +1,6 @@
 # SealQA
 
-[SealQA](https://huggingface.co/datasets/vtllms/sealqa) (SEarch-Augmented Language models QA) benchmark with LLM-as-judge grading. Evaluates reasoning over conflicting, noisy, or unhelpful search results.
+[SealQA](https://huggingface.co/datasets/vtllms/sealqa) (Search-Augmented Language models QA) benchmark with LLM-as-judge grading. Evaluates reasoning over conflicting, noisy, or unhelpful search results.
 
 ## Variants
 

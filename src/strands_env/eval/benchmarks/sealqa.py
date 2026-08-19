@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Evaluator for SealQA (SEarch-Augmented Language models QA) benchmarks."""
+"""Evaluator for SealQA (Search-Augmented Language models QA) benchmarks."""
 
 from __future__ import annotations
 

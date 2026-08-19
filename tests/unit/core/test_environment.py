@@ -379,7 +379,7 @@ class TestTaskCls:
         assert BareEnv.task_cls is Task
 
     def test_multi_param_generic_layer(self):
-        """A multi-parameter generic env layer must neither crash nor mis-derive."""
+        """A multi-parameter generic env layer must neither crash nor derive the wrong task_cls."""
         from typing import Generic, TypeVar
 
         from strands_env.core.types import TaskT
