@@ -26,12 +26,9 @@ if TYPE_CHECKING:
 class HarborConfig(EnvironmentConfig):
     """Serializable configuration for `HarborEnv`.
 
-    Backends:
-        - "docker": Local Docker via `harbor`'s native `DockerEnvironment`.
-        - "e2b": Self-hosted e2b sandbox (Firecracker microVM, e2b-on-AWS) via
-            `PrebakedE2BEnvironment`. Connection (`domain`/`api_key`) and template
-            config go in `prebaked_e2b_config`, or fall back to the
-            `E2B_DOMAIN` / `E2B_API_KEY` env vars.
+    `backend` picks between local Docker (harbor's native `DockerEnvironment`) and a self-hosted
+    e2b sandbox (Firecracker microVM) via `PrebakedE2BEnvironment`. For e2b, connection and
+    template settings go in `prebaked_e2b_config`, falling back to `E2B_DOMAIN` / `E2B_API_KEY`.
     """
 
     exec_timeout: NotRequired[int]  # sandbox.exec timeout; also the verifier fallback
@@ -122,7 +119,6 @@ class HarborEnv(Environment[HarborTask]):
 
     @override
     def get_tools(self) -> list:
-        """Return the execute_command tool."""
         return [self.execute_command]
 
     @override

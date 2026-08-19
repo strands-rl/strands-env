@@ -26,12 +26,13 @@ class MCPAtlasConfig(EnvironmentConfig):
 class MCPAtlasEnv(Environment[MCPAtlasTask]):
     """MCP-Atlas benchmark environment backed by a Docker container.
 
+    `reset()` fetches the container's tool list and keeps only what the task's `enabled_tools`
+    names — a strict filter, so an empty one enables nothing. `cleanup()` drops that list and
+    leaves the HTTP client alone.
+
     Notes:
-        - A shared `httpx.AsyncClient` is passed in at construction time;
-          the caller owns its lifecycle (create once, close after all tasks).
-        - `reset()` fetches tools from the container and applies the task's
-          `enabled_tools` filter strictly (an empty filter enables no tools).
-        - `cleanup()` clears the tool list only.
+        The `httpx.AsyncClient` is caller-owned: create it once (see `create_client`), pass it to
+        every env, and close it after all tasks. Nothing here closes it.
     """
 
     DEFAULT_DOCKER_URL: ClassVar[str] = "http://localhost:1984"
@@ -50,13 +51,12 @@ class MCPAtlasEnv(Environment[MCPAtlasTask]):
         """Initialize an `MCPAtlasEnv` instance.
 
         Args:
-            model_factory: Factory for the agent's model.
-            http_client: Shared client for the MCP-Atlas container (see `create_client`);
-                the caller owns its lifecycle.
-            reward_fn: Optional reward function (None = inference-only).
-            cached_tools: Pre-fetched `/list-tools` response; skips the fetch in `reset()`.
-                Share one across envs to avoid refetching per episode.
-            **config: See `MCPAtlasConfig`.
+            model_factory: builds the agent's model.
+            http_client: shared client for the container; caller-owned.
+            reward_fn: `None` means inference-only, no scoring.
+            cached_tools: a pre-fetched `/list-tools` response, which skips the fetch in `reset()`.
+                Share one across envs so the list isn't refetched per episode.
+            **config: see `MCPAtlasConfig`.
         """
         super().__init__(
             model_factory=model_factory,
@@ -77,8 +77,7 @@ class MCPAtlasEnv(Environment[MCPAtlasTask]):
     ) -> httpx.AsyncClient:
         """Create an `httpx.AsyncClient` configured for the MCP-Atlas container.
 
-        The caller owns the returned client's lifecycle and should close it
-        when done (e.g. via `async with` or explicit `aclose()`).
+        Caller-owned: close it with `async with` or an explicit `aclose()` once every task is done.
         """
         limits = httpx.Limits(
             max_connections=max_connections,
