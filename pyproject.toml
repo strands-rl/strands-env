@@ -133,7 +133,8 @@ select = [
     "ASYNC",  # flake8-async
     "B",      # flake8-bugbear
     "C4",     # flake8-comprehensions
-    "D",      # pydocstyle
+    "D2",     # pydocstyle formatting — D1 (must exist) is deliberately not selected
+    "D4",     # pydocstyle content
     "E",      # pycodestyle
     "F",      # pyflakes
     "G",      # flake8-logging-format
@@ -150,7 +151,6 @@ select = [
     "W",      # pycodestyle warnings
 ]
 ignore = [
-    "D107",
     "E501",
     "UP046",
     "ASYNC109", # `timeout` forwards to a blocking `proc.wait()`
