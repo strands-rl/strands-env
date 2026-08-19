@@ -34,6 +34,11 @@ dependencies = [
     "aiolimiter>=1.1.0",
 ]
 
+[project.urls]
+Homepage = "https://github.com/strands-rl/strands-env"
+Repository = "https://github.com/strands-rl/strands-env"
+Issues = "https://github.com/strands-rl/strands-env/issues"
+
 [project.optional-dependencies]
 harbor = [
     "harbor>=0.15.0",
@@ -66,6 +71,11 @@ allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/strands_env"]
+
+# An allowlist, not an exclude list: hatchling reads the filesystem rather than git,
+# so anything untracked but present (.local/, scratch eval runs) would otherwise ship.
+[tool.hatch.build.targets.sdist]
+include = ["src", "tests", "examples", "README.md", "LICENSE", "CITATION.cff"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -166,3 +176,6 @@ ignore = [
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
+
+[tool.ruff.lint.isort]
+known-first-party = ["strands_env"]
