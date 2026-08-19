@@ -1,5 +1,3 @@
-"""Unit tests for CodeInterpreterQuotas and CodeInterpreterToolkit."""
-
 import asyncio
 import time
 from unittest.mock import MagicMock

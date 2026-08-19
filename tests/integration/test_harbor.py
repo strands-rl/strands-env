@@ -1,11 +1,3 @@
-"""Integration tests for HarborEnv with a real SGLang model.
-
-Requires:
-- A running SGLang server (default: http://localhost:30000)
-- Docker daemon running
-- harbor>=0.1.43 (`pip install harbor`)
-"""
-
 import shutil
 import subprocess
 

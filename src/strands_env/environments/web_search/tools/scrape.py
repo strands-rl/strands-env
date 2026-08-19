@@ -1,5 +1,3 @@
-"""Web scraper toolkit with LLM structured summarization."""
-
 from __future__ import annotations
 
 import asyncio

@@ -1,5 +1,3 @@
-"""Evaluator for FRAMES (Factuality, Retrieval, And reasoning MEasurement Set) benchmark."""
-
 from __future__ import annotations
 
 import logging

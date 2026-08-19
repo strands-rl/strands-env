@@ -1,10 +1,3 @@
-"""Evaluator for SWE-bench Verified (Harbor format).
-
-The Harbor-format SWE-bench Verified tasks live as a subdirectory inside
-the larger `harbor-datasets.git` repo. We sparse-checkout just that
-subdirectory at a pinned commit so we don't have to clone every benchmark.
-"""
-
 from __future__ import annotations
 
 import subprocess

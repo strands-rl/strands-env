@@ -1,5 +1,3 @@
-"""Math environment: no tools, symbolic-equivalence reward."""
-
 from pathlib import Path
 from typing import Unpack, override
 

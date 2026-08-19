@@ -1,11 +1,3 @@
-"""Integration tests for MathEnv.
-
-Exercises the full rollout lifecycle: agent invocation → result
-(messages, tokens, metrics) → optional reward — against a real SGLang model.
-
-Requires a running SGLang server (default: http://localhost:30000).
-"""
-
 from strands_env.core.types import Task, TerminationReason
 from strands_env.environments.math import MathEnv
 from strands_env.environments.math.reward import MathVerifyReward

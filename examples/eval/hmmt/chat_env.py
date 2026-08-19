@@ -1,5 +1,3 @@
-"""Example environment hook for HMMT evaluation with a chat-only environment (no tools)."""
-
 from strands_env.core import Environment
 from strands_env.core.models import build_model_factory
 from strands_env.environments.math.reward import MathVerifyReward

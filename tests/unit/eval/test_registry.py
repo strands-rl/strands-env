@@ -1,5 +1,3 @@
-"""Unit tests for benchmark registry."""
-
 import pytest
 
 from strands_env.eval import Evaluator, get_benchmark, list_benchmarks

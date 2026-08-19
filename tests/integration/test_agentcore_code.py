@@ -1,10 +1,3 @@
-"""Integration tests for AgentCoreCodeEnv with a real SGLang model.
-
-Requires:
-- A running SGLang server (default: http://localhost:30000)
-- Valid AWS credentials with Bedrock AgentCore access
-"""
-
 import pytest
 
 from strands_env.core.types import RewardResult, RolloutResult, Task, TerminationReason

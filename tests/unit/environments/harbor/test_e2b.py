@@ -1,11 +1,3 @@
-"""Unit tests for the Harbor `e2b` backend adapter (`e2b.py`).
-
-Covers the harbor-independent logic: template resolution, connection env-var
-export, the permissive api-key validator, and the `PrebakedE2BEnvironment`
-`__init__`/`start` overrides. Harbor's `E2BEnvironment` base and the e2b SDK are
-not exercised against a real cluster — sandbox creation is mocked.
-"""
-
 from __future__ import annotations
 
 import json

@@ -1,5 +1,3 @@
-"""Web-search toolkit over Serper and Google Custom Search."""
-
 from __future__ import annotations
 
 import asyncio

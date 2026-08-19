@@ -1,5 +1,3 @@
-"""Evaluator for Terminal-Bench (Harbor) benchmarks."""
-
 from __future__ import annotations
 
 import json

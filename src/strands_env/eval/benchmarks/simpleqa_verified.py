@@ -1,5 +1,3 @@
-"""Evaluator for SimpleQA-Verified benchmarks."""
-
 from __future__ import annotations
 
 import logging

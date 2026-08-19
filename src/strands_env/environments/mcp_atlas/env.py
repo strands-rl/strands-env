@@ -1,5 +1,3 @@
-"""MCP-Atlas environment backed by a Docker container."""
-
 from __future__ import annotations
 
 import logging

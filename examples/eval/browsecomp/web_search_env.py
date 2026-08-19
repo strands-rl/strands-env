@@ -1,5 +1,3 @@
-"""Example environment hook for BrowseComp evaluation with Serper search + Jina-based web scraping."""
-
 import asyncio
 
 from strands_env.core.models import bedrock_model_factory, build_model_factory

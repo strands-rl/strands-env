@@ -1,12 +1,3 @@
-"""Unit tests for `HarborConfig` type resolution.
-
-Regression guard: `HarborConfig` (with its nested `PrebakedE2BConfig` and the
-inherited base knobs) is embedded as a Pydantic field by the
-terminal-bench / swebench task contexts. Pydantic resolves those hints at
-runtime, so a TYPE_CHECKING-only type in any `HarborConfig` field breaks dataset
-loading with a `NameError`.
-"""
-
 from __future__ import annotations
 
 import typing

@@ -1,5 +1,3 @@
-"""Example environment hook for FRAMES evaluation with a chat-only environment (no tools)."""
-
 from strands_env.core import Environment
 from strands_env.core.models import bedrock_model_factory, build_model_factory
 from strands_env.eval.benchmarks.frames import FramesReward

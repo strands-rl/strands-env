@@ -1,5 +1,3 @@
-"""Unit tests for model factory functions."""
-
 from unittest.mock import MagicMock, patch
 
 import boto3

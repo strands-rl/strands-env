@@ -1,5 +1,3 @@
-"""Unit tests for core types."""
-
 import pytest
 from botocore.exceptions import ClientError
 from strands.types.exceptions import (

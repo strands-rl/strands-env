@@ -1,5 +1,3 @@
-"""LLM judge for tau2's NL_ASSERTION sub-reward, aligned with tau2's judge prompt and schema."""
-
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, override

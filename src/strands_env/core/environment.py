@@ -1,5 +1,3 @@
-"""Base Environment class for Strands Agents."""
-
 from __future__ import annotations
 
 import logging

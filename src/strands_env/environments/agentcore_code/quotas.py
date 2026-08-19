@@ -1,5 +1,3 @@
-"""Shared AWS quotas for the Code Interpreter toolkit."""
-
 from __future__ import annotations
 
 import asyncio

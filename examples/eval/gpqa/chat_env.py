@@ -1,5 +1,3 @@
-"""Example environment hook for GPQA evaluation with a chat-only environment (no tools)."""
-
 from strands_env.core import Environment
 from strands_env.core.models import build_model_factory
 from strands_env.eval.benchmarks.gpqa import GPQAReward

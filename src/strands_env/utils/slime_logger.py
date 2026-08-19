@@ -1,17 +1,3 @@
-"""Rollout logger for `slime` training, with a pluggable logging backend.
-
-`RolloutLogger` aggregates per-rollout environment metrics into slime's
-`rollout_extra_metrics` and publishes a sample of decoded rollouts to the
-configured `backend`:
-
-- `"wandb"` — metrics to `wandb`, samples to a W&B Weave dataset.
-- `"mlflow"` — metrics and samples to MLflow.
-
-Instantiate one and pass its bound `log_rollouts` as slime's
-`--custom-rollout-log-function-path` callback. Backend libraries are imported
-lazily, so only the selected backend needs to be installed.
-"""
-
 from __future__ import annotations
 
 import logging

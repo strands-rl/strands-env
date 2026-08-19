@@ -1,5 +1,3 @@
-"""MCP-Atlas tool adapter — calls the container's REST API."""
-
 from __future__ import annotations
 
 from typing import Literal, override

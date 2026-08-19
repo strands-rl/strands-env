@@ -1,5 +1,3 @@
-"""Evaluator for tau2-bench (Sierra Research, multi-turn customer service)."""
-
 from __future__ import annotations
 
 import logging
