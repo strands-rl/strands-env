@@ -23,7 +23,6 @@ classifiers = [
 dependencies = [
     "strands-sglang>=0.6.0",
     "strands-agents[openai]>=1.46.0",
-    "strands-agents-tools>=0.2.0",
     "openai",
     "datasets",
     "math-verify>=0.8.0",

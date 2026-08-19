@@ -95,7 +95,7 @@ Ready-to-use environments under `src/strands_env/environments/`. Each ships with
 
 | Environment | Description |
 | --- | --- |
-| [`calculator`](src/strands_env/environments/calculator/README.md) | Calculator tool with symbolic-equivalence reward for math reasoning. |
+| [`math`](src/strands_env/environments/math/README.md) | Chat-only math reasoning with a symbolic-equivalence reward. |
 | [`agentcore_code`](src/strands_env/environments/agentcore_code/README.md) | Python / shell execution via AWS Bedrock AgentCore Code Interpreter. |
 | [`web_search`](src/strands_env/environments/web_search/README.md) | Google search + Jina page scraping with optional LLM summarization, enlightened by [OpenSeeker](https://github.com/rui-ye/OpenSeeker). |
 | [`harbor`](src/strands_env/environments/harbor/README.md) | Run [Harbor](https://github.com/laude-institute/harbor)-format tasks in sandboxes. Supports training like [SETA](https://github.com/camel-ai/seta) and evaluation like [Terminal-Bench](https://www.tbench.ai/) and [SWE-bench](https://www.swebench.com/). |
