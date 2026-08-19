@@ -19,11 +19,7 @@ class AIMEEvaluator(Evaluator):
 
     @override
     def load_dataset(self) -> Iterable[Task]:
-        """Load AIME dataset from HuggingFace (streaming).
-
-        Yields:
-            Task objects with problem text and ground truth.
-        """
+        """Load AIME dataset from HuggingFace (streaming)."""
         dataset = load_dataset(self.hf_dataset_path, split="train", streaming=True)
 
         for i, row in enumerate(dataset):

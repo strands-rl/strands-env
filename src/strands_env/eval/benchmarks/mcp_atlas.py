@@ -54,14 +54,7 @@ class MCPAtlasEvaluator(Evaluator[MCPAtlasTask]):
         available_servers: frozenset[str] | None = DEFAULT_SERVERS,
         **kwargs: object,
     ):
-        """Initialize a `MCPAtlasEvaluator` instance.
-
-        Args:
-            env_factory: Async factory that creates a fresh `MCPAtlasEnv` per sample.
-            available_servers: Servers available in the container. Tasks requiring
-                servers outside this set are skipped. None disables filtering.
-            **kwargs: Forwarded to `Evaluator.__init__`.
-        """
+        """A task needing a server outside `available_servers` is skipped; `None` keeps them all."""
         super().__init__(env_factory=env_factory, **kwargs)  # type: ignore[arg-type]
         self._available_servers = available_servers
 

@@ -111,7 +111,6 @@ class SimpleQAReward(LLMJudgeReward[SimpleQAJudgment]):
 
     @override
     async def get_judge_prompt(self, task: Task, result: RolloutResult) -> str:
-        """Get judge prompt for SimpleQA-Verified benchmarks."""
         return GRADER_TEMPLATE.format(
             query=task.message,
             ground_truth=task.ground_truth,
@@ -120,7 +119,6 @@ class SimpleQAReward(LLMJudgeReward[SimpleQAJudgment]):
 
     @override
     async def get_reward(self, judgment: SimpleQAJudgment | str) -> float:
-        """Get reward for SimpleQA-Verified benchmarks."""
         if isinstance(judgment, SimpleQAJudgment):
             return {"CORRECT": 1.0, "INCORRECT": 0.0, "NOT_ATTEMPTED": 0.0}[judgment.grade]
         return self.default_reward
@@ -134,11 +132,7 @@ class SimpleQAVerifiedEvaluator(Evaluator):
 
     @override
     def load_dataset(self) -> Iterable[Task]:
-        """Load SimpleQA-Verified dataset from HuggingFace (streaming).
-
-        Yields:
-            Task objects with problem text and ground truth.
-        """
+        """Load SimpleQA-Verified dataset from HuggingFace (streaming)."""
         dataset = load_dataset(self.hf_dataset_path, split="eval", streaming=True)
 
         for i, row in enumerate(dataset):

@@ -83,7 +83,7 @@ class Tau2BenchEvaluator(Evaluator[Tau2BenchTask]):
 
     @override
     def get_metric_fns(self) -> list[MetricFunction]:
-        """Report both ``pass@k`` (at-least-one) and ``pass^k`` (consistency, tau2 paper)."""
+        """Report both `pass@k` (at-least-one) and `pass^k` (consistency, per the tau2 paper)."""
         k_values = list(range(1, self.n_samples_per_prompt + 1))
         return [
             partial(compute_pass_at_k, k_values=k_values, reward_threshold=1.0),

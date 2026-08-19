@@ -29,11 +29,7 @@ class SealQAEvaluator(Evaluator):
 
     @override
     def load_dataset(self) -> Iterable[Task]:
-        """Load SealQA dataset from HuggingFace.
-
-        Yields:
-            Task objects with question text, ground truth, and task metadata.
-        """
+        """Load SealQA dataset from HuggingFace (streaming)."""
         dataset = load_dataset(self.hf_dataset_path, name=self.hf_dataset_config, split="test", streaming=True)
 
         for i, row in enumerate(dataset):

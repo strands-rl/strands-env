@@ -59,7 +59,6 @@ class BrowseCompReward(LLMJudgeReward[BrowseCompJudgment]):
 
     @override
     async def get_judge_prompt(self, task: Task, result: RolloutResult) -> str:
-        """Get judge prompt for BrowseComp benchmark."""
         return GRADER_TEMPLATE.format(
             query=task.message,
             ground_truth=task.ground_truth,
@@ -68,7 +67,6 @@ class BrowseCompReward(LLMJudgeReward[BrowseCompJudgment]):
 
     @override
     async def get_reward(self, judgment: BrowseCompJudgment | str) -> float:
-        """Get reward for BrowseComp benchmark."""
         if isinstance(judgment, BrowseCompJudgment):
             return {"yes": 1.0, "no": 0.0}[judgment.correct]
         return self.default_reward
@@ -87,10 +85,7 @@ class BrowseCompEvaluator(Evaluator):
     def load_dataset(self) -> Iterable[Task]:
         """Load BrowseComp dataset from OpenAI's public CSV.
 
-        Problems and answers are XOR-encrypted; decrypted here using the canary column.
-
-        Yields:
-            Task objects with decrypted question and ground truth answer.
+        Problems and answers are XOR-encrypted; decrypted here using each row's canary column.
         """
         df = pd.read_csv(DATASET_URL)
 
