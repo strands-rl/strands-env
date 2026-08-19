@@ -37,7 +37,7 @@ dependencies = [
 [project.optional-dependencies]
 harbor = [
     "harbor>=0.15.0",
-    "e2b==2.25.1",
+    "e2b==2.38.0",
 ]
 ifeval = ["lm_eval[ifeval]>=0.4.11"]
 agent-world-model = ["agent-world-model==0.1.0"]
