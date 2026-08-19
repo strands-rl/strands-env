@@ -14,11 +14,11 @@ if TYPE_CHECKING:
 class CodeInterpreterToolkit:
     """Code toolkit using AWS Bedrock AgentCore Code Interpreter.
 
+    Exposes `execute_code` (Python) and `execute_command` (shell), both sandboxed.
+
     Notes:
-        - Provides `execute_code` and `execute_command` tools for running Python code
-          and shell commands in a sandboxed environment.
-        - One AgentCore session per toolkit, started lazily on the first call;
-          `cleanup` stops it.
+        One AgentCore session per toolkit, started lazily on the first call and stopped by
+        `cleanup`.
     """
 
     CODE_INTERPRETER_ID: ClassVar[str] = "aws.codeinterpreter.v1"

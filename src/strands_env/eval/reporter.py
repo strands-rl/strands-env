@@ -17,13 +17,13 @@ logger = logging.getLogger(__name__)
 class EvalReporter(ABC):
     """Base class for eval result reporters.
 
-    Notes:
-        The lifecycle (called by `Evaluator`) is as follows:
-        1. `log_sample(prompt_id, sample)` — after each completed sample (accumulate, fast)
-        2. `flush()` — periodic checkpoint (every save_interval completions + end of run)
-        3. `log_metrics(metrics)` — after `compute_metrics()` completes
-        4. `log_metadata(metadata)` — run-level params/tags (benchmark, model, backend, ...)
-        5. `publish()` — async; do all remote/heavy I/O here (S3 upload, MLflow, etc.)
+    `Evaluator` drives the lifecycle in this order:
+
+    1. `log_sample(prompt_id, sample)` — after each completed sample; accumulate, stay fast
+    2. `flush()` — periodic checkpoint, every `save_interval` completions and at end of run
+    3. `log_metrics(metrics)` — after `compute_metrics()`
+    4. `log_metadata(metadata)` — run-level params and tags (benchmark, model, backend)
+    5. `publish()` — async, and the only place for remote or heavy I/O
     """
 
     @abstractmethod
@@ -39,10 +39,8 @@ class EvalReporter(ABC):
     def rewrite(self, results: dict[str, list[EvalSample[Any]]]) -> None:
         """Reconcile the checkpoint to exactly `results`, dropping stale entries.
 
-        Notes:
-            Called once at resume time so retried (previously aborted) samples don't leave a
-            duplicate task entry behind. No-op for reporters that don't keep a rewritable local
-            checkpoint.
+        Called once at resume, so a retried (previously aborted) sample doesn't leave a duplicate
+        task entry behind. A no-op unless the reporter keeps a rewritable local checkpoint.
         """
         return None
 

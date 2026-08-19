@@ -13,9 +13,7 @@ if TYPE_CHECKING:
 class MCPToolAdapter(AgentTool):
     """Adapts an MCP tool to the Strands `AgentTool` interface.
 
-    Notes:
-        Subclasses must implement `call_tool()` to execute the tool call and
-        return parsed content and status.
+    Handles the tool-spec building; subclasses implement `call_tool()` for their transport.
     """
 
     def __init__(
@@ -30,12 +28,10 @@ class MCPToolAdapter(AgentTool):
 
     @property
     def tool_name(self) -> str:
-        """Return the tool name."""
         return self._mcp_tool.name
 
     @property
     def tool_spec(self) -> ToolSpec:
-        """Return the tool spec for the agent."""
         spec: ToolSpec = {
             "name": self._mcp_tool.name,
             "description": self._mcp_tool.description or self._mcp_tool.name,
@@ -47,21 +43,12 @@ class MCPToolAdapter(AgentTool):
 
     @property
     def tool_type(self) -> str:
-        """Return the tool type identifier."""
         return "python"
 
     async def call_tool(
         self, name: str, args: dict[str, Any]
     ) -> tuple[list[ToolResultContent], Literal["success", "error"]]:
-        """Execute the tool call and return parsed results. Override in subclasses.
-
-        Args:
-            name: The tool name.
-            args: The tool arguments.
-
-        Returns:
-            A tuple of (content, status).
-        """
+        """Execute the tool call and return parsed results. Override in subclasses."""
         raise NotImplementedError
 
     @override

@@ -52,7 +52,6 @@ class FramesReward(LLMJudgeReward[FramesJudgment]):
 
     @override
     async def get_judge_prompt(self, task: Task, result: RolloutResult) -> str:
-        """Get judge prompt for FRAMES benchmark."""
         return GRADER_TEMPLATE.format(
             query=task.message,
             ground_truth=task.ground_truth,
@@ -61,7 +60,6 @@ class FramesReward(LLMJudgeReward[FramesJudgment]):
 
     @override
     async def get_reward(self, judgment: FramesJudgment | str) -> float:
-        """Get reward for FRAMES benchmark."""
         if isinstance(judgment, FramesJudgment):
             return {"TRUE": 1.0, "FALSE": 0.0}[judgment.decision]
         return self.default_reward
@@ -75,11 +73,7 @@ class FramesEvaluator(Evaluator):
 
     @override
     def load_dataset(self) -> Iterable[Task]:
-        """Load FRAMES benchmark dataset from HuggingFace.
-
-        Yields:
-            Task objects with question, wiki links in task context, and ground truth.
-        """
+        """Load FRAMES benchmark dataset from HuggingFace."""
         dataset = load_dataset(self.hf_dataset_path, split="test")
 
         for i, row in enumerate(dataset):

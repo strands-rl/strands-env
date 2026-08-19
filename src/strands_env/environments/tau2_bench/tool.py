@@ -25,7 +25,6 @@ class Tau2BenchTool(AgentTool):
 
     @property
     def tool_name(self) -> str:
-        """Return the tau2 tool name."""
         return self._tool.name
 
     @property
@@ -42,7 +41,6 @@ class Tau2BenchTool(AgentTool):
 
     @property
     def tool_type(self) -> str:
-        """Strands tool type identifier."""
         return "python"
 
     @override

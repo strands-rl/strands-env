@@ -16,15 +16,10 @@ type BotoClientConfig = Config
 
 
 def resolve_region_name(region_name: str | None = None, profile_name: str | None = None) -> str:
-    """Resolve the AWS region name depending on the provided arguments.
+    """Resolve the AWS region name.
 
-    Args:
-        region_name: AWS region name. If `None`, resolved in order of precedence:
-            - `AWS_REGION` env var
-            - `AWS_DEFAULT_REGION` env var
-            - profile region from `~/.aws/config`
-            - `us-east-1` fallback
-        profile_name: Optional AWS profile name from `~/.aws/config`.
+    In order: the `region_name` argument, `AWS_REGION`, `AWS_DEFAULT_REGION`, the profile's region
+    from `~/.aws/config`, then `us-east-1`.
     """
     return (
         region_name
@@ -41,23 +36,16 @@ def get_session(
     role_arn: str | None = None,
     role_session_name: str = "strands-env",
 ) -> boto3.Session:
-    """Create a new boto3 session.
+    """Create a new boto3 session, resolving the region via `resolve_region_name`.
 
-    Args:
-        region_name: AWS region name. If `None`, resolved via `resolve_region_name`.
-        profile_name: Optional AWS profile name from `~/.aws/config`.
-        role_arn: Optional ARN of the IAM role to assume.
-        role_session_name: Session name for assumed role (only used if role_arn provided).
+    With `role_arn`, the role is assumed via STS with auto-refreshing credentials. Passing
+    `profile_name` too makes it a two-hop chain — the role is assumed *from that profile's*
+    credentials rather than the ambient ones, which is what a trust policy scoped to the profile's
+    account requires.
 
     Notes:
-        - Returns a **fresh** session every time — `boto3` sessions are not thread-safe,
-          so they must not be shared across concurrent calls. Use `get_client` instead
-          when you need a cached, thread-safe client.
-        - If `role_arn` is provided, assumes the role using STS with auto-refreshing
-          credentials via botocore's `RefreshableCredentials`. When `profile_name` is
-          also provided, the role is assumed **from that profile's credentials** (a
-          two-hop chain) rather than from the ambient ones — needed when the role's
-          trust policy only admits identities from the profile's account.
+        A **fresh** session every call. boto3 sessions are not thread-safe and must not be shared
+        across concurrent calls; use `get_client` when you want a cached, thread-safe client.
     """
     region_name = resolve_region_name(region_name=region_name, profile_name=profile_name)
     if role_arn:
@@ -116,24 +104,15 @@ def get_client(
     role_session_name: str = "strands-env",
     config: BotoClientConfig | None = None,
 ) -> BotoClient:
-    """Get a cached boto3 client.
+    """Get a cached boto3 client, one dedicated session per client.
 
-    Args:
-        service_name: AWS service name (e.g. `"bedrock-agentcore"`, `"lambda"`, `"dynamodb"`).
-        region_name: AWS region name. If `None`, resolved via `resolve_region_name`.
-        profile_name: Optional AWS profile name from `~/.aws/config`.
-        role_arn: Optional ARN of the IAM role to assume.
-        role_session_name: Session name for assumed role (only used if role_arn provided).
-        config: Optional `botocore.config.Config` for client-level settings
-            (e.g. `max_pool_connections`, `connect_timeout`, `read_timeout`, `retries`).
+    Each client owns its session, so nothing shares the non-thread-safe `Session` while the clients
+    themselves stay thread-safe. With `role_arn` the session uses `RefreshableCredentials`, so the
+    client keeps working past credential expiry.
 
     Notes:
-        - Cached by `(service_name, region_name, profile_name, role_arn, role_session_name)`.
-          `config` is excluded from the cache key (not hashable).
-        - Each client gets its own dedicated boto3 Session, avoiding the thread-safety
-          issues of sharing a Session across clients. The client itself is thread-safe.
-        - If `role_arn` is provided, the underlying Session uses `RefreshableCredentials`
-          so the client auto-refreshes when credentials expire.
+        `config` is excluded from the cache key because it isn't hashable — two calls that differ
+        only in `config` return the first one's client.
     """
     region_name = resolve_region_name(region_name=region_name, profile_name=profile_name)
     if role_arn:

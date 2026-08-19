@@ -16,8 +16,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# NOTE: response_len in default logging refers to loss_mask=1 tokens
-
 
 class RolloutLogger:
     """Custom `slime` rollout logger with a pluggable logging backend.
@@ -76,9 +74,8 @@ class RolloutLogger:
     def log_rollout_metrics(self, samples: list[Sample], rollout_extra_metrics: dict | None) -> None:
         """Aggregate `RolloutResult.metrics` across samples into `rollout_extra_metrics`.
 
-        Note:
-            - Need to set `sample.metrics = result.metrics` in `generate()`
-            - Overrides for more custom rollout logging metrics can be added here
+        Reads `sample.result.metrics`, so `generate()` has to attach the `RolloutResult` as
+        `sample.result` first.
         """
         per_sample: dict[str, list[float]] = {
             "message_count": [],

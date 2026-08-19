@@ -21,24 +21,15 @@ JudgmentFormat = TypeVar("JudgmentFormat", bound=BaseModel)
 class LLMJudgeReward(RewardFunction[TaskT], Generic[JudgmentFormat, TaskT]):
     r"""Abstract base for LLM-as-judge reward functions.
 
-    Args:
-        judge_model: A single model or a list of models to round-robin across
-            (useful for spreading load across AWS profiles to avoid throttling).
-            The cycle advances per sample, so consecutive judgments hit different
-            profiles.
-        default_reward: Reward to return if the judge fails.
+    Subclasses set the `judgment_format` class attribute and implement `get_judge_prompt` and
+    `get_reward`. With `judgment_format` set, the judge uses structured output and `get_reward`
+    receives the parsed Pydantic model; with `None`, it receives the raw text.
 
     Notes:
-        - Subclasses set `judgment_format` class attribute and implement
-          `get_judge_prompt` and `get_reward`.
-        - When `judgment_format` is set, uses structured output and passes
-          the parsed Pydantic model to `get_reward`. When `None`, passes
-          the raw text response instead.
-        - Throttling is handled by Strands' `ModelRetryStrategy`, a default hook on
-          every `Agent`: 6 attempts with exponential backoff (`4+8+16+32+64` = ~124s)
-          before a `ModelThrottledException` surfaces here as `judge_error`. Override
-          `get_judge_agent` to tune it (`retry_strategy=ModelRetryStrategy(...)`), or
-          to add a hook that rotates `agent.model` between attempts.
+        Throttling is handled by Strands' `ModelRetryStrategy`, a default hook on every `Agent`:
+        6 attempts with exponential backoff (`4+8+16+32+64` = ~124s) before a
+        `ModelThrottledException` surfaces here as `judge_error`. Override `get_judge_agent` to
+        tune it, or to add a hook that rotates `agent.model` between attempts.
 
     Example:
         class SimpleQAReward(LLMJudgeReward[SimpleQAJudgment]):
@@ -60,6 +51,11 @@ class LLMJudgeReward(RewardFunction[TaskT], Generic[JudgmentFormat, TaskT]):
         *,
         default_reward: float = 0.0,
     ) -> None:
+        """A list of judge models is round-robined, advancing once per sample.
+
+        Useful for spreading load across AWS profiles to avoid throttling, so consecutive
+        judgments hit different profiles.
+        """
         self.judge_models = itertools.cycle(judge_model if isinstance(judge_model, list) else [judge_model])
         self.default_reward = default_reward
 
@@ -70,16 +66,16 @@ class LLMJudgeReward(RewardFunction[TaskT], Generic[JudgmentFormat, TaskT]):
     @abstractmethod
     async def get_judge_prompt(self, task: TaskT, result: RolloutResult) -> str:
         """Format the prompt for the judge model."""
-        raise NotImplementedError("Subclasses must implement this method.")
+        raise NotImplementedError
 
     @abstractmethod
     async def get_reward(self, judgment: JudgmentFormat | str) -> float:
         """Get reward from judgment (structured or text)."""
-        raise NotImplementedError("Subclasses must implement this method.")
+        raise NotImplementedError
 
     async def get_judge_agent(self, task: TaskT, result: RolloutResult) -> Agent:
         """Build the agent that judges one sample. Override to configure it."""
-        # TODO: current model rotation is not within but across samples, amend this with a hook on AfterModelCallEvent if needed
+        # Rotation is across samples, not within one; a hook on AfterModelCallEvent would fix that.
         return Agent(
             model=next(self.judge_models),
             system_prompt=await self.get_system_prompt(task, result),

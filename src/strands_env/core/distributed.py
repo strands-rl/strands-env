@@ -21,16 +21,13 @@ logger = logging.getLogger(__name__)
 class EnvironmentActor:
     """Remote worker that runs environment episodes in a dedicated process.
 
-    The actor is fully generic — it loads a callable via dotted path and
-    calls it with the provided kwargs to produce an `AsyncEnvFactory`.
-    All domain logic (model construction, reward setup, etc.) lives in the hook.
-
-    Args:
-        env_hook_path: Dotted path to a callable that returns an `AsyncEnvFactory`.
-        env_hook_config: Configuration passed to the hook callable.
+    Fully generic: it loads a callable via dotted path and calls it with the provided kwargs to
+    produce an `AsyncEnvFactory`, so all domain logic (model construction, reward setup) lives in
+    the hook rather than here.
     """
 
     def __init__(self, env_hook_path: str, env_hook_config: dict[str, Any]) -> None:
+        """`env_hook_path` is a dotted path to a callable returning an `AsyncEnvFactory`."""
         env_hook = load_function(env_hook_path)
         self.env_factory = env_hook(**env_hook_config)
 
@@ -73,13 +70,9 @@ class EnvironmentActor:
 class EnvironmentActorPool:
     """Pool of `EnvironmentActor` instances distributed across Ray nodes.
 
-    Each actor runs in its own process with a separate GIL and event loop,
-    enabling true CPU parallelism for agent episodes.
-
-    Args:
-        env_hook_path: Dotted path to a callable that returns an `AsyncEnvFactory`.
-        env_hook_config: Configuration passed to the hook callable in each actor.
-        n_actors_per_node: Number of actors per alive Ray node.
+    Each actor runs in its own process with a separate GIL and event loop, giving true CPU
+    parallelism for agent episodes. `env_hook_path` is a dotted path to a callable returning an
+    `AsyncEnvFactory`, called with `env_hook_config` inside every actor.
     """
 
     def __init__(

@@ -27,7 +27,6 @@ class JsonType(click.ParamType):
     name = "JSON"
 
     def convert(self, value: str, param: click.Parameter | None, ctx: click.Context | None) -> dict:
-        """Convert value to dict."""
         path = Path(value)
         if path.is_file():
             with open(path, encoding="utf-8") as f:
@@ -178,8 +177,8 @@ def eval_cmd(
 ) -> None:
     """Run a benchmark evaluation.
 
-    Select what to run with --benchmark (a registered benchmark name) or
-    --evaluator (a custom evaluator module exporting EvaluatorClass). Use --list
+    Select what to run with --benchmark (a registered benchmark name) or --evaluator (a custom
+    evaluator module exporting EvaluatorClass); --benchmark wins if both are given. Use --list
     to see the registered benchmarks.
 
     Examples:
@@ -194,7 +193,6 @@ def eval_cmd(
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
 
-    # Resolve evaluator; --benchmark takes precedence over --evaluator
     if benchmark:
         evaluator_cls = get_benchmark(benchmark)
         benchmark_name = benchmark
@@ -205,10 +203,9 @@ def eval_cmd(
         evaluator_cls = load_evaluator_hook(evaluator_path)
         benchmark_name = evaluator_cls.benchmark_name
 
-    # Load env factory hook (validate before building model)
+    # Fail on a bad hook path before spending time building the model.
     load_env_factory_hook(env_hook)
 
-    # Build model config
     sampling_params: dict = {"max_new_tokens": max_tokens}
     if temperature is not None:
         sampling_params["temperature"] = temperature
@@ -250,11 +247,9 @@ def eval_cmd(
         env_factory_creator = load_env_factory_hook(env_hook)
         env_factory = env_factory_creator(model_config.to_dict(), **(env_config or {}))
 
-    # Output paths
     output_dir = output or Path(f"{benchmark_name}_eval")
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Create evaluator and load dataset
     evaluator = evaluator_cls(
         env_factory=env_factory,
         max_concurrency=max_concurrency,
@@ -285,7 +280,6 @@ def eval_cmd(
         "mode": mode,
     }
 
-    # Run, compute metrics, and publish through the reporter
     async def _run_eval() -> None:
         evaluator.reporter.log_metadata(metadata)
         results = await evaluator.run(tasks)

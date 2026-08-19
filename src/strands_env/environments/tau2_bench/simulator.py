@@ -23,9 +23,8 @@ logger = logging.getLogger(__name__)
 class Tau2BenchTerminationReason(StrEnum):
     """Why the tau2 dialogue ended, in tau2's own vocabulary.
 
-    Notes:
-        Matching tau2's dual mode, only the user can end the dialogue — the standard
-        tau2 `LLMAgent` never overrides `is_stop`, so there is no agent-side stop.
+    There is no agent-side stop: matching tau2's dual mode, only the user ends the dialogue, and
+    tau2's own `LLMAgent` never overrides `is_stop`.
     """
 
     USER_STOP = "user_stop"
@@ -94,12 +93,9 @@ class Tau2BenchUserSimulator(HookProvider):
         return text
 
     def register_hooks(self, registry: HookRegistry, **kwargs: Any) -> None:
-        """Subscribe to `AfterInvocationEvent`."""
         registry.add_callback(AfterInvocationEvent, self._on_after_invocation)
 
     async def _on_after_invocation(self, event: AfterInvocationEvent) -> None:
-
-        # Extract the agent's response text (no think block)
         agent_text = extract_message_text(event.result.message) if event.result else ""
 
         # Re-arm the shared step budget: on top of what the user-sim has already consumed,
@@ -109,7 +105,6 @@ class Tau2BenchUserSimulator(HookProvider):
             user_result = await self.agent.invoke_async(agent_text)
             user_text = extract_message_text(user_result.message)
         except Exception as e:
-            # Check if the error is caused by the max steps limit
             if TerminationReason.from_error(e) is TerminationReason.MAX_MESSAGES_REACHED:
                 self.termination = Tau2BenchTerminationReason.MAX_STEPS
                 return
@@ -117,12 +112,10 @@ class Tau2BenchUserSimulator(HookProvider):
             self.termination = Tau2BenchTerminationReason.ABORTED
             return
 
-        # Check if the user wanted to stop the dialogue
         if self.STOP_PATTERN.search(user_text):
             self.termination = Tau2BenchTerminationReason.USER_STOP
             # Append the terminating user msg so it shows up in `result.messages`.
             event.agent.messages.append({"role": "user", "content": [{"text": user_text}]})
             return
 
-        # Resume the assistant conversation with simulated user response
         event.resume = user_text

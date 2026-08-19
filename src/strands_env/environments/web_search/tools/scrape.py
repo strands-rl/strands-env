@@ -63,11 +63,11 @@ class WebPageSummary(BaseModel):
 class WebScraperToolkit:
     """Web scraper with LLM-based structured summarization.
 
+    With a `summarizer_model_factory`, fetched pages go through an LLM that extracts evidence and a
+    summary for the caller's goal; without one, `scrape` returns the raw page.
+
     Notes:
-        - When a `summarizer_model_factory` is set, runs an LLM to produce structured
-          output for the supplied goal based on fetched webpage content.
-        - A single shared `aiohttp.ClientSession` (created lazily) and an
-          `asyncio.Semaphore` cap concurrent requests. Call `cleanup` when done.
+        Holds one lazily-created `aiohttp.ClientSession`; `cleanup` closes it.
     """
 
     def __init__(
@@ -92,13 +92,12 @@ class WebScraperToolkit:
         self._session: aiohttp.ClientSession | None = None
 
     def _get_session(self) -> aiohttp.ClientSession:
-        """Get or create the shared HTTP session."""
+        # Reopened if closed, so a cleaned-up toolkit still works if reused.
         if self._session is None or self._session.closed:
             self._session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=self.timeout))
         return self._session
 
     async def cleanup(self) -> None:
-        """Close the shared HTTP session."""
         if self._session and not self._session.closed:
             await self._session.close()
             self._session = None
@@ -117,9 +116,7 @@ class WebScraperToolkit:
         max_retries: int = 8,
         retry_delay: float = 0.5,
     ) -> str:
-        """Fetch a URL and return the response text, retrying on transient errors.
-
-        Retries on exceptions and empty response bodies.
+        """Fetch a URL and return the response text, retrying on exceptions and empty bodies.
 
         Args:
             url: The URL to fetch. Callers may pass a provider-wrapped URL (e.g. `https://r.jina.ai/{target}`) directly.

@@ -11,18 +11,16 @@ from aiolimiter import AsyncLimiter
 class CodeInterpreterQuotas:
     """Shared AWS quotas for Code Interpreter API operations.
 
-    Notes:
-        - Create one instance and pass it to all `CodeInterpreterToolkit` instances
-        to enforce account-wide limits across concurrent sessions.
-        - Manages three concerns:
-            - Session semaphore: caps concurrent sessions (`session_concurrency`).
-            - Rate limiters: caps API request initiation rate for start/invoke/stop
-              (AWS TPS quotas) to prevent throttling errors.
-            - Thread pool executor: sized to match `session_concurrency` so each session can
-              have one in-flight blocking boto3 call without starving others.
+    One instance passed to every `CodeInterpreterToolkit` is what enforces account-wide limits
+    across concurrent sessions. It holds three things:
 
-    References:
-        - [AWS Bedrock AgentCore default quotas](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/bedrock-agentcore-limits.html)
+    - a semaphore capping concurrent sessions at `session_concurrency`
+    - rate limiters on start/invoke/stop, so AWS TPS quotas produce waiting rather than throttling
+      errors
+    - a thread pool sized to `session_concurrency`, so every session can hold one blocking boto3
+      call in flight without starving the others
+
+    Defaults follow [AWS Bedrock AgentCore quotas](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/bedrock-agentcore-limits.html).
     """
 
     DEFAULT_SESSION_CONCURRENCY: ClassVar[int] = 1000
@@ -44,5 +42,5 @@ class CodeInterpreterQuotas:
         self.executor = ThreadPoolExecutor(max_workers=session_concurrency)
 
     def to_thread(self, func: Any, /, *args: Any, **kwargs: Any) -> Any:
-        """Run a blocking function in the quotas thread pool (or default pool if no quotas)."""
+        """Run a blocking function in the quotas thread pool."""
         return asyncio.get_running_loop().run_in_executor(self.executor, partial(func, *args, **kwargs))

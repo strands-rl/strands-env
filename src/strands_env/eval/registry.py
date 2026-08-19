@@ -68,11 +68,7 @@ def _discover_benchmarks() -> None:
 
 
 def get_benchmark(name: str) -> type[Evaluator[Any]]:
-    """Get a registered benchmark evaluator by name.
-
-    Args:
-        name: Benchmark name (e.g., `"aime-2024"`).
-    """
+    """Get a registered benchmark evaluator by name (e.g. `"aime-2024"`)."""
     _discover_benchmarks()
 
     if name not in _BENCHMARKS:
@@ -84,9 +80,8 @@ def get_benchmark(name: str) -> type[Evaluator[Any]]:
 def list_benchmarks() -> list[str]:
     """List all registered benchmark names.
 
-    Notes:
-        Benchmarks with missing dependencies will not appear in this list.
-        Use `list_unavailable_benchmarks()` to see them.
+    A benchmark whose module failed to import is absent here; `list_unavailable_benchmarks()`
+    reports those with their errors.
     """
     _discover_benchmarks()
     return sorted(_BENCHMARKS.keys())

@@ -39,7 +39,7 @@ class GPQAReward(RewardFunction):
     """
 
     #: Primary regex — matches `(A)` through `(Z)` with parentheses (case-sensitive,
-    #: matching lm-evaluation-harness where ``ignore_case`` only applies to choice text).
+    #: matching lm-evaluation-harness, where `ignore_case` only applies to choice text).
     PRIMARY_PATTERN: ClassVar[re.Pattern[str]] = re.compile(r"\(([A-Z])\)")
 
     #: Fallback regex — bare letter after a colon, e.g. `Answer: B`.
@@ -107,9 +107,8 @@ class GPQAEvaluator(Evaluator):
     """Base evaluator for GPQA benchmarks.
 
     Loads the `Idavidrein/gpqa` dataset (gated; requires HuggingFace login and
-    dataset access). Choice text is cleaned with the same ``preprocess``
-    function used by lm-evaluation-harness, and choices are shuffled with a
-    per-sample deterministic seed for reproducibility.
+    dataset access). Choice text is cleaned with the same `preprocess` function
+    lm-evaluation-harness uses, and choices are shuffled with a per-sample deterministic seed.
     """
 
     hf_dataset_path = "Idavidrein/gpqa"
@@ -118,7 +117,7 @@ class GPQAEvaluator(Evaluator):
 
     @staticmethod
     def preprocess(text: str | None) -> str:
-        """Clean choice text, matching lm-evaluation-harness ``process_docs``."""
+        """Clean choice text, matching lm-evaluation-harness `process_docs`."""
         if text is None:
             return " "
         text = text.strip()
@@ -131,13 +130,9 @@ class GPQAEvaluator(Evaluator):
     def load_dataset(self) -> Iterable[Task]:
         """Load GPQA dataset from HuggingFace (streaming).
 
-        Answer choices are preprocessed (matching lm-evaluation-harness) and
-        shuffled with a per-sample deterministic seed for reproducibility. Each
-        task message contains the question followed by four labeled answer
-        choices (A)-(D).
-
-        Yields:
-            Task objects with formatted multiple-choice question and ground truth.
+        Choices are preprocessed to match lm-evaluation-harness, then shuffled with a per-sample
+        deterministic seed so a rerun grades the same letters. Each message holds the question
+        followed by the four labelled choices (A)-(D).
         """
         try:
             dataset = load_dataset(self.hf_dataset_path, self.hf_dataset_config, split="train", streaming=True)

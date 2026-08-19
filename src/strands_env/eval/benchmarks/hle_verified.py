@@ -74,7 +74,6 @@ class HLEReward(LLMJudgeReward[HLEJudgment]):
 
     @override
     async def get_judge_prompt(self, task: Task, result: RolloutResult) -> str:
-        """Get judge prompt for HLE-Verified benchmark."""
         return GRADER_TEMPLATE.format(
             query=task.message,
             ground_truth=task.ground_truth,
@@ -83,7 +82,6 @@ class HLEReward(LLMJudgeReward[HLEJudgment]):
 
     @override
     async def get_reward(self, judgment: HLEJudgment | str) -> float:
-        """Get reward for HLE-Verified benchmark."""
         if isinstance(judgment, HLEJudgment):
             return {"yes": 1.0, "no": 0.0}[judgment.correct]
         return self.default_reward
@@ -133,11 +131,8 @@ class HLEVerifiedEvaluator(Evaluator):
     def load_dataset(self) -> Iterable[Task]:
         """Load the HLE-Verified Gold subset from HuggingFace (streaming).
 
-        Yields:
-            Task objects with question text and ground-truth answer. When a
-            sample has an inline image, the task message is a multimodal
-            `Message` (text + image content block). When `text_only` is set,
-            samples whose nested `json.image` field is non-empty are skipped.
+        A sample carrying an inline image yields a multimodal `Message` (text plus an image content
+        block) rather than a plain string; with `text_only` set, those samples are skipped instead.
         """
         dataset = load_dataset(self.hf_dataset_path, split="train", streaming=True)
 

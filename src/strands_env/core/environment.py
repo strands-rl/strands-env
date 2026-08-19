@@ -84,15 +84,13 @@ class Environment(Generic[TaskT]):
     async def reset(self, _task: TaskT) -> None:
         """Build the episode for `task`. Override for environment-specific init.
 
-        Called by `rollout()` before the agent runs — gym-style, the task enters here.
+        Called by `rollout()` before the agent runs — gym-style, the task enters here. This is where
+        resource-heavy or async setup belongs (containers, sessions, connections), since `__init__`
+        cannot `await`.
 
         Notes:
-            - This is the right place for resource-heavy or async initialization
-            (e.g., spinning up containers, creating sessions, connecting to services).
-            - Keep `__init__` limited to storing run-level config and lightweight
-            state — it is synchronous and cannot `await`.
-            - Paired with `cleanup`, which tears down what `reset` sets up and must
-            tolerate partially-initialized state (`reset` may fail midway).
+            Paired with `cleanup`, which tears down what `reset` sets up and must tolerate
+            partially-initialized state, because `reset` may fail midway.
         """
 
     async def rollout(self, task: TaskT) -> RolloutResult:

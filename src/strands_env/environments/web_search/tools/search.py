@@ -25,11 +25,12 @@ type WebSearchAPIProvider = Literal["serper", "google"]
 class WebSearchToolkit:
     """Search tools behind a provider switch (`serper` / `google`).
 
+    Each provider is a separate `@tool` method, so an environment can expose one, the other, or
+    the unified `search` that dispatches on `api_provider`. Credentials are checked lazily by
+    `@requires_env`, at call time rather than construction.
+
     Notes:
-        - Each provider is exposed as a separate `@tool` method so the environment
-          can pick which one to use. Credentials are validated lazily via `@requires_env`.
-        - A single shared `aiohttp.ClientSession` (created lazily) and an
-          `asyncio.Semaphore` cap concurrent requests. Call `cleanup` when done.
+        Holds one lazily-created `aiohttp.ClientSession`; `cleanup` closes it.
     """
 
     def __init__(
@@ -54,13 +55,12 @@ class WebSearchToolkit:
         self._session: aiohttp.ClientSession | None = None
 
     def _get_session(self) -> aiohttp.ClientSession:
-        """Get or create the shared HTTP session."""
+        # Reopened if closed, so a cleaned-up toolkit still works if reused.
         if self._session is None or self._session.closed:
             self._session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=self.timeout))
         return self._session
 
     async def cleanup(self) -> None:
-        """Close the shared HTTP session."""
         if self._session and not self._session.closed:
             await self._session.close()
             self._session = None
@@ -78,8 +78,7 @@ class WebSearchToolkit:
     ) -> str:
         """Format a list of search result dicts into a numbered text block.
 
-        Notes:
-            Hook method — override in subclasses to customize formatting.
+        A hook: override to change how results reach the model.
         """
         if not items:
             return "No results found."

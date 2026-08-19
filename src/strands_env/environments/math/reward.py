@@ -22,17 +22,15 @@ _EXTRACTION_CONFIG = (LatexExtractionConfig(), ExprExtractionConfig())
 class MathVerifyReward(RewardFunction):
     r"""Reward 1.0 if the model's `\boxed{}` answer is mathematically equivalent to ground truth.
 
+    `math_verify.parse` converts both sides to SymPy and `math_verify.verify` compares them, which
+    is what handles fraction/decimal equivalence, symbolic simplification, sets and intervals, and
+    LaTeX normalization. When either side parses to several candidates — several `\boxed{}` in one
+    response — a match on any gold-target pair counts.
+
     Notes:
-        - Uses `math_verify.parse` to extract and convert answers to SymPy,
-          then `math_verify.verify` for equivalence checking. This handles
-          fraction/decimal equivalence, symbolic simplification, sets/intervals,
-          and nested expressions with LaTeX normalization.
-        - When either side parses to multiple candidate expressions (e.g. several
-          `\\boxed{}` in the response), `verify` returns True if **any**
-          gold-target pair matches (Cartesian product).
-        - Uses `with_timeout` decorator for thread-safe timeouts. Math-verify's
-          built-in timeout uses signal.alarm() which only works in the main thread.
-          See: https://github.com/huggingface/Math-Verify/issues/42
+        Timeouts go through `with_timeout` rather than math-verify's own, which uses
+        `signal.alarm()` and so only fires on the main thread.
+        See https://github.com/huggingface/Math-Verify/issues/42.
     """
 
     def __init__(
@@ -82,7 +80,7 @@ class MathVerifyReward(RewardFunction):
                 gold=gold,
                 target=answer,
                 float_rounding=self.float_rounding,
-                timeout_seconds=None,  # Disable math-verify's timeout, use manual timeout
+                timeout_seconds=None,  # see `parse_expression`
             )
 
         return _verify()

@@ -79,8 +79,13 @@ class WebSearchEnv(Environment):
             return [self.search_tool, self.scrape_tool]
         return [self.search_tool]
 
+    @override
     async def cleanup(self) -> None:
-        """Close the toolkits' shared HTTP sessions — once, after all rollouts."""
+        """Close the toolkits' HTTP sessions.
+
+        `rollout()` calls this after every episode, so the sessions do not survive across rollouts;
+        `_get_session` reopens a closed one on the next call.
+        """
         await self.search_toolkit.cleanup()
         if self.scraper_toolkit is not None:
             await self.scraper_toolkit.cleanup()

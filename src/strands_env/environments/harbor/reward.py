@@ -25,7 +25,6 @@ class HarborReward(RewardFunction["HarborTask"]):
         self._env = env
 
     async def compute(self, task: HarborTask, result: RolloutResult) -> RewardResult:
-        """Run harbor's Verifier in the sandbox and return its reward."""
         try:
             assert self._env.sandbox is not None, "sandbox not initialized"
             timeout = task.verifier_timeout if task.verifier_timeout is not None else self._env.exec_timeout

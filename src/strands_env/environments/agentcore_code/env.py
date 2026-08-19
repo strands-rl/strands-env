@@ -25,9 +25,7 @@ class AgentCoreCodeConfig(EnvironmentConfig, total=False):
 class AgentCoreCodeEnv(Environment):
     """Code sandbox environment using AWS Bedrock AgentCore Code Interpreter.
 
-    Notes:
-        Provides `execute_code` (Python) and/or `execute_command` (shell) tools
-        depending on the configured mode.
+    `mode` decides which of `execute_code` (Python) and `execute_command` (shell) the agent gets.
     """
 
     default_system_prompt_path = Path(__file__).parent / "system_prompt.md"

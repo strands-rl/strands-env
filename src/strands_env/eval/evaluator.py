@@ -37,7 +37,6 @@ class EvalSample(BaseModel, Generic[TaskT]):
 class Evaluator(Generic[TaskT]):
     """Evaluator for running concurrent environment evaluations."""
 
-    # Basic benchmark identity variables.
     benchmark_name: ClassVar[str] = ""
     hf_dataset_path: ClassVar[str] = ""  # HuggingFace dataset id, if any
     hf_dataset_config: ClassVar[str] = ""  # HF config/subset within the dataset, if any
@@ -59,15 +58,17 @@ class Evaluator(Generic[TaskT]):
         """Initialize an `Evaluator` instance.
 
         Args:
-            env_factory: Async factory function that creates a fresh Environment per sample.
-                Required for local evaluation; unused when `env_actor_pool` is provided.
-            max_concurrency: Maximum concurrent evaluate_sample() calls.
-            n_samples_per_prompt: Number of samples per prompt (for pass@k, set to max(k_values)).
-            output_path: Path to JSONL file for saving results. Enables resume.
-            save_interval: Flush results to disk every N completed samples.
-            keep_rollout: Keep the token-level rollout in results (only valid for `SGLangModel` backends).
-            env_actor_pool: Optional Ray actor pool for distributed evaluation.
-            reporter: Optional reporter for result output. Defaults to LocalReporter writing to output_path.
+            env_factory: builds a fresh Environment per sample. Required locally, ignored when
+                `env_actor_pool` is given.
+            max_concurrency: ceiling on concurrent `evaluate_sample()` calls.
+            n_samples_per_prompt: samples per prompt; for pass@k set it to `max(k_values)`.
+            output_path: JSONL destination, and what makes resume possible — an existing file is
+                read back and its completed samples skipped.
+            save_interval: flush every N completed samples.
+            keep_rollout: keep the token-level rollout in results. SGLang backends only; the others
+                produce an empty one.
+            env_actor_pool: Ray actor pool for distributed evaluation.
+            reporter: result sink; defaults to a `LocalReporter` on `output_path`.
         """
         if env_factory is None and env_actor_pool is None:
             raise ValueError("Must provide either env_factory or env_actor_pool")
@@ -81,10 +82,8 @@ class Evaluator(Generic[TaskT]):
         self.save_interval = save_interval
         self.keep_rollout = keep_rollout
 
-        # Reporter setup: explicit reporter wins; otherwise default to LocalReporter
         self.reporter: EvalReporter = reporter if reporter is not None else LocalReporter(self.output_path)
 
-        # Runtime state
         self.results: dict[str, list[EvalSample[TaskT]]] = defaultdict(list)
         self.completed_ids: set[str] = set()
 
@@ -99,12 +98,11 @@ class Evaluator(Generic[TaskT]):
     def validate_sample(self, sample: EvalSample[TaskT]) -> bool:
         """Check if a completed sample is valid. Override with benchmark-specific logic.
 
-        Notes:
-            - Return `True` to mark the sample as valid, `False` to mark it as aborted (excluded from metrics, retried on resume).
-            - By default a sample is invalid unless it carries a reward that computed: a
-              missing reward, or one whose `info` says `status: "error"`, cannot be scored,
-              and metrics count an unscorable sample as *incorrect* rather than absent.
-              Keeping it would report a fabricated number.
+        `False` marks the sample aborted: excluded from metrics, retried on resume.
+
+        The default rejects anything without a reward that computed — a missing `reward_result`, or
+        one whose `info` says `status: "error"`. Metrics count an unscorable sample as *incorrect*
+        rather than absent, so keeping it would report a fabricated number.
         """
         reward_result = sample.result.reward_result
         return reward_result is not None and reward_result.info.get("status") != "error"
@@ -112,8 +110,7 @@ class Evaluator(Generic[TaskT]):
     def get_metric_fns(self) -> list[MetricFunction]:
         """Return metric functions for evaluation. Override to customize.
 
-        Notes:
-            By default, includes pass@k metric based on `n_samples_per_prompt`.
+        Defaults to pass@k for every k up to `n_samples_per_prompt`.
         """
         return [
             partial(
@@ -154,17 +151,15 @@ class Evaluator(Generic[TaskT]):
     async def evaluate_sample(self, task: TaskT) -> EvalSample[TaskT]:
         """Evaluate a single sample."""
         try:
-            # Run evaluation in distributed or local mode
             if self.env_actor_pool is not None:
                 result = await self.env_actor_pool.rollout(task)
             else:
                 assert self.env_factory is not None
                 env = await self.env_factory()
                 result = await env.rollout(task)
-            # Clean up the token-level rollout if not needed to reduce verbosity
+            # Dropped by default: a full token trajectory per sample bloats results.jsonl.
             if not self.keep_rollout:
                 result.rollout = None
-            # Runtime logging for debugging
             reward_str = f"{result.reward_result.reward:.2f}" if result.reward_result else "N/A"
             reward_info = result.reward_result.info if result.reward_result else {}
             logger.info(
@@ -176,7 +171,6 @@ class Evaluator(Generic[TaskT]):
                 reward_info,
                 result.metrics,
             )
-            # Return the evaluation sample with aborted flag set
             sample = EvalSample(task=task, result=result)
             sample.aborted = not self.validate_sample(sample)
             if sample.aborted:
@@ -241,10 +235,8 @@ class Evaluator(Generic[TaskT]):
     def compute_metrics(self, results: dict[str, list[EvalSample]], log: bool = True) -> dict[str, float]:
         """Compute all metrics on results.
 
-        Notes:
-            Aborted samples are excluded from metric computation.
+        One aborted sample excludes its whole prompt, which keeps n consistent for pass@k.
         """
-        # Exclude entire prompt if any sample is aborted (keeps n consistent for pass@k)
         filtered = {pid: samples for pid, samples in results.items() if not any(s.aborted for s in samples)}
 
         metrics = {}
@@ -257,7 +249,6 @@ class Evaluator(Generic[TaskT]):
             n_samples = sum(len(s) for s in filtered.values())
             name = self.benchmark_name or "Evaluation"
 
-            # Build formatted output
             lines = [f"{'─' * 40}", f"  {name} Results", f"{'─' * 40}"]
             lines.append(f"  Prompts: {n_prompts}  Samples (n={self.n_samples_per_prompt}): {n_samples}")
             if n_skipped:
