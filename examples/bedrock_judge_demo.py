@@ -1,15 +1,3 @@
-"""LLM-as-judge reward demo using Bedrock.
-
-This example demonstrates:
-- Creating a custom LLMJudgeRewardFunction subclass
-- Using structured output for judgment
-- Evaluating responses with an LLM judge
-
-Usage:
-    python examples/bedrock_judge_demo.py
-    python examples/bedrock_judge_demo.py --model-id us.anthropic.claude-sonnet-4-20250514-v1:0
-"""
-
 from __future__ import annotations
 
 import asyncio

@@ -1,5 +1,3 @@
-"""Unit tests for LLMJudgeReward error recovery and happy paths."""
-
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from pydantic import BaseModel

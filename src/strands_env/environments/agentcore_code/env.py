@@ -1,5 +1,3 @@
-"""Code sandbox environment using AWS Bedrock AgentCore Code Interpreter."""
-
 from __future__ import annotations
 
 from pathlib import Path

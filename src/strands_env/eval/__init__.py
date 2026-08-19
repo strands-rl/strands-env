@@ -1,5 +1,3 @@
-"""Evaluation framework for running agentic benchmarks."""
-
 from .evaluator import AsyncEnvFactory, EvalSample, Evaluator
 from .metrics import MetricFunction
 from .registry import get_benchmark, list_benchmarks, list_unavailable_benchmarks, register_eval

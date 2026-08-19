@@ -1,5 +1,3 @@
-"""The per-sample input type for `MCPAtlasEnv`."""
-
 from __future__ import annotations
 
 from pydantic import Field

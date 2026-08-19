@@ -1,5 +1,3 @@
-"""Fixtures scoped to core/ tests."""
-
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest

@@ -1,11 +1,3 @@
-"""Integration tests for WebSearchEnv.
-
-Requires:
-    - A running SGLang server (auto-skipped if unreachable)
-    - SERPER_API_KEY env var for Serper provider tests
-    - GOOGLE_API_KEY + GOOGLE_CSE_ID env vars for Google provider tests
-"""
-
 import os
 
 import pytest

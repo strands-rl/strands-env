@@ -1,5 +1,3 @@
-"""Fixtures shared by the eval unit tests."""
-
 from __future__ import annotations
 
 from collections.abc import Iterator

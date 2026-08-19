@@ -1,10 +1,3 @@
-"""Prebaked-template adapter for the Harbor `e2b` backend.
-
-Self-hosted e2b clusters may not implement Harbor's auto-build route, so
-`PrebakedE2BEnvironment` boots from a pre-baked `template_id` (resolved via a
-`templates.json` mapping or `E2B_TEMPLATES_PATH`) instead of building one.
-"""
-
 from __future__ import annotations
 
 import json

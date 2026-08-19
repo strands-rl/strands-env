@@ -1,13 +1,3 @@
-"""
-Generate function for retool RL training using `strands-env`'s `AgentCoreCodeEnv`.
-
-Uses:
-- AWS Bedrock-based code execution
-- Built-in token tracking (Rollout)
-- Persistent session management
-- Tool iteration/call limits
-"""
-
 import logging
 
 from slime.rollout.sglang_rollout import GenerateState  # type: ignore

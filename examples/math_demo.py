@@ -1,18 +1,3 @@
-"""Math environment demo — shows how to use an Environment programmatically.
-
-This example demonstrates:
-- Creating a model factory
-- Instantiating an environment
-- Running rollouts and inspecting results
-
-Usage:
-    # SGLang backend (requires a running SGLang server)
-    python examples/math_demo.py --backend sglang
-
-    # Bedrock backend (requires AWS credentials)
-    python examples/math_demo.py --backend bedrock --model-id us.anthropic.claude-sonnet-4-20250514
-"""
-
 from __future__ import annotations
 
 import asyncio
@@ -90,7 +75,12 @@ async def run_demo(
     help="Base URL for SGLang server.",
 )
 def main(backend: str, model_id: str | None, base_url: str) -> None:
-    """Run math problems through a math environment."""
+    """Run math problems through a math environment.
+
+    \b
+    python examples/math_demo.py --backend sglang
+    python examples/math_demo.py --backend bedrock --model-id us.anthropic.claude-sonnet-4-20250514
+    """
     logging.basicConfig(level=logging.WARNING)
 
     asyncio.run(run_demo(backend, model_id, base_url))

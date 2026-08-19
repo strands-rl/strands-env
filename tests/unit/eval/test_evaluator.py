@@ -1,5 +1,3 @@
-"""Unit tests for evaluation module (evaluator + metrics)."""
-
 import json
 import logging
 from unittest.mock import AsyncMock, MagicMock

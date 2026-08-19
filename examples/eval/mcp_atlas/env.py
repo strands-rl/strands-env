@@ -1,5 +1,3 @@
-"""Example environment hook for MCP-Atlas evaluation."""
-
 from __future__ import annotations
 
 from strands_env.core.models import bedrock_model_factory, build_model_factory

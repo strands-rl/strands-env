@@ -1,9 +1,3 @@
-"""Unit tests for Tau2BenchUserSimulator.
-
-Patches the `Agent` class inside the simulator module so no model or server is needed,
-then feeds real `AfterInvocationEvent` objects to exercise the actual hook path.
-"""
-
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest

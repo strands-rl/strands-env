@@ -1,5 +1,3 @@
-"""Evaluator for SealQA (Search-Augmented Language models QA) benchmarks."""
-
 from __future__ import annotations
 
 import logging

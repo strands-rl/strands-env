@@ -1,14 +1,3 @@
-"""Shared fixtures for integration tests.
-
-All tests in this directory require a running SGLang server.
-The model ID is auto-detected from the server via /model_info.
-Tests are skipped automatically if the server is not reachable.
-
-Configuration (priority: CLI > env var > default):
-    pytest --sglang-base-url=http://localhost:30000 --tool-parser=hermes
-    SGLANG_BASE_URL=http://... TOOL_PARSER=hermes pytest tests/integration/
-"""
-
 import pytest
 from strands_sglang import SGLangClient
 from strands_sglang.tool_parsers import get_tool_parser

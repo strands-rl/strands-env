@@ -1,5 +1,3 @@
-r"""Symbolic-equivalence math reward backed by HuggingFace `math-verify`."""
-
 from __future__ import annotations
 
 import logging

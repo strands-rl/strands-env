@@ -1,9 +1,3 @@
-"""Benchmark registry with auto-discovery.
-
-Evaluator modules are discovered and imported on first registry access.
-Benchmarks with missing optional dependencies are skipped with a warning.
-"""
-
 from __future__ import annotations
 
 import importlib

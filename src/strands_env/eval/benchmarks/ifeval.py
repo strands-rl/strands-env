@@ -1,5 +1,3 @@
-"""Evaluator for IFEval (Instruction-Following Eval) benchmark."""
-
 from __future__ import annotations
 
 import logging

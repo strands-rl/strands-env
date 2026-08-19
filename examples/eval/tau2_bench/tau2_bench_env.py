@@ -1,16 +1,3 @@
-"""Environment hook for tau2-bench evaluation with `Tau2BenchEnv`.
-
-The agent under test comes from the CLI model flags. The user-simulator and the
-NL-assertion judge default to `DEFAULT_USER_JUDGE_MODEL_CONFIG`; override them (or
-disable the judge with `null`) and set `max_steps` via ``--env-config``:
-
-    {
-        "user_model_config":  { ...ModelConfig... },   # optional: user-simulator
-        "judge_model_config": { ...ModelConfig... },   # optional: NL-assertion judge (null to disable)
-        "max_steps": 100                               # optional, default 100 (tau2 step semantics)
-    }
-"""
-
 from __future__ import annotations
 
 from typing import Any

@@ -1,5 +1,3 @@
-"""AgentWorldModel MCP environment — synthetic FastAPI + SQLite tasks exposed via MCP."""
-
 from .env import AgentWorldModelConfig, AgentWorldModelEnv
 from .reward import AgentWorldModelReward
 from .task import AgentWorldModelTask

@@ -1,10 +1,3 @@
-"""MCP tool adapter for Strands Agents.
-
-`MCPToolAdapter` is an `AgentTool` subclass that adapts an MCP tool definition to
-the Strands agent interface.  It handles tool spec building; subclasses implement
-`call_tool()` to provide the transport-specific call and result parsing.
-"""
-
 from __future__ import annotations
 
 from datetime import timedelta
