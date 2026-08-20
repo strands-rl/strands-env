@@ -128,7 +128,7 @@ default-groups = ["dev"]
 
 [tool.ruff]
 line-length = 120
-fix = true
+target-version = "py312"
 
 [tool.ruff.lint]
 select = [
