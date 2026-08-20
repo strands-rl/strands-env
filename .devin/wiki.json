@@ -1,25 +1,30 @@
 {
   "repo_notes": [
     {
-      "content": "The unit of interaction is Environment.rollout(task) — one full agent loop (prompt → tool calls → response) per call. There is NO gym-style step()/observe() API; do not describe a 'step-observe-reward loop'. Layout: there are NO top-level tools/ or rewards/ packages — that horizontal layout was dissolved. The package is core/ (environment base, types, model factories, shared reward/tool primitives, Ray distribution) + environments/ (self-contained env packages, each owning its tools and rewards: singular tool.py/reward.py for one of each, a plural tools/ subpackage for several, e.g. web_search/tools/) + eval/ (evaluator, registry, CLI, benchmarks) + utils/ (small helpers). Key renames vs. older versions: TaskContext was retired and its fields flattened into Task (typed per-env subclasses: HarborTask, Tau2BenchTask, MCPAtlasTask, AgentWorldModelTask); ToolLimiter is now LoopLimiter (imported from strands-sglang); CodeSandboxEnv is now AgentCoreCodeEnv; TerminalBenchEnv and SWEBenchEnv were merged into a single HarborEnv — terminal-bench-* and swebench-verified are eval benchmarks over that one env, differing only in dataset and system prompt; the MCP-Atlas and AgentWorldModel env classes are MCPAtlasEnv and AgentWorldModelEnv. TerminationReason has UNCLASSIFIED_ERROR (not OTHER_ERROR) plus MAX_MESSAGES_REACHED, TIMEOUT, CONNECTION_ERROR. The eval CLI is a single click command (python -m strands_env.eval with --list / --benchmark / --evaluator flags), not 'eval list'/'eval run' subcommands. build_model_factory dispatches over sglang | bedrock | kimi; openai_model_factory exists but is not wired into it, and the LiteLLM-based factory is kimi (Moonshot AI), not openai. WebScraperToolkit fetches pages via the Jina Reader API (r.jina.ai), not trafilatura/html2text."
+      "content": "The unit of interaction is Environment.rollout(task) — one full agent loop (prompt → tool calls → response) per call. There is NO gym-style step()/observe() API; do not describe a 'step-observe-reward loop'. Layout: there are NO top-level tools/ or rewards/ packages — that horizontal layout was dissolved. The package is core/ (environment base, types, model factories, shared reward/tool primitives, Ray distribution) + environments/ (self-contained env packages, each owning its tools and rewards: singular tool.py/reward.py for one of each, a plural tools/ subpackage for several, e.g. web_search/tools/) + eval/ (evaluator, registry, CLI, benchmarks) + utils/ (small helpers). Key renames vs. older versions: TaskContext was retired and its fields flattened into Task (typed per-env subclasses: HarborTask, Tau2BenchTask, MCPAtlasTask, AgentWorldModelTask); ToolLimiter is now LoopLimiter (imported from strands-sglang); CodeSandboxEnv is now AgentCoreCodeEnv; TerminalBenchEnv and SWEBenchEnv were merged into a single HarborEnv — terminal-bench-* and swebench-verified are eval benchmarks over that one env, differing only in dataset and system prompt; the MCP-Atlas and AgentWorldModel env classes are MCPAtlasEnv and AgentWorldModelEnv. TerminationReason has UNCLASSIFIED_ERROR (not OTHER_ERROR) plus MAX_MESSAGES_REACHED, TIMEOUT, CONNECTION_ERROR. The eval CLI is a single click command (python -m strands_env.eval with --list / --benchmark / --evaluator flags), not 'eval list'/'eval run' subcommands. build_model_factory dispatches over sglang | bedrock | kimi; openai_model_factory exists but is not wired into it, and the LiteLLM-based factory is kimi (Moonshot AI), not openai. WebScraperToolkit fetches pages via the Jina Reader API (r.jina.ai), not trafilatura/html2text.",
+      "author": null
     }
   ],
   "pages": [
     {
       "title": "Overview",
       "purpose": "Introduce strands-env: a framework for building agent environments with Strands Agents, where an environment turns an Agent into an RL environment whose unit of interaction is a full agent loop via Environment.rollout(task) — not a single model call — with token-level observation tracking (TITO), reward computation, termination handling, and a benchmarking framework with pass@k metrics. Supported model backends: SGLang, Bedrock, OpenAI, Kimi. Package layout mirrors the wiki structure: core/ (environment base, types, model factories, shared reward/tool primitives, Ray distribution), environments/ (self-contained env packages, each owning its tools and rewards), eval/ (evaluator, registry, CLI, benchmarks)",
+      "parent": null,
       "page_notes": [
         {
-          "content": ""
+          "content": "",
+          "author": null
         }
       ]
     },
     {
       "title": "Getting Started",
       "purpose": "Guide users through installation and running their first evaluation",
+      "parent": null,
       "page_notes": [
         {
-          "content": ""
+          "content": "",
+          "author": null
         }
       ]
     },
@@ -29,7 +34,8 @@
       "parent": "Getting Started",
       "page_notes": [
         {
-          "content": ""
+          "content": "",
+          "author": null
         }
       ]
     },
@@ -39,16 +45,19 @@
       "parent": "Getting Started",
       "page_notes": [
         {
-          "content": ""
+          "content": "",
+          "author": null
         }
       ]
     },
     {
       "title": "Core",
       "purpose": "Document the core/ package — the environment base and rollout lifecycle, core data types, model factories and backends, shared reward and MCP-tool primitives, and Ray distribution — linking to child pages for each module",
+      "parent": null,
       "page_notes": [
         {
-          "content": ""
+          "content": "",
+          "author": null
         }
       ]
     },
@@ -58,7 +67,8 @@
       "parent": "Core",
       "page_notes": [
         {
-          "content": ""
+          "content": "",
+          "author": null
         }
       ]
     },
@@ -68,7 +78,8 @@
       "parent": "Core",
       "page_notes": [
         {
-          "content": ""
+          "content": "",
+          "author": null
         }
       ]
     },
@@ -78,7 +89,8 @@
       "parent": "Core",
       "page_notes": [
         {
-          "content": ""
+          "content": "",
+          "author": null
         }
       ]
     },
@@ -88,7 +100,8 @@
       "parent": "Core",
       "page_notes": [
         {
-          "content": ""
+          "content": "",
+          "author": null
         }
       ]
     },
@@ -98,7 +111,8 @@
       "parent": "Core",
       "page_notes": [
         {
-          "content": ""
+          "content": "",
+          "author": null
         }
       ]
     },
@@ -108,26 +122,30 @@
       "parent": "Core",
       "page_notes": [
         {
-          "content": ""
+          "content": "",
+          "author": null
         }
       ]
     },
     {
       "title": "Environments",
       "purpose": "Document the concrete environment packages under environments/. Each is self-contained: env.py holds the Environment subclass, with its own tools and rewards alongside (singular tool.py/reward.py for one of each, a plural tools/ subpackage for several), plus domain-named helpers (server.py, quotas.py, e2b.py) as needed",
+      "parent": null,
       "page_notes": [
         {
-          "content": ""
+          "content": "",
+          "author": null
         }
       ]
     },
     {
-      "title": "CalculatorEnv",
-      "purpose": "Document the simple calculator environment for math problems and its default MathVerifyReward (reward.py): symbolic equivalence via the math_verify library, \\boxed{} parsing from the response tail, SymPy-based comparison (fractions, sets, simplification)",
+      "title": "MathEnv",
+      "purpose": "Document the simple chat-only environment for math problems and its default MathVerifyReward (reward.py): symbolic equivalence via the math_verify library, \\boxed{} parsing from the response tail, SymPy-based comparison (fractions, sets, simplification)",
       "parent": "Environments",
       "page_notes": [
         {
-          "content": ""
+          "content": "",
+          "author": null
         }
       ]
     },
@@ -137,7 +155,8 @@
       "parent": "Environments",
       "page_notes": [
         {
-          "content": ""
+          "content": "",
+          "author": null
         }
       ]
     },
@@ -147,7 +166,8 @@
       "parent": "Environments",
       "page_notes": [
         {
-          "content": ""
+          "content": "",
+          "author": null
         }
       ]
     },
@@ -157,7 +177,8 @@
       "parent": "Environments",
       "page_notes": [
         {
-          "content": ""
+          "content": "",
+          "author": null
         }
       ]
     },
@@ -167,7 +188,8 @@
       "parent": "Environments",
       "page_notes": [
         {
-          "content": ""
+          "content": "",
+          "author": null
         }
       ]
     },
@@ -177,7 +199,8 @@
       "parent": "Environments",
       "page_notes": [
         {
-          "content": ""
+          "content": "",
+          "author": null
         }
       ]
     },
@@ -187,7 +210,8 @@
       "parent": "Environments",
       "page_notes": [
         {
-          "content": ""
+          "content": "",
+          "author": null
         }
       ]
     },
@@ -197,16 +221,19 @@
       "parent": "Environments",
       "page_notes": [
         {
-          "content": ""
+          "content": "",
+          "author": null
         }
       ]
     },
     {
       "title": "Evaluation",
       "purpose": "Document the eval/ package: how benchmarks are defined, registered, discovered, and run, linking to child pages for the Evaluator, registry and CLI, metrics, and the registered benchmarks",
+      "parent": null,
       "page_notes": [
         {
-          "content": ""
+          "content": "",
+          "author": null
         }
       ]
     },
@@ -216,7 +243,8 @@
       "parent": "Evaluation",
       "page_notes": [
         {
-          "content": ""
+          "content": "",
+          "author": null
         }
       ]
     },
@@ -226,7 +254,8 @@
       "parent": "Evaluation",
       "page_notes": [
         {
-          "content": ""
+          "content": "",
+          "author": null
         }
       ]
     },
@@ -236,7 +265,8 @@
       "parent": "Evaluation",
       "page_notes": [
         {
-          "content": ""
+          "content": "",
+          "author": null
         }
       ]
     },
@@ -246,9 +276,11 @@
       "parent": "Evaluation",
       "page_notes": [
         {
-          "content": ""
+          "content": "",
+          "author": null
         }
       ]
     }
-  ]
+  ],
+  "include_patterns": []
 }
