@@ -4,7 +4,7 @@ import asyncio
 import itertools
 import logging
 import subprocess
-from typing import Any
+from typing import Any, cast
 
 import ray
 from ray.actor import ActorHandle
@@ -112,16 +112,16 @@ class EnvironmentActorPool:
         Uses `asyncio.to_thread(ray.get, ...)` to avoid blocking the
         caller's event loop.
         """
-        actor = next(self.cycle)
+        actor: Any = next(self.cycle)
         obj_ref = actor.rollout.remote(task.model_dump_json())
-        result_json: str = await asyncio.to_thread(ray.get, obj_ref)
+        result_json = cast(str, await asyncio.to_thread(ray.get, obj_ref))
         return RolloutResult.model_validate_json(result_json)
 
     async def compute_reward(self, task: Task, result: RolloutResult) -> RewardResult:
         """Recompute reward for an existing rollout on the next available actor."""
-        actor = next(self.cycle)
+        actor: Any = next(self.cycle)
         obj_ref = actor.compute_reward.remote(task.model_dump_json(), result.model_dump_json())
-        result_json: str = await asyncio.to_thread(ray.get, obj_ref)
+        result_json = cast(str, await asyncio.to_thread(ray.get, obj_ref))
         return RewardResult.model_validate_json(result_json)
 
     def shutdown(self) -> None:
