@@ -3314,7 +3314,7 @@ requires-dist = [
     { name = "openai" },
     { name = "python-dotenv" },
     { name = "strands-agents", extras = ["openai"], specifier = ">=1.46.0" },
-    { name = "strands-sglang", specifier = ">=0.6.0" },
+    { name = "strands-sglang", specifier = ">=0.6.1" },
     { name = "tiktoken", specifier = ">=0.5.0" },
     { name = "tqdm", specifier = ">=4.0.0" },
 ]
@@ -3336,18 +3336,18 @@ dev = [
 
 [[package]]
 name = "strands-sglang"
-version = "0.6.0"
+version = "0.6.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
     { name = "jinja2" },
     { name = "pybase64" },
-    { name = "strands-agents" },
+    { name = "strands-agents", extra = ["openai"] },
     { name = "transformers" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a9/e2/1f850fa573e3ebc3dde35c4dc623ae283be4aac7a837d5b138ecd6b983cc/strands_sglang-0.6.0.tar.gz", hash = "sha256:b8ac2d3b86605a368e3ac7d7f401e6dce61abe072bbdda43df3742975a9c474f", size = 74120, upload-time = "2026-08-13T08:50:03.041Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/fd/d1/e27ed23304f06fa590e8a355edd20849e7d2aa83a38118b2d61081ac63be/strands_sglang-0.6.1.tar.gz", hash = "sha256:136215ef403344587c8b0591ff8940147feb6f4508d188b9369bbfccfe96bab0", size = 60603, upload-time = "2026-08-20T02:21:22.989Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b3/7f/461bbfbfe688123e84ab50125f6156d56accd1a70d31fd6033c783714b96/strands_sglang-0.6.0-py3-none-any.whl", hash = "sha256:8fafd696b8e21bb85be3bcce55719ca62ee9e96e0ce605d80788452e16605c77", size = 36046, upload-time = "2026-08-13T08:50:01.477Z" },
+    { url = "https://files.pythonhosted.org/packages/94/46/f3454075fd9ebdd8ad79500c97439f04a946906be967b5dfebd52248662d/strands_sglang-0.6.1-py3-none-any.whl", hash = "sha256:85bf5fad57075ac423ed53a326f130b49491988c7c780c7fc36895672a97ebc8", size = 31209, upload-time = "2026-08-20T02:21:21.865Z" },
 ]
 
 [[package]]
