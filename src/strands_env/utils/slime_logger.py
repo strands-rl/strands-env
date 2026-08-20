@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import random
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 from slime.rollout.sglang_rollout import GenerateState  # type: ignore
 from slime.utils.metric_utils import compute_rollout_step, compute_statistics, dict_add_prefix  # type: ignore
@@ -229,6 +229,8 @@ class RolloutLogger:
         if not rows:
             return
 
-        mlflow.log_dict(rows, f"rollout_samples/step_{step:05d}.json")
+        # `log_dict` is annotated `dict[str, Any]` but documents a JSON-serializable object and
+        # json.dumps whatever it gets; a list of rows is the artifact shape we want.
+        mlflow.log_dict(cast(dict[str, Any], rows), f"rollout_samples/step_{step:05d}.json")
 
         logger.info("Logged %d samples to MLflow (rollout %d, step %d)", len(rows), rollout_id, step)
