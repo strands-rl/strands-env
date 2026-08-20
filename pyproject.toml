@@ -21,7 +21,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 dependencies = [
-    "strands-sglang>=0.6.0",
+    "strands-sglang>=0.6.1",
     "strands-agents[openai]>=1.46.0",
     "openai",
     "datasets",
