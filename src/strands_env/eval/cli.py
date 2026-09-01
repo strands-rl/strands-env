@@ -273,8 +273,6 @@ def eval_cmd(
         "env_config": env_config or {},
         "model_config": model_config.to_dict(),
         "n_actors_per_node": n_actors_per_node,
-        "backend": backend,
-        "model_id": model_id,
         "n_samples_per_prompt": n_samples_per_prompt,
         "n_samples": len(tasks),
         "mode": mode,
