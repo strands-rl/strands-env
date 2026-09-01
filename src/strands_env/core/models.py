@@ -1,17 +1,18 @@
 from __future__ import annotations
 
 import dataclasses
-from collections.abc import Callable
+from collections.abc import AsyncGenerator, Callable
 from dataclasses import dataclass, field
-from typing import Any, Literal
+from typing import Any, Literal, override
 
 import boto3
 import botocore.config
 import httpx
 from strands.models import Model
-from strands.models.bedrock import BedrockModel
+from strands.models.bedrock import BedrockModel as _BedrockModel
 from strands.models.openai import OpenAIModel
 from strands.models.openai_responses import OpenAIResponsesModel
+from strands.types.streaming import StreamEvent
 from strands_sglang import SGLangClient, SGLangModel, get_client, get_tokenizer
 from strands_sglang.tool_parsers import HermesToolParser, ToolParser, get_tool_parser
 from transformers import PreTrainedTokenizerBase
@@ -97,6 +98,21 @@ DEFAULT_BOTO_CLIENT_CONFIG = botocore.config.Config(
 )
 
 
+class BedrockModel(_BedrockModel):
+    """Patching Strands' `BedrockModel` because Bedrock's API reports `tool_use` with no tool-use block."""
+
+    @override
+    async def stream(self, *args: Any, **kwargs: Any) -> AsyncGenerator[StreamEvent, None]:
+        saw_tool_use = False
+        async for event in super().stream(*args, **kwargs):
+            if "toolUse" in event.get("contentBlockStart", {}).get("start", {}):
+                saw_tool_use = True
+            elif (stop := event.get("messageStop")) and stop["stopReason"] == "tool_use" and not saw_tool_use:
+                yield {**event, "messageStop": {**stop, "stopReason": "end_turn"}}
+                continue
+            yield event
+
+
 def bedrock_model_factory(
     *,
     model_id: str,
@@ -119,7 +135,7 @@ def bedrock_model_factory(
         model_id=model_id,
         boto_session=boto_session,
         boto_client_config=boto_client_config,
-        streaming=False,
+        streaming=True,
         **sampling_params,
     )
 
