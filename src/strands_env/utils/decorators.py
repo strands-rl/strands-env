@@ -7,7 +7,10 @@ import os
 import threading
 from collections.abc import Callable
 from functools import wraps
-from typing import Any
+from typing import Any, ParamSpec, TypeVar
+
+P = ParamSpec("P")
+R = TypeVar("R")
 
 
 def requires_env(*env_vars: str) -> Callable[..., Any]:
@@ -44,11 +47,12 @@ def requires_env(*env_vars: str) -> Callable[..., Any]:
     return decorator
 
 
-def cache_by(*key_args: str) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+def cache_by(*key_args: str) -> Callable[[Callable[P, R]], Callable[P, R]]:
     """Decorator that caches function results using only the specified arguments as the cache key.
 
     Arguments not named in `key_args` are still passed through but excluded from the key, which is
-    what lets an unhashable argument (a dict, a list) coexist with caching.
+    what lets an unhashable argument (a dict, a list) coexist with caching. The wrapper keeps the
+    decorated function's signature, so callers are type-checked against it.
 
     Example:
         @cache_by("service_name", "region")
@@ -56,12 +60,12 @@ def cache_by(*key_args: str) -> Callable[[Callable[..., Any]], Callable[..., Any
             ...
     """
 
-    def decorator(fn: Callable[..., Any]) -> Callable[..., Any]:
-        cache: dict[tuple, Any] = {}
+    def decorator(fn: Callable[P, R]) -> Callable[P, R]:
+        cache: dict[tuple[Any, ...], R] = {}
         sig = inspect.signature(fn)
 
         @wraps(fn)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
             # Resolve positional/keyword args to param names and fill defaults,
             # so e.g. f("s3") and f(service_name="s3") produce the same key.
             bound = sig.bind(*args, **kwargs)
