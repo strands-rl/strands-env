@@ -177,7 +177,7 @@ class Evaluator(Generic[TaskT]):
                 logger.warning("[%s]: sample aborted by validate_sample", task.id)
             return sample
         except Exception as e:
-            logger.error("[%s]: evaluate_sample failed, aborting: %s", task.id, e)
+            logger.exception("[%s]: evaluate_sample failed, aborting: %s", task.id, e)
             return EvalSample(task=task, result=RolloutResult(), aborted=True)
 
     async def run(self, tasks: Iterable[TaskT]) -> dict[str, list[EvalSample[TaskT]]]:
