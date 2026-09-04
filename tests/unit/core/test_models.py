@@ -75,6 +75,55 @@ class TestBedrockModelFactory:
         assert model1.client is model2.client
         assert model1.client is mock_client
 
+    @patch("strands_env.core.models.BedrockModel")
+    def test_forwards_additional_request_fields(self, mock_bedrock_cls):
+        bedrock_model_factory(
+            model_id="test",
+            boto_session=MagicMock(spec=boto3.Session),
+            additional_request_fields={"reasoning": {"effort": "low"}},
+        )
+        assert mock_bedrock_cls.call_args[1]["additional_request_fields"] == {"reasoning": {"effort": "low"}}
+
+    @patch("strands_env.core.models.BedrockModel")
+    def test_omits_request_fields_when_unset(self, mock_bedrock_cls):
+        bedrock_model_factory(model_id="test", boto_session=MagicMock(spec=boto3.Session))
+        assert "additional_request_fields" not in mock_bedrock_cls.call_args[1]
+
+
+# ---------------------------------------------------------------------------
+# ModelConfig.bedrock_request_fields
+# ---------------------------------------------------------------------------
+
+
+class TestBedrockRequestFields:
+    def test_unset_reasoning(self):
+        config = ModelConfig(backend="bedrock", model_id="us.anthropic.claude-sonnet-4-20250514-v1:0")
+        assert config.bedrock_request_fields() is None
+
+    def test_openai_passes_reasoning_through(self):
+        config = ModelConfig(backend="bedrock", model_id="openai.gpt-oss-120b-1:0", reasoning={"effort": "high"})
+        assert config.bedrock_request_fields() == {"reasoning": {"effort": "high"}}
+
+    def test_claude_takes_adaptive_thinking(self):
+        config = ModelConfig(
+            backend="bedrock", model_id="global.anthropic.claude-sonnet-5-20260501-v1:0", reasoning={"effort": "high"}
+        )
+        assert config.bedrock_request_fields() == {
+            "thinking": {"type": "adaptive", "display": "summarized"},
+            "output_config": {"effort": "high"},
+        }
+
+    def test_unknown_family_is_unchanged(self):
+        config = ModelConfig(backend="bedrock", model_id="amazon.nova-pro-v1:0", reasoning={"effort": "high"})
+        assert config.bedrock_request_fields() is None
+
+    @patch("strands_env.core.models.get_session")
+    @patch("strands_env.core.models.BedrockModel")
+    def test_build_model_factory_wires_reasoning(self, mock_bedrock_cls, mock_get_session):
+        config = ModelConfig(backend="bedrock", model_id="openai.gpt-oss-120b-1:0", reasoning={"effort": "low"})
+        build_model_factory(config)
+        assert mock_bedrock_cls.call_args[1]["additional_request_fields"] == {"reasoning": {"effort": "low"}}
+
 
 # ---------------------------------------------------------------------------
 # bedrock_mantle_model_factory
