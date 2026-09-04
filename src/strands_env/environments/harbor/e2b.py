@@ -1,14 +1,25 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 from pathlib import Path
-from typing import Any, TypedDict, override
+from typing import TYPE_CHECKING, Any, TypedDict, override
 
 import e2b.api as _e2b_api
+import h2.exceptions
+import httpcore
 from e2b.exceptions import AuthenticationException
 from harbor.environments.e2b import E2BEnvironment
 from harbor.models.trial.paths import EnvironmentPaths
+from tenacity import before_sleep_log, retry, retry_if_exception_type, stop_after_attempt, wait_random_exponential
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from harbor.environments.base import EnvironmentPath, ExecResult
+
+logger = logging.getLogger(__name__)
 
 
 class PrebakedE2BConfig(TypedDict, total=False):
@@ -26,7 +37,7 @@ class PrebakedE2BEnvironment(E2BEnvironment):
 
     The template to boot is resolved at construction: an explicit `template_id` in
     `prebaked_e2b_config` wins, else `templates_json` is looked up by `template_key`
-    (typically the Harbor task name). Retries are inherited from the base.
+    (typically the Harbor task name). The first request to a fresh sandbox gets its own retry.
     """
 
     def __init__(self, template_key: str, prebaked_e2b_config: PrebakedE2BConfig, *args: Any, **kwargs: Any) -> None:
@@ -74,6 +85,18 @@ class PrebakedE2BEnvironment(E2BEnvironment):
             if not key:
                 raise ValueError(f"e2b api_key_file is empty: {api_key_file}")
             os.environ["E2B_API_KEY"] = key
+
+    # A wide launch gets some fresh envd connections closed mid-handshake, which harbor's exec retry ignores; mkdir -p is idempotent.
+    @retry(
+        stop=stop_after_attempt(5),
+        wait=wait_random_exponential(multiplier=5, max=30),
+        retry=retry_if_exception_type((h2.exceptions.ProtocolError, httpcore.NetworkError, httpcore.ProtocolError)),
+        before_sleep=before_sleep_log(logger, logging.WARNING),
+        reraise=True,
+    )
+    @override
+    async def ensure_dirs(self, dirs: Sequence[EnvironmentPath], *, chmod: bool = True) -> ExecResult | None:
+        return await super().ensure_dirs(dirs, chmod=chmod)
 
     @override
     async def start(self, force_build: bool) -> None:
