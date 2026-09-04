@@ -12,7 +12,10 @@ import pytest
 # convention in tests/integration/test_harbor.py).
 pytest.importorskip("harbor", reason="harbor>=0.13.2 required for the e2b backend adapter")
 
+import h2.exceptions
+import httpcore
 from e2b.exceptions import AuthenticationException
+from tenacity import wait_none
 
 from strands_env.environments.harbor import e2b
 from strands_env.environments.harbor.e2b import PrebakedE2BEnvironment
@@ -287,3 +290,42 @@ class TestSetE2BEnvVars:
             _set_e2b_env_vars({})
             assert "E2B_DOMAIN" not in os.environ
             assert "E2B_API_KEY" not in os.environ
+
+
+class TestEnsureDirsRetry:
+    """The first envd request retries the handshake failures a wide launch produces, nothing else."""
+
+    async def _ensure(self, *side_effects: BaseException | None) -> AsyncMock:
+        """Drive the override with the base scripted by `side_effects`; return the base mock."""
+        base = AsyncMock(side_effect=list(side_effects))
+        # `retry_with` clones the policy without the backoff so the test doesn't sleep.
+        no_wait = PrebakedE2BEnvironment.ensure_dirs.retry_with(wait=wait_none())
+        with patch.object(e2b.E2BEnvironment, "ensure_dirs", base):
+            await no_wait(_bare_env(), ["/logs"])
+        return base
+
+    async def test_retries_h2_protocol_error(self):
+        err = h2.exceptions.ProtocolError(
+            "Invalid input ConnectionInputs.SEND_SETTINGS in state ConnectionState.CLOSED"
+        )
+        base = await self._ensure(err, err, None)
+        assert base.await_count == 3
+        base.assert_awaited_with(["/logs"], chmod=True)
+
+    async def test_retries_write_error(self):
+        base = await self._ensure(httpcore.WriteError(), None)
+        assert base.await_count == 2
+
+    async def test_retries_local_protocol_error(self):
+        """The same handshake failure also surfaces wrapped as httpcore.LocalProtocolError."""
+        err = httpcore.LocalProtocolError("Invalid input ConnectionInputs.SEND_HEADERS in state ConnectionState.CLOSED")
+        base = await self._ensure(err, None)
+        assert base.await_count == 2
+
+    async def test_does_not_retry_other_errors(self):
+        with pytest.raises(RuntimeError):
+            await self._ensure(RuntimeError("command failed"))
+
+    async def test_gives_up_after_five(self):
+        with pytest.raises(httpcore.WriteError):
+            await self._ensure(*[httpcore.WriteError()] * 5)
