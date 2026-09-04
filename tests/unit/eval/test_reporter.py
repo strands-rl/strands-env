@@ -71,6 +71,22 @@ class TestLocalReporter:
         rows = _read_jsonl(output_path)
         assert rows[0]["task"]["message"] == "half a math-italic code point: \ud835"
 
+    def test_writes_bytes_as_base64(self, tmp_path: Path):
+        """Bedrock returns redacted reasoning as bytes, which json.dumps rejects."""
+        output_path = tmp_path / "results.jsonl"
+        reporter = LocalReporter(output_path)
+        redacted = {"role": "assistant", "content": [{"reasoningContent": {"redactedContent": b"\x00\x01"}}]}
+        sample = EvalSample(task=Task(id="p1_0", message="q1"), result=RolloutResult(messages=[redacted]))
+
+        reporter.log_sample("p1", sample)
+        reporter.flush()
+        rows = _read_jsonl(output_path)
+        assert rows[0]["result"]["messages"][0]["content"][0]["reasoningContent"]["redactedContent"] == "AAE="
+
+        reporter.rewrite({"p1": [sample]})
+        rows = _read_jsonl(output_path)
+        assert rows[0]["result"]["messages"][0]["content"][0]["reasoningContent"]["redactedContent"] == "AAE="
+
     def test_log_sample_creates_parent_dirs(self, tmp_path: Path):
         """The first log_sample creates parent directories if they don't exist."""
         output_path = tmp_path / "nested" / "dir" / "results.jsonl"
