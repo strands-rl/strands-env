@@ -119,6 +119,7 @@ def bedrock_model_factory(
     boto_session: boto3.Session,
     boto_client_config: botocore.config.Config = DEFAULT_BOTO_CLIENT_CONFIG,
     sampling_params: dict[str, Any] = DEFAULT_SAMPLING_PARAMS,
+    additional_request_fields: dict[str, Any] | None = None,
 ) -> ModelFactory:
     """Return a factory that creates `BedrockModel` instances.
 
@@ -126,6 +127,8 @@ def bedrock_model_factory(
         - One boto3 session, one boto3 client. The client is thread-safe, so it is built once and
           shared; `BedrockModel` won't accept a pre-built one, hence the pilot instance below.
         - `max_new_tokens` is remapped to `max_tokens` for the Bedrock API.
+        - `additional_request_fields` goes into the Converse request as-is (reasoning, thinking);
+          `ModelConfig.bedrock_request_fields` builds it per model family.
     """
     sampling_params = dict(sampling_params)
     if "max_new_tokens" in sampling_params:
@@ -138,6 +141,8 @@ def bedrock_model_factory(
         streaming=True,
         **sampling_params,
     )
+    if additional_request_fields:
+        model_kwargs["additional_request_fields"] = additional_request_fields
 
     # Build one model to extract a properly configured, thread-safe client.
     shared_client = BedrockModel(**model_kwargs).client
@@ -255,7 +260,8 @@ class ModelConfig:
     profile_name: str | None = None
     role_arn: str | None = None
 
-    # Bedrock Mantle (GPT via OpenAI Responses API): reasoning config, e.g. {"effort": "high"}.
+    # Reasoning config, e.g. {"effort": "high"}. Bedrock Mantle passes it to the Responses API;
+    # Bedrock translates it per model family (`bedrock_request_fields`).
     reasoning: dict[str, Any] | None = None
 
     # Sampling
@@ -264,6 +270,29 @@ class ModelConfig:
     def to_dict(self) -> dict:
         """Convert to dict for serialization."""
         return dataclasses.asdict(self)
+
+    def bedrock_request_fields(self) -> dict[str, Any] | None:
+        """Translate `reasoning` into the Converse `additionalModelRequestFields` this model family takes.
+
+        OpenAI models take `reasoning` as-is (`{"effort": ...}`); their reasoning comes back as
+        `redactedContent`, retained across turns but not readable. Claude 5 models reject
+        `thinking.enabled` and take adaptive thinking with `output_config.effort`; their reasoning comes
+        back as a summary with a signature. Older Claude models (a `thinking.enabled` budget) are not mapped.
+
+        Returns:
+            `None` when `reasoning` is unset or the family is unknown, so the request is unchanged.
+        """
+        if not self.reasoning or not self.model_id:
+            return None
+        if "openai." in self.model_id:
+            return {"reasoning": self.reasoning}
+        if "anthropic." in self.model_id:
+            # Without `display` Bedrock returns the thinking block with empty text; `summarized` fills it.
+            fields: dict[str, Any] = {"thinking": {"type": "adaptive", "display": "summarized"}}
+            if effort := self.reasoning.get("effort"):
+                fields["output_config"] = {"effort": effort}
+            return fields
+        return None
 
 
 def build_model_factory(config: ModelConfig | dict[str, Any]) -> ModelFactory:
@@ -296,7 +325,10 @@ def build_model_factory(config: ModelConfig | dict[str, Any]) -> ModelFactory:
                 role_arn=config.role_arn,
             )
             return bedrock_model_factory(
-                model_id=config.model_id, boto_session=boto_session, sampling_params=config.sampling_params
+                model_id=config.model_id,
+                boto_session=boto_session,
+                sampling_params=config.sampling_params,
+                additional_request_fields=config.bedrock_request_fields(),
             )
         case "bedrock-mantle":
             if not config.model_id:

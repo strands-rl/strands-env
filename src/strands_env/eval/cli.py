@@ -124,7 +124,7 @@ def _list_benchmarks(ctx: click.Context, param: click.Parameter, value: bool) ->
     "--reasoning-effort",
     type=click.Choice(["low", "medium", "high"]),
     default=None,
-    help="Reasoning effort for Bedrock Mantle GPT models (maps to reasoning={'effort': ...}).",
+    help="Reasoning effort, as reasoning={'effort': ...}: Bedrock Mantle GPT models, and on Bedrock OpenAI models (reasoning.effort) and Claude 5 models (adaptive thinking, output_config.effort).",
 )
 @click.option("--tool-parser", type=str, default=None, help="Tool parser name (e.g., 'hermes', 'qwen_xml').")
 # Sampling params
