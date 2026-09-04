@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import json
 import logging
 from abc import ABC, abstractmethod
@@ -142,7 +143,7 @@ class LocalReporter(EvalReporter):
         fh = self._ensure_open()
         data = sample.model_dump()
         data["prompt_id"] = prompt_id
-        fh.write(json.dumps(data) + "\n")
+        fh.write(json.dumps(data, default=lambda b: base64.b64encode(b).decode()) + "\n")
 
     def flush(self) -> None:
         """Sync the open file handle to disk."""
@@ -164,7 +165,7 @@ class LocalReporter(EvalReporter):
                 for sample in samples:
                     data = sample.model_dump()
                     data["prompt_id"] = prompt_id
-                    f.write(json.dumps(data) + "\n")
+                    f.write(json.dumps(data, default=lambda b: base64.b64encode(b).decode()) + "\n")
 
     def log_metrics(self, metrics: dict[str, float]) -> None:
         """Write `metrics.json` to the output directory."""
