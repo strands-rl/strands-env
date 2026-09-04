@@ -72,7 +72,7 @@ class TestToolCache:
         cache = ToolCache(max_entries=2)
         cache["a"] = result("a")
         cache["b"] = result("b")
-        cache["a"]  # touch: b is now the least recently used
+        assert cache["a"] == result("a")  # touch: b is now the least recently used
         cache["c"] = result("c")
 
         assert set(cache) == {"a", "c"}
@@ -384,8 +384,8 @@ class TestCachedTool:
         inner.release.set()
 
         assert (await owner)["content"] == [{"text": "slow"}]
-        with pytest.raises(asyncio.CancelledError):
-            await waiter
+        await asyncio.wait([waiter])
+        assert waiter.cancelled()
         assert inner.calls == 1
 
     async def test_reports_access_outcomes(self):
