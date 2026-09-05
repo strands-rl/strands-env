@@ -11,6 +11,11 @@ from strands_env.eval.metrics import compute_pass_at_k
 
 from ..conftest import make_sample
 
+
+def _read_jsonl(path) -> list[dict]:
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
+
+
 # ---------------------------------------------------------------------------
 # Evaluator
 # ---------------------------------------------------------------------------
@@ -162,7 +167,7 @@ class TestCheckpoint:
         async def factory():
             return mock_env
 
-        evaluator = Evaluator(env_factory=factory, output_path=output_path, save_interval=1)
+        evaluator = Evaluator(env_factory=factory, output_path=output_path)
         await evaluator.run([Task(id="s1", message="q1")])
 
         assert output_path.exists()
@@ -187,7 +192,7 @@ class TestCheckpoint:
         async def factory():
             return mock_env
 
-        evaluator = Evaluator(env_factory=factory, output_path=output_path, save_interval=1)
+        evaluator = Evaluator(env_factory=factory, output_path=output_path)
         await evaluator.run([TypedTask(id="s1", message="q1", task_dir="/tasks/t1")])
 
         row = json.loads(output_path.read_text().strip())
@@ -206,13 +211,13 @@ class TestCheckpoint:
             return mock_env
 
         # First run - complete s1
-        evaluator1 = Evaluator(env_factory=factory, output_path=output_path, save_interval=1)
+        evaluator1 = Evaluator(env_factory=factory, output_path=output_path)
         await evaluator1.run([Task(id="s1", message="q1")])
         assert mock_env.rollout.await_count == 1
 
         # Second run - s1 skipped, s2 processed
         mock_env.rollout.reset_mock()
-        evaluator2 = Evaluator(env_factory=factory, output_path=output_path, save_interval=1)
+        evaluator2 = Evaluator(env_factory=factory, output_path=output_path)
         results = await evaluator2.run(
             [
                 Task(id="s1", message="q1"),
@@ -223,6 +228,121 @@ class TestCheckpoint:
         assert mock_env.rollout.await_count == 1  # Only s2 was processed
         assert len(results) == 2
         assert sum(len(samples) for samples in results.values()) == 2
+
+    async def test_resume_drops_aborted_rows(self, tmp_path):
+        """A sample that aborts, then succeeds on resume, leaves exactly one row."""
+        output_path = tmp_path / "results.jsonl"
+
+        async def failing_factory():
+            env = MagicMock()
+            env.rollout = AsyncMock(side_effect=RuntimeError("boom"))
+            return env
+
+        await Evaluator(env_factory=failing_factory, output_path=output_path).run([Task(id="p1", message="q1")])
+        assert _read_jsonl(output_path)[0]["aborted"] is True
+
+        async def good_factory():
+            env = MagicMock()
+            env.rollout = AsyncMock(return_value=RolloutResult(reward_result=RewardResult(reward=1.0)))
+            return env
+
+        await Evaluator(env_factory=good_factory, output_path=output_path).run([Task(id="p1", message="q1")])
+
+        rows = _read_jsonl(output_path)
+        assert [(r["task"]["id"], r["aborted"]) for r in rows] == [("p1_0", False)]
+
+    async def test_creates_parent_dirs(self, mock_env, tmp_path):
+        mock_env.rollout.return_value = RolloutResult()
+        output_path = tmp_path / "nested" / "dir" / "results.jsonl"
+
+        async def factory():
+            return mock_env
+
+        await Evaluator(env_factory=factory, output_path=output_path).run([Task(id="s1", message="q1")])
+
+        assert output_path.exists()
+
+    async def test_writes_readable_utf8(self, mock_env, tmp_path):
+        """Non-ASCII lands on disk as itself, not as `\\uXXXX` escapes."""
+        mock_env.rollout.return_value = RolloutResult()
+        output_path = tmp_path / "results.jsonl"
+
+        async def factory():
+            return mock_env
+
+        await Evaluator(env_factory=factory, output_path=output_path).run([Task(id="s1", message="résumé 数学")])
+
+        assert "résumé 数学" in output_path.read_text(encoding="utf-8")
+
+    async def test_survives_an_unpaired_surrogate(self, mock_env, tmp_path):
+        """A lone surrogate in model output must not fail the write, and must read back intact."""
+        mock_env.rollout.return_value = RolloutResult()
+        output_path = tmp_path / "results.jsonl"
+
+        async def factory():
+            return mock_env
+
+        message = "half a math-italic code point: \ud835"
+        await Evaluator(env_factory=factory, output_path=output_path).run([Task(id="s1", message=message)])
+
+        assert _read_jsonl(output_path)[0]["task"]["message"] == message
+
+    async def test_bytes_round_trip_as_base64(self, mock_env, tmp_path):
+        """Bedrock returns redacted reasoning as bytes, which json.dumps rejects; resume must hand bytes back."""
+        redacted = {"role": "assistant", "content": [{"reasoningContent": {"redactedContent": b"\x00\x01"}}]}
+        mock_env.rollout.return_value = RolloutResult(messages=[redacted], reward_result=RewardResult(reward=1.0))
+        output_path = tmp_path / "results.jsonl"
+
+        async def factory():
+            return mock_env
+
+        await Evaluator(env_factory=factory, output_path=output_path).run([Task(id="s1", message="q1")])
+
+        row = _read_jsonl(output_path)[0]
+        assert row["result"]["messages"][0]["content"][0]["reasoningContent"] == {
+            "redactedContent": {"__bytes__": "AAE="}
+        }
+
+        resumed = Evaluator(env_factory=factory, output_path=output_path)
+        resumed.load_results()
+        content = resumed.results["s1"][0].result.messages[0]["content"][0]
+        assert content["reasoningContent"]["redactedContent"] == b"\x00\x01"
+
+
+# ---------------------------------------------------------------------------
+# publish / reporters
+# ---------------------------------------------------------------------------
+
+
+class TestPublish:
+    def _evaluator(self, tmp_path, reporters=()):
+        async def factory():
+            return MagicMock()
+
+        return Evaluator(env_factory=factory, output_path=tmp_path / "run" / "results.jsonl", reporters=reporters)
+
+    async def test_no_reporters_by_default(self, tmp_path):
+        evaluator = self._evaluator(tmp_path)
+        assert evaluator.reporters == []
+        await evaluator.publish()  # must not raise
+
+    async def test_hands_each_reporter_the_run_dir(self, tmp_path):
+        r1, r2 = MagicMock(publish=AsyncMock()), MagicMock(publish=AsyncMock())
+
+        await self._evaluator(tmp_path, [r1, r2]).publish()
+
+        r1.publish.assert_awaited_once_with(tmp_path / "run")
+        r2.publish.assert_awaited_once_with(tmp_path / "run")
+
+    async def test_one_failing_does_not_stop_the_next(self, tmp_path, caplog):
+        failing = MagicMock(publish=AsyncMock(side_effect=RuntimeError("boom")))
+        healthy = MagicMock(publish=AsyncMock())
+
+        with caplog.at_level(logging.ERROR):
+            await self._evaluator(tmp_path, [failing, healthy]).publish()
+
+        healthy.publish.assert_awaited_once_with(tmp_path / "run")
+        assert "MagicMock failed" in caplog.text
 
 
 # ---------------------------------------------------------------------------
@@ -299,14 +419,14 @@ class TestValidateSample:
         output_path = tmp_path / "results.jsonl"
 
         # First run
-        eval1 = AbortingEvaluator(env_factory=factory, output_path=output_path, save_interval=1)
+        eval1 = AbortingEvaluator(env_factory=factory, output_path=output_path)
         results1 = await eval1.run([Task(id="s1", message="q1")])
         assert rollout_count == 1
         assert results1["s1"][0].aborted is True
 
         # Second run — s1 retried
         rollout_count = 0
-        eval2 = AbortingEvaluator(env_factory=factory, output_path=output_path, save_interval=1)
+        eval2 = AbortingEvaluator(env_factory=factory, output_path=output_path)
         results2 = await eval2.run([Task(id="s1", message="q1")])
         assert rollout_count == 1
         assert results2["s1"][0].aborted is True
