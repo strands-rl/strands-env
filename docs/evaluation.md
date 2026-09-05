@@ -52,7 +52,6 @@ python -m strands_env.eval --evaluator <dotted.module.path> --env <dotted.module
 - `--max-concurrency` - Maximum concurrent evaluations (default: 10)
 - `--output`, `-o` - Output directory (default: `{benchmark}_eval/`)
 - `--max-samples` - Maximum dataset samples to evaluate
-- `--save-interval` - Save results every N samples (default: 10)
 - `--keep-rollout` - Keep the token-level rollout in results
 - `--debug` - Enable debug logging
 
@@ -290,14 +289,50 @@ Available parsers: `hermes` (default), `qwen_xml`, `glm`.
 
 ## Output Files
 
-Evaluation results are written by the configured reporter. `LocalReporter` (the default) saves them
-to the output directory:
+The evaluator appends each finished sample to `results.jsonl` as it completes; the CLI writes the
+other two files around the run:
 
 ```
 {benchmark}_eval/
-├── metadata.json    # Run configuration for reproducibility
-├── results.jsonl    # Per-sample results (task, result, reward)
-└── metrics.json     # Aggregated metrics (pass@k, etc.)
+├── metadata.json    # Run configuration for reproducibility (written before the run)
+├── results.jsonl    # One JSON row per sample (task, result, reward), streamed as samples finish
+└── metrics.json     # Aggregated metrics (pass@k, etc.), written after the run
 ```
 
-The evaluator supports checkpointing and resume - if interrupted, it will skip already-completed samples on restart.
+Rows are UTF-8 as written. `bytes` inside a message (Bedrock's redacted reasoning) travel as
+`{"__bytes__": "<base64>"}` and come back as `bytes` on resume.
+
+The evaluator supports checkpointing and resume - if interrupted, it will skip already-completed
+samples on restart. Aborted rows (a rollout that raised, or a sample `validate_sample()` rejected)
+are dropped from the file at resume and retried, so a retry never leaves a stale duplicate behind.
+
+### Publishing a Run
+
+To carry a finished run somewhere else (S3, MLflow, a leaderboard), hand the evaluator reporters.
+`EvalReporter` is a Protocol with one method, `publish(run_dir)`, which receives the output directory
+once everything you want published is in it:
+
+```python
+from pathlib import Path
+
+from strands_env.eval import Evaluator
+
+
+class S3Reporter:
+    def __init__(self, prefix: str) -> None:
+        self.prefix = prefix
+
+    async def publish(self, run_dir: Path) -> None:
+        for name in ("results.jsonl", "metrics.json", "metadata.json"):
+            upload(run_dir / name, f"{self.prefix}/{name}")
+
+
+evaluator = Evaluator(env_factory=factory, output_path=run_dir / "results.jsonl", reporters=[S3Reporter("s3://...")])
+results = await evaluator.run(tasks)
+metrics = evaluator.compute_metrics(results)
+(run_dir / "metrics.json").write_text(json.dumps(metrics))
+await evaluator.publish()  # each reporter gets run_dir; one that raises is logged and the next still runs
+```
+
+The CLI has no reporter flag; it writes `metadata.json` and `metrics.json` itself and then calls
+`publish()`, so reporters are wired programmatically.

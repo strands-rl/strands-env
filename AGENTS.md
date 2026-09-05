@@ -74,13 +74,11 @@ Holds the environment base, data types, model factories, and shared reward/tool 
 
 ### `eval/`
 
-**cli.py** — Evaluation CLI (entry point `python -m strands_env.eval`, wired in `__main__.py`). A single `click` command: `--list` shows registered/unavailable benchmarks; `--benchmark <name>` (or `--evaluator <path>`) runs an evaluation. Env hooks are dotted paths (`--env examples.eval.simple_math.calculator_env`); env config is passed as `--env-config` (inline JSON or path to a JSON file) via a custom `JsonType`. Model backend selected with `--backend` (`sglang` | `bedrock` | `bedrock-mantle`) plus sampling flags (`--temperature`, `--max-tokens`, `--top-p`, `--top-k`, `--tool-parser`, and `--reasoning-effort` for Bedrock Mantle); `build_model_factory` turns these into a `ModelFactory`. Distributed eval via `--n-actors-per-node` creates an `EnvironmentActorPool` (from `core/distributed.py`) backed by Ray.
+**cli.py** — Evaluation CLI (entry point `python -m strands_env.eval`, wired in `__main__.py`). A single `click` command: `--list` shows registered/unavailable benchmarks; `--benchmark <name>` (or `--evaluator <path>`) runs an evaluation. Env hooks are dotted paths (`--env examples.eval.simple_math.calculator_env`); env config is passed as `--env-config` (inline JSON or path to a JSON file) via a custom `JsonType`. Model backend selected with `--backend` (`sglang` | `bedrock` | `bedrock-mantle`) plus sampling flags (`--temperature`, `--max-tokens`, `--top-p`, `--top-k`, `--tool-parser`, and `--reasoning-effort` for Bedrock Mantle); `build_model_factory` turns these into a `ModelFactory`. Distributed eval via `--n-actors-per-node` creates an `EnvironmentActorPool` (from `core/distributed.py`) backed by Ray. Writes `metadata.json` before the run and `metrics.json` after it, then awaits `evaluator.publish()`.
 
 **__main__.py** — Module entry so `python -m strands_env.eval` invokes the CLI; prepends the cwd to `sys.path` so user-provided hook modules resolve.
 
-**evaluator.py** — `EvalSample[TaskT]` bundles the task, its `RolloutResult`, and an `aborted` flag for checkpoint resume. `Evaluator(Generic[TaskT])` carries a benchmark identity card as ClassVars (`benchmark_name` — injected from the registry key when unset, `hf_dataset_path`, `hf_dataset_config`, `git_url`, `git_ref`; `""` = not applicable) and orchestrates concurrent rollouts with pass@k metrics, delegating result output to a `reporter` (`EvalReporter`, defaults to `LocalReporter(output_path)` — see `reporter.py`). Takes an `env_factory` (`AsyncEnvFactory`) for local evaluation or an `env_actor_pool` (`EnvironmentActorPool`) for distributed evaluation via Ray. Uses tqdm with `logging_redirect_tqdm` for clean progress output. Subclasses implement `load_dataset()` for different benchmarks and optionally override `validate_sample()` to mark failed samples as aborted (excluded from metrics, retried on resume).
-
-**reporter.py** — `EvalReporter` (ABC) is the pluggable result-sink lifecycle the `Evaluator` drives: `log_sample` (per-sample, fast, no remote calls) → `flush` (periodic checkpoint) → `log_metrics`/`log_metadata` (run-level) → `publish` (async; remote/heavy I/O — S3, MLflow, etc.). `LocalReporter` is the default: streams samples to `results.jsonl` via an open file handle (`log_sample` appends, `flush` syncs), writes `metrics.json`/`metadata.json` as flat JSON, and reconciles the file to exactly the kept samples via `rewrite()` at resume time so a retried (previously aborted) sample never leaves a stale duplicate row on disk. `CompositeReporter` fans out to multiple reporters with error isolation (one reporter raising doesn't stop the others).
+**evaluator.py** — `EvalSample[TaskT]` bundles the task, its `RolloutResult`, and an `aborted` flag for checkpoint resume. `Evaluator(Generic[TaskT])` carries a benchmark identity card as ClassVars (`benchmark_name` — injected from the registry key when unset, `hf_dataset_path`, `hf_dataset_config`, `git_url`, `git_ref`; `""` = not applicable) and orchestrates concurrent rollouts with pass@k metrics. It appends each finished sample to `results.jsonl` itself (`log_sample`: UTF-8 rows, `bytes` as `{"__bytes__": base64}`); resume (`load_results`) reads the file back and drops aborted rows so their retry leaves no duplicate. `metrics.json`/`metadata.json` are the CLI's to write. `EvalReporter` is a one-method Protocol, `publish(run_dir)`, for carrying a finished run somewhere else (S3, MLflow, ...); `Evaluator.publish()` calls each of `reporters` in turn, and one failing does not stop the next. Takes an `env_factory` (`AsyncEnvFactory`) for local evaluation or an `env_actor_pool` (`EnvironmentActorPool`) for distributed evaluation via Ray. Uses tqdm with `logging_redirect_tqdm` for clean progress output. Subclasses implement `load_dataset()` for different benchmarks and optionally override `validate_sample()` to mark failed samples as aborted (excluded from metrics, retried on resume).
 
 **registry.py** — Benchmark registry with `@register_eval(name)` decorator. Auto-discovers benchmark modules from `benchmarks/` subdirectory on first access. `get_benchmark(name)`, `list_benchmarks()`, and `list_unavailable_benchmarks()` for discovery. Modules with missing dependencies are tracked as unavailable.
 
@@ -175,6 +173,30 @@ One sentence. Longer only when the reasoning genuinely doesn't compress.
 
 Comment the *why*, on the line it explains. Design rationale that needs paragraphs
 belongs in the commit message, attached to the change rather than to the code forever.
+
+### Abstraction
+
+Flat by default. A layer — a base class, a `Protocol`, a plugin interface, a wrapper around a
+library — is paid for by a second implementation that exists **today**, never by one that
+might. Whether a layer is tasteful is not something an agent can check; its shape is, so check
+the shape:
+
+- **Cut the interface at the grain the consumer reads.** The eval reporters wanted "the
+  finished run directory": one method. An interface that streamed them per-sample events had
+  five, and the local writer had to be rebuilt as a plugin just to feed it. Ask what the
+  consumer reads before naming a method.
+- **The default path is plain code in the class that owns it**, not the default implementation
+  of an interface. `Evaluator` appends to `results.jsonl` itself; a reporter only publishes what
+  is there.
+- **Say what varies in one sentence.** If you cannot state what differs between the
+  implementations, there is nothing to abstract.
+- **A layer larger than the code it replaces is a loss.** Count lines. Three classes and 280
+  lines carried what six lines of `publish()` now do.
+- **Flat is not long.** The counterweight is *Private helpers* below: extract what has a name.
+
+The degree is a judgement call, and it is the human's. When a layer starts forming, write the
+flat version first and show it; a seam is added when the owner asks for one, never in the same
+change as the feature that first uses it.
 
 ### Private helpers
 

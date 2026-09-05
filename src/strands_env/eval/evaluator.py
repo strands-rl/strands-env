@@ -1,14 +1,15 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
 import logging
 import sys
 from collections import defaultdict
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from functools import partial
 from pathlib import Path
-from typing import TYPE_CHECKING, ClassVar, Generic
+from typing import TYPE_CHECKING, ClassVar, Generic, Protocol
 
 from pydantic import BaseModel, Field, SerializeAsAny
 from tqdm import tqdm
@@ -18,7 +19,6 @@ from strands_env.core import AsyncEnvFactory, RolloutResult
 from strands_env.core.types import TaskT
 
 from .metrics import MetricFunction, compute_pass_at_k
-from .reporter import EvalReporter, LocalReporter
 
 if TYPE_CHECKING:
     from strands_env.core.distributed import EnvironmentActorPool
@@ -32,6 +32,12 @@ class EvalSample(BaseModel, Generic[TaskT]):
     task: SerializeAsAny[TaskT] = Field(..., description="The task that was evaluated.")
     result: RolloutResult = Field(..., description="The rollout result.")
     aborted: bool = Field(default=False, description="Whether this sample was aborted.")
+
+
+class EvalReporter(Protocol):
+    """Broadcasting evaluation results to remote sources."""
+
+    async def publish(self, run_dir: Path) -> None: ...
 
 
 class Evaluator(Generic[TaskT]):
@@ -50,10 +56,9 @@ class Evaluator(Generic[TaskT]):
         max_concurrency: int = 10,
         n_samples_per_prompt: int = 1,
         output_path: Path | str | None = None,
-        save_interval: int = 10,
         keep_rollout: bool = False,
         env_actor_pool: EnvironmentActorPool | None = None,
-        reporter: EvalReporter | None = None,
+        reporters: Sequence[EvalReporter] = (),
     ):
         """Initialize an `Evaluator` instance.
 
@@ -64,11 +69,10 @@ class Evaluator(Generic[TaskT]):
             n_samples_per_prompt: samples per prompt; for pass@k set it to `max(k_values)`.
             output_path: JSONL destination, and what makes resume possible — an existing file is
                 read back and its completed samples skipped.
-            save_interval: flush every N completed samples.
             keep_rollout: keep the token-level rollout in results. SGLang backends only; the others
                 produce an empty one.
             env_actor_pool: Ray actor pool for distributed evaluation.
-            reporter: result sink; defaults to a `LocalReporter` on `output_path`.
+            reporters: where `publish()` broadcasts the finished run; each gets the run directory.
         """
         if env_factory is None and env_actor_pool is None:
             raise ValueError("Must provide either env_factory or env_actor_pool")
@@ -79,13 +83,10 @@ class Evaluator(Generic[TaskT]):
         self.max_concurrency = max_concurrency
         self.n_samples_per_prompt = n_samples_per_prompt
         self.output_path = Path(output_path)
-        self.save_interval = save_interval
         self.keep_rollout = keep_rollout
-
-        self.reporter: EvalReporter = reporter if reporter is not None else LocalReporter(self.output_path)
-
         self.results: dict[str, list[EvalSample[TaskT]]] = defaultdict(list)
         self.completed_ids: set[str] = set()
+        self.reporters = list(reporters)
 
         # Strands' `recurse_event_loop` adds ~3 frames per tool iteration; the default
         # 1000-frame limit busts at ~iter 321 deep inside the OTel tracer's `json.dumps`.
@@ -121,32 +122,54 @@ class Evaluator(Generic[TaskT]):
         ]
 
     def load_results(self) -> None:
-        """Load completed samples from checkpoint file."""
+        """Load completed samples from checkpoint file; aborted rows are dropped so their retry leaves no duplicate."""
         if not self.output_path.exists():
             return
 
         self.results = defaultdict(list)
         self.completed_ids = set()
 
+        kept: list[str] = []
         n_aborted = 0
         with open(self.output_path, encoding="utf-8") as f:
             for line in f:
-                data = json.loads(line)
-                prompt_id = data.pop("prompt_id")
+                data = json.loads(
+                    line, object_hook=lambda d: base64.b64decode(d["__bytes__"]) if set(d) == {"__bytes__"} else d
+                )
                 sample: EvalSample[TaskT] = EvalSample.model_validate(data)
                 if sample.aborted:
                     n_aborted += 1
-                    continue  # Aborted samples are retried on resume
+                    continue
+                prompt_id = sample.task.id.rsplit("_", 1)[0]
                 self.results[prompt_id].append(sample)
                 self.completed_ids.add(sample.task.id)
+                kept.append(line)
+        if n_aborted:
+            tmp = self.output_path.with_suffix(".jsonl.tmp")
+            tmp.write_text("".join(kept), encoding="utf-8")
+            tmp.replace(self.output_path)
 
         total = sum(len(s) for s in self.results.values())
-        aborted_msg = f" (skipped {n_aborted} aborted for retry)" if n_aborted else ""
+        aborted_msg = f" (dropped {n_aborted} aborted for retry)" if n_aborted else ""
         logger.info("Resumed %s completed samples%s from %s", total, aborted_msg, self.output_path)
 
-    def save_results(self) -> None:
-        """Checkpoint accumulated samples via the reporter."""
-        self.reporter.flush()
+    def log_sample(self, sample: EvalSample[TaskT]) -> None:
+        """Append one sample to `results.jsonl` as a readable UTF-8 row; bytes travel as `{"__bytes__": base64}`."""
+        self.output_path.parent.mkdir(parents=True, exist_ok=True)
+        row = json.dumps(
+            sample.model_dump(), ensure_ascii=False, default=lambda b: {"__bytes__": base64.b64encode(b).decode()}
+        )
+        # UTF-8 cannot encode a lone surrogate; backslashreplace writes it as \uXXXX, which JSON reads back.
+        with open(self.output_path, "a", encoding="utf-8", errors="backslashreplace") as f:
+            f.write(row + "\n")
+
+    async def publish(self) -> None:
+        """Broadcast the run directory to every reporter; one that raises is logged and skipped."""
+        for reporter in self.reporters:
+            try:
+                await reporter.publish(self.output_path.parent)
+            except Exception:
+                logger.exception("reporter %s failed", type(reporter).__name__)
 
     async def evaluate_sample(self, task: TaskT) -> EvalSample[TaskT]:
         """Evaluate a single sample."""
@@ -182,45 +205,32 @@ class Evaluator(Generic[TaskT]):
 
     async def run(self, tasks: Iterable[TaskT]) -> dict[str, list[EvalSample[TaskT]]]:
         """Run evaluation on tasks with `n_samples_per_prompt` each."""
-        resumed = self.output_path.exists()
         self.load_results()
-        if resumed:
-            # Reconcile the checkpoint to the kept samples before streaming new ones, so a retried
-            # (previously aborted) sample doesn't leave a stale duplicate task entry on disk.
-            self.reporter.rewrite(self.results)
 
-        # Expand tasks to (prompt_id, sample_id, task) tuples
-        to_process: list[tuple[str, str, TaskT]] = []
+        to_process: list[TaskT] = []
         for task in tasks:
-            prompt_id = task.id
             for i in range(self.n_samples_per_prompt):
-                sample_id = f"{prompt_id}_{i}"
+                sample_id = f"{task.id}_{i}"
                 if sample_id not in self.completed_ids:
                     expanded = task.model_copy(deep=True)
                     expanded.id = sample_id
-                    to_process.append((prompt_id, sample_id, expanded))
+                    to_process.append(expanded)
 
         semaphore = asyncio.Semaphore(self.max_concurrency)
-        save_counter = 0
         total = len(to_process)
 
-        async def process(prompt_id: str, sample_id: str, task: TaskT, pbar: tqdm) -> None:
-            nonlocal save_counter
+        async def process(task: TaskT, pbar: tqdm) -> None:
             async with semaphore:
                 sample = await self.evaluate_sample(task)
+                prompt_id = sample.task.id.rsplit("_", 1)[0]
                 self.results[prompt_id].append(sample)
-                self.completed_ids.add(sample_id)
-                self.reporter.log_sample(prompt_id, sample)
+                self.completed_ids.add(sample.task.id)
+                self.log_sample(sample)
                 pbar.update(1)
-                save_counter += 1
-                if save_counter >= self.save_interval:
-                    self.save_results()
-                    save_counter = 0
 
         with logging_redirect_tqdm():
             with tqdm(total=total, desc=f"Evaluating {self.benchmark_name}", unit="sample", dynamic_ncols=True) as pbar:
-                await asyncio.gather(*[process(pid, sid, a, pbar) for pid, sid, a in to_process])
-        self.save_results()
+                await asyncio.gather(*[process(task, pbar) for task in to_process])
 
         # A missing reward is deterministic (no reward_fn configured), so samples are kept, not
         # retried — but metrics count them as incorrect, which must not go unnoticed.

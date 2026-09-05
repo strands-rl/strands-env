@@ -137,7 +137,6 @@ def _list_benchmarks(ctx: click.Context, param: click.Parameter, value: bool) ->
 @click.option("--max-concurrency", type=int, default=10, help="Maximum concurrent evaluations.")
 @click.option("--output", "-o", type=click.Path(path_type=Path), default=None, help="Output directory.")
 @click.option("--max-samples", type=int, default=None, help="Maximum dataset samples to evaluate.")
-@click.option("--save-interval", type=int, default=10, help="Save results every N samples.")
 @click.option("--keep-rollout", is_flag=True, default=False, help="Keep the token-level rollout in results.")
 # Distributed
 @click.option("--n-actors-per-node", type=int, default=None, help="Ray actors per node for distributed eval.")
@@ -168,7 +167,6 @@ def eval_cmd(
     max_concurrency: int,
     max_samples: int | None,
     output: Path,
-    save_interval: int,
     keep_rollout: bool,
     # Distributed
     n_actors_per_node: int | None,
@@ -255,7 +253,6 @@ def eval_cmd(
         max_concurrency=max_concurrency,
         n_samples_per_prompt=n_samples_per_prompt,
         output_path=output_dir / "results.jsonl",
-        save_interval=save_interval,
         keep_rollout=keep_rollout,
         env_actor_pool=env_actor_pool,
     )
@@ -279,12 +276,12 @@ def eval_cmd(
     }
 
     async def _run_eval() -> None:
-        evaluator.reporter.log_metadata(metadata)
         results = await evaluator.run(tasks)
         metrics = evaluator.compute_metrics(results)
-        evaluator.reporter.log_metrics(metrics)
-        await evaluator.reporter.publish()
+        (output_dir / "metrics.json").write_text(json.dumps(metrics, indent=2), encoding="utf-8")
+        await evaluator.publish()
 
+    (output_dir / "metadata.json").write_text(json.dumps(metadata, indent=2, default=str), encoding="utf-8")
     asyncio.run(_run_eval())
 
     if env_actor_pool is not None:
