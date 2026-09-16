@@ -10,6 +10,7 @@ import botocore.config
 import httpx
 from strands.models import Model
 from strands.models.bedrock import BedrockModel as _BedrockModel
+from strands.models.model import CacheConfig
 from strands.models.openai import OpenAIModel
 from strands.models.openai_responses import OpenAIResponsesModel
 from strands.types.streaming import StreamEvent
@@ -113,6 +114,25 @@ class BedrockModel(_BedrockModel):
             yield event
 
 
+def prompt_cache_config(model_id: str | None, *, enabled: bool = True, ttl: str | None = None) -> CacheConfig | None:
+    """The prompt-cache configuration for a Bedrock model id, or `None` where caching cannot apply.
+
+    Caching changes cost and latency, not output, so it is on by default. It does move input tokens
+    into `cacheReadInputTokens`: a run's token lines read differently from one recorded before it was
+    enabled, and a cost comparison across that boundary must read both fields.
+
+    Args:
+        model_id: the Bedrock id; only Anthropic models take an auto-injected cache point today.
+        enabled: `False` sends the request uncached, which is how the difference gets measured.
+        ttl: cache lifetime; Bedrock's default is 5 minutes, `"1h"` suits a run longer than that.
+    """
+    if not enabled or not model_id:
+        return None
+    if "anthropic" not in (lowered := model_id.lower()) and "claude" not in lowered:
+        return None
+    return CacheConfig(strategy="auto", ttl=ttl)
+
+
 def bedrock_model_factory(
     *,
     model_id: str,
@@ -120,6 +140,7 @@ def bedrock_model_factory(
     boto_client_config: botocore.config.Config = DEFAULT_BOTO_CLIENT_CONFIG,
     sampling_params: dict[str, Any] = DEFAULT_SAMPLING_PARAMS,
     additional_request_fields: dict[str, Any] | None = None,
+    cache_config: CacheConfig | None = None,
 ) -> ModelFactory:
     """Return a factory that creates `BedrockModel` instances.
 
@@ -129,6 +150,9 @@ def bedrock_model_factory(
         - `max_new_tokens` is remapped to `max_tokens` for the Bedrock API.
         - `additional_request_fields` goes into the Converse request as-is (reasoning, thinking);
           `ModelConfig.bedrock_request_fields` builds it per model family.
+        - `cache_config` turns on prompt caching. Strands' `strategy="auto"` warns on every request
+          for a model id it does not read as Anthropic, so pass it only for those — that is what
+          `prompt_cache_config` decides.
     """
     sampling_params = dict(sampling_params)
     if "max_new_tokens" in sampling_params:
@@ -143,6 +167,8 @@ def bedrock_model_factory(
     )
     if additional_request_fields:
         model_kwargs["additional_request_fields"] = additional_request_fields
+    if cache_config is not None:
+        model_kwargs["cache_config"] = cache_config
 
     # Build one model to extract a properly configured, thread-safe client.
     shared_client = BedrockModel(**model_kwargs).client
@@ -259,10 +285,9 @@ class ModelConfig:
     region_name: str | None = None
     profile_name: str | None = None
     role_arn: str | None = None
-
-    # Reasoning config, e.g. {"effort": "high"}. Bedrock Mantle passes it to the Responses API;
-    # Bedrock translates it per model family (`bedrock_request_fields`).
     reasoning: dict[str, Any] | None = None
+    prompt_cache: bool = True
+    prompt_cache_ttl: str | None = None
 
     # Sampling
     sampling_params: dict[str, Any] = field(default_factory=lambda: {"max_new_tokens": 16384})
@@ -329,6 +354,9 @@ def build_model_factory(config: ModelConfig | dict[str, Any]) -> ModelFactory:
                 boto_session=boto_session,
                 sampling_params=config.sampling_params,
                 additional_request_fields=config.bedrock_request_fields(),
+                cache_config=prompt_cache_config(
+                    config.model_id, enabled=config.prompt_cache, ttl=config.prompt_cache_ttl
+                ),
             )
         case "bedrock-mantle":
             if not config.model_id:
