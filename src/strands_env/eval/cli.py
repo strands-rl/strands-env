@@ -126,6 +126,17 @@ def _list_benchmarks(ctx: click.Context, param: click.Parameter, value: bool) ->
     default=None,
     help="Reasoning effort, as reasoning={'effort': ...}: Bedrock Mantle GPT models, and on Bedrock OpenAI models (reasoning.effort) and Claude 5 models (adaptive thinking, output_config.effort).",
 )
+@click.option(
+    "--prompt-cache/--no-prompt-cache",
+    default=True,
+    help="Bedrock prompt caching (Claude models; other model ids are sent uncached). On by default.",
+)
+@click.option(
+    "--prompt-cache-ttl",
+    type=click.Choice(["5m", "1h"]),
+    default=None,
+    help="Bedrock prompt-cache lifetime. Default is Bedrock's 5 minutes; '1h' suits a run longer than that.",
+)
 @click.option("--tool-parser", type=str, default=None, help="Tool parser name (e.g., 'hermes', 'qwen_xml').")
 # Sampling params
 @click.option("--temperature", type=float, default=None, help="Sampling temperature.")
@@ -156,6 +167,8 @@ def eval_cmd(
     profile_name: str | None,
     role_arn: str | None,
     reasoning_effort: Literal["low", "medium", "high"] | None,
+    prompt_cache: bool,
+    prompt_cache_ttl: Literal["5m", "1h"] | None,
     tool_parser: str | None,
     # Sampling
     temperature: float | None,
@@ -223,6 +236,8 @@ def eval_cmd(
         profile_name=profile_name,
         role_arn=role_arn,
         reasoning={"effort": reasoning_effort} if reasoning_effort else None,
+        prompt_cache=prompt_cache,
+        prompt_cache_ttl=prompt_cache_ttl,
         sampling_params=sampling_params,
     )
 

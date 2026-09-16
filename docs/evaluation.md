@@ -40,6 +40,8 @@ python -m strands_env.eval --evaluator <dotted.module.path> --env <dotted.module
 - `--profile-name` - AWS profile name for Bedrock
 - `--role-arn` - AWS role ARN to assume for Bedrock
 - `--reasoning-effort` - Reasoning effort (`low`/`medium`/`high`) for Bedrock Mantle GPT models
+- `--prompt-cache/--no-prompt-cache` - Bedrock prompt caching (default: on; applies to Claude models, other model ids are sent uncached)
+- `--prompt-cache-ttl` - Bedrock prompt-cache lifetime (`5m`/`1h`; default: Bedrock's 5 minutes)
 
 **Sampling options:**
 - `--temperature` - Sampling temperature
