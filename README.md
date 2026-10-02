@@ -5,7 +5,7 @@
 [![CI](https://github.com/strands-rl/strands-env/actions/workflows/ci.yml/badge.svg)](https://github.com/strands-rl/strands-env/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/strands-env.svg)](https://pypi.org/project/strands-env/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/strands-rl/strands-env)
+[![Ask DeepWiki](https://img.shields.io/badge/Ask-DeepWiki-blue.svg)](https://deepwiki.com/strands-rl/strands-env)
 
 A unified framework for building agent environments for RL training and evaluation with Strands Agents.
 
